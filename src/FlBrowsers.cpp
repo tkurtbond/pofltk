@@ -179,11 +179,7 @@ void drop_widget(Items *k, Fl_Tree_Item *it) {
   k->widgets.erase(w);
   it->widget(0);
   w->hide();
-  if (ofl::depth > 0) {
-    Fl::delete_widget(w);
-  } else {
-    delete w;
-  }
+  ofl::delete_widget(w);
 }
 
 // Removes item's descendants, and then item, last first. Fl_Tree::remove

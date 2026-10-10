@@ -186,7 +186,8 @@ FLTK may call, is kept reachable for poc's collector, which can't see
 FLTK's pointers. Delete a widget with `Delete`. Inside a
 callback, or a `Draw` or `Handle`, FLTK deletes it later, when its
 event loop next runs (`Fl::delete_widget`), since FLTK may still be
-using it. A widget a tree item shows (`TreeItem.SetWidget`) is
+using it. Deleting it again, or its group, before then deletes it
+once. A widget a tree item shows (`TreeItem.SetWidget`) is
 deleted with the item.
 
 **Resources.** `TextBuffer`, `Image`, `MultiLabel`, `Surface`,

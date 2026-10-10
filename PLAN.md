@@ -166,7 +166,9 @@ This is the hard part; `doc/design.md` has the failures that motivate it.
 - **Deleting during a dispatch** goes through `Fl::delete_widget`
   (deferred), as FLTKAda's `fl_inside_callback` guard does. A dispatch is
   a `Callback`, `Draw`, `Handle` or `Fire`, counted in `ofl::depth`. At
-  any other time `Delete` deletes at once.
+  any other time `Delete` deletes at once, after running the queue, so
+  a widget queued and still in its group isn't deleted twice
+  ("Deleting twice", below; `doc/fltk-issues.md`, 72).
 - **Resources Oberon owns** (`TextBuffer`, `Image`, `Preferences`) follow
   polibfyaml's `Document` rule:
   - explicit `Close` as the primary cleanup, idempotent, setting the
@@ -1484,6 +1486,18 @@ On 2026-10-07 the repository was renamed pofltk, and the project with it:
   `doc/design.md` keep the old one, as the record of what was done.
 - Kept: the `ofl` prefix of the C++ parts (`ofl::`, `ofl_`), which
   `test/vg-check.sh` matches, and the module names.
+
+### Deleting twice `[done]`
+
+On 2026-10-10, at the user's go-ahead, from a crash po_ova_cg's tests
+found (`doc/fltk-issues.md`, 72): a widget queued inside a dispatch
+stays in its group, so deleting or clearing the group outside one
+before the queue ran freed it twice, and so did queuing a group before
+its own child. `ofl::delete_widget` (`src/pofltk.h`) now does every
+deletion `Delete`, `Clear` and a tree item's widget make: it marks what
+it queues in the widget's `Ref`, queues nothing a queued group will
+delete, and outside a dispatch runs the queue (`Fl::do_widget_deletion`)
+before deleting. `TestDelete` has the four cases.
 
 ## Open questions
 

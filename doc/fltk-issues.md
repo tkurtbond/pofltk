@@ -1049,3 +1049,39 @@ Unless an entry says otherwise, the version is FLTK 1.4.5 (Fedora's
   the cursor lands uses a monospaced font (`TestText`, Courier).
 - **Confirmed**: `TestText` on cymoril failing, and passing with
   Courier, on Fedora and cymoril.
+
+### 72. A widget queued by `Fl::delete_widget` stays in its group
+
+- `Fl::delete_widget` only hides the widget and adds it to a list,
+  which `Fl::do_widget_deletion` deletes when the event loop next runs.
+  Until then the widget is still its group's child. If the group is
+  deleted or cleared at once before that (outside a callback), it
+  deletes the child, and the list then deletes it again: a double free,
+  a segfault in `Fl::do_widget_deletion`. So too inside a callback, if
+  a group is queued before its own child: the list deletes the group,
+  and with it the child, and then the child. Found 2026-10-09 by
+  po_ova_cg, whose test picked File > New from the menu (a callback
+  clearing a group of rows) and then loaded a file directly (clearing
+  it again).
+- **Cause**: `Fl::delete_widget` and `Fl::do_widget_deletion`
+  (`src/Fl.cxx`) keep a plain list, and `~Fl_Group` deletes its
+  children; neither knows of the other. FLTK expects a program to
+  delete through `Fl::delete_widget` alone, or to run the event loop
+  first.
+- **Effect on pofltk**: before, `Delete` and `Clear` deleted at once
+  outside a dispatch and queued inside one, so a program that did both
+  to the same widgets could free one twice. Now every deletion goes
+  through `ofl::delete_widget` (`src/pofltk.h`): a widget's `Ref` marks
+  it queued, and `ofl::pending` counts them. Inside a dispatch, a
+  widget that is queued, or in a queued group, isn't queued again.
+  Outside one, the queue runs first (`ofl::flush`), so queued children
+  leave their group before it is deleted; a widget already queued is
+  deleted by that, not again. Taking a queued widget out of its group
+  instead was rejected: FLTK may be iterating the group's children
+  when the callback returns (`Fl_Group::handle`, `resize`).
+- **Confirmed**: `TestDelete`'s queued cases (a group cleared inside a
+  callback and then deleted or cleared outside one; a widget deleted
+  inside and then outside; a group deleted inside a callback before
+  its child, and before being cleared) segfaulted before the change,
+  and pass after it, valgrind clean. Each part of the change, taken
+  out, fails one of them.

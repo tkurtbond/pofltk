@@ -22,6 +22,7 @@ SelfFn on_callback, on_draw, on_deleted;
 HandleFn on_handle;
 ResizeFn on_resize;
 int depth;
+int pending;
 
 void callback_trampoline(Fl_Widget *, void *data) {
   Dispatch d;
@@ -197,12 +198,14 @@ intptr_t ofl_box_new(int32_t x, int32_t y, int32_t w, int32_t h,
   return ofl::open(new ofl::W<Fl_Box>(x, y, w, h), self);
 }
 
-// Deleted now, unless an Oberon dispatch is running (pofltk.h).
+// Deleted now, unless an Oberon dispatch is running (pofltk.h): even a
+// widget already queued, which then goes with the queue.
 void ofl_widget_delete(intptr_t w) {
-  if (ofl::depth > 0) {
-    Fl::delete_widget(ofl::widget(w));
+  Fl_Widget *x = ofl::widget(w);
+  if (ofl::depth == 0 && ofl::going(x)) {
+    ofl::flush();
   } else {
-    delete ofl::widget(w);
+    ofl::delete_widget(x);
   }
 }
 
@@ -697,21 +700,23 @@ int32_t ofl_group_find(intptr_t g, intptr_t w) {
 }
 
 // Deletes every child pofltk opened, later inside a dispatch, as
-// ofl_widget_delete does. Not Fl_Group::clear: some groups' children
+// ofl_widget_delete does. Outside one, a group already queued goes now,
+// with its children, as FLTK runs the queue. Not Fl_Group::clear: some groups' children
 // are FLTK's own members, not on the heap (a scroll's scrollbars, a
 // spinner's field and buttons), which it would delete. Fl_Scroll::clear
 // and Fl_Pack::clear allow for that, but hide Fl_Group's rather than
 // overriding it. A pack's resizable goes back to none, as
 // Fl_Pack::clear leaves it. A table keeps its rows and columns.
 void ofl_group_clear(intptr_t g) {
+  if (ofl::depth == 0) {
+    bool gone = ofl::going(ofl::widget(g));
+    ofl::flush();
+    if (gone) return;
+  }
   for (int i = ofl_group_children(g); i-- > 0;) {
     Fl_Widget *c = child(g, i);
     if (ofl::object_of(c) == 0) continue;
-    if (ofl::depth > 0) {
-      Fl::delete_widget(c);
-    } else {
-      delete c;
-    }
+    ofl::delete_widget(c);
   }
   Fl_Group *group = ofl::as<Fl_Group>(g);
   if (dynamic_cast<Fl_Pack *>(group)) group->resizable(0);

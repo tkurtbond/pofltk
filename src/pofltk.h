@@ -14,6 +14,7 @@
 #define POFLTK_H
 
 #include <FL/Fl.H>
+#include <FL/Fl_Group.H>
 #include <FL/Fl_Image.H>
 #include <FL/Fl_Menu_.H>
 #include <FL/Fl_Menu_Item.H>
@@ -43,8 +44,13 @@ extern HandleFn on_handle;
 extern ResizeFn on_resize;
 
 // How many Oberon dispatches are running. A widget deleted inside one is
-// deleted later, by Fl::delete_widget, since FLTK may still be using it.
+// deleted later, by Fl::delete_widget, since FLTK may still be using it
+// (delete_widget, below).
 extern int depth;
+
+// How many widgets pofltk has queued with Fl::delete_widget that FLTK
+// hasn't deleted yet.
+extern int pending;
 
 struct Dispatch {
   Dispatch() { ++depth; }
@@ -102,6 +108,7 @@ public:
     for (int i = 0; i < slots; i++) held[i] = 0;
   }
   ~Ref() {
+    if (queued) --pending;
     {
       Dispatch d;
       on_deleted(self);
@@ -163,6 +170,8 @@ public:
     }
   }
   const intptr_t self;
+  // Queued by delete_widget, inside a dispatch.
+  bool queued = false;
 
 private:
   Shared *held[slots];
@@ -253,6 +262,42 @@ template <class B> void drop_icons(B *b) {
 inline intptr_t object_of(Fl_Widget *w) {
   if (w == 0 || w->callback() != callback_trampoline) return 0;
   return self_of(w);
+}
+
+// Whether w, or a group it is in, is queued by delete_widget: it goes
+// when FLTK next runs its queue.
+inline bool going(Fl_Widget *w) {
+  for (; w; w = w->parent()) {
+    if (object_of(w) && ref_of(w)->queued) return true;
+  }
+  return false;
+}
+
+// Runs FLTK's queue of widgets to delete, if pofltk queued any. Only
+// outside a dispatch, where FLTK uses no widget.
+inline void flush() {
+  if (pending > 0) Fl::do_widget_deletion();
+}
+
+// Deletes w, a widget pofltk opened: inside a dispatch, later, with
+// Fl::delete_widget; outside one, now. A queued widget stays in its
+// group until FLTK runs the queue, and deleting the group then would
+// delete it twice (doc/fltk-issues.md, 72): so outside a dispatch the
+// queue runs first, and nothing is queued, or deleted, that a queued
+// group will delete. Outside a dispatch, flushing may delete widgets
+// anywhere but w and the groups it is in.
+inline void delete_widget(Fl_Widget *w) {
+  if (going(w)) return;
+  if (depth > 0) {
+    if (object_of(w)) {
+      ref_of(w)->queued = true;
+      ++pending;
+    }
+    Fl::delete_widget(w);
+  } else {
+    flush();
+    delete w;
+  }
 }
 
 // The FLTK class's own draw(), handle() and resize(), for the Oberon
