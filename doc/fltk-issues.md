@@ -1060,7 +1060,7 @@ Unless an entry says otherwise, the version is FLTK 1.4.5 (Fedora's
   a segfault in `Fl::do_widget_deletion`. So too inside a callback, if
   a group is queued before its own child: the list deletes the group,
   and with it the child, and then the child. Found 2026-10-09 by
-  po_ova_cg, whose test picked File > New from the menu (a callback
+  ova_cg_po, whose test picked File > New from the menu (a callback
   clearing a group of rows) and then loaded a file directly (clearing
   it again).
 - **Cause**: `Fl::delete_widget` and `Fl::do_widget_deletion`

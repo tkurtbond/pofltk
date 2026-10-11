@@ -1489,7 +1489,7 @@ On 2026-10-07 the repository was renamed pofltk, and the project with it:
 
 ### Deleting twice `[done]`
 
-On 2026-10-10, at the user's go-ahead, from a crash po_ova_cg's tests
+On 2026-10-10, at the user's go-ahead, from a crash ova_cg_po's tests
 found (`doc/fltk-issues.md`, 72): a widget queued inside a dispatch
 stays in its group, so deleting or clearing the group outside one
 before the queue ran freed it twice, and so did queuing a group before
