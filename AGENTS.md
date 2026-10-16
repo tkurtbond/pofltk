@@ -153,7 +153,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 | FLTK docs (HTML) | `/usr/share/doc/fltk-devel/html/` |
 | FLTK 1.3 | also installed (`fltk1.3`, runtime only); never build against it |
 | FLUID | `fltk-fluid-1.4.5` |
-| poc | `/usr/bin/poc` (Peaseblossom RPM 0.4.1); `poc(1)`; `/usr/share/doc/peaseblossom/users-guide.md` (§9, "Calling C") and `reference-guide.md` |
+| poc | `/usr/bin/poc` (Peaseblossom RPM 0.6.0); `poc(1)`; `/usr/share/doc/peaseblossom/users-guide.md` (§9, "Calling C") and `reference-guide.md` |
 | poc source | `~/Repos/Oberon/Peaseblossom` |
 | FLTKAda | `/usr/local/sw/src/tkb/fltkada` (`AGENTS.md`, `doc/binding_architecture.md`, `progress.txt`, `test/`) |
 | polibfyaml | `~/Repos/Oberon/polibfyaml` (`AGENTS.md`, `GNUmakefile`, `test/Check.Mod`, `test/poc-gc.supp`) |
@@ -337,7 +337,8 @@ ssh to it as the user and as root.
   `CONF_LINKS`) were made by hand on 2026-10-08, and the three now
   match DejaVu Sans, Serif and Sans Mono. `fc-match sans` checks it.
 - Tested there 2026-10-08: `make test` passes, with the poc 0.4.1
-  package (`/usr/local/bin/poc`).
+  package (`/usr/local/bin/poc`); and 2026-10-15 with poc 0.6.0, all
+  823 `ok` lines.
 
 ### Testing on NetBSD i386 (yishana)
 
@@ -348,11 +349,12 @@ Luxi fonts. The agent can ssh to it as the user and as root.
 - **FLTK** is pkgsrc's: `FLTK_CONFIG=/usr/pkg/bin/fltk-config`. Its
   image libraries name a `-lpng` pkgsrc doesn't install, which the
   makefile drops (`doc/fltk-issues.md`, 71).
-- **poc** is 0.4.1, installed from the release tarball in `/usr/local`;
-  put `/usr/local/bin` first on `PATH` (ssh doesn't).
+- **poc** is 0.6.0 (2026-10-15), installed from the release tarball in
+  `/usr/local`; put `/usr/local/bin` first on `PATH` (ssh doesn't).
 - **The display**: Xvfb is X11's, `/usr/X11R7/bin/Xvfb`; start it by
   hand as on cymoril. No sway, and no valgrind on NetBSD.
-- Tested there 2026-10-08: `make test` passes, all 814 checks.
+- Tested there 2026-10-08: `make test` passes, all 814 checks; and
+  2026-10-15 with poc 0.6.0, all 823 `ok` lines.
 
 **So that a test passes on every system**, it must not depend on the
 font, the drawing back end, or the FPU:
@@ -384,7 +386,7 @@ font, the drawing back end, or the FPU:
     that the script still catches a deliberate leak whenever you change
     it.
 
-## Confirmed facts (poc 0.3.1 to 0.4.1, FLTK 1.4.5)
+## Confirmed facts (poc 0.3.1 to 0.6.0, FLTK 1.4.5)
 
 Each was confirmed by a program that ran, in the session of 2026-10-06
 unless it says otherwise.
@@ -616,6 +618,24 @@ workaround.
 
 None at present.
 
+- **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
+  `make test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
+  valgrind error summary 0, and `vg-check.sh` finds no leak of
+  pofltk's), as `make test` does on cymoril and yishana (below). Its
+  changes that could affect pofltk:
+  - **`FOR` ends at its last value**: after `FOR i := 1 TO 3`, `i` is 3,
+    not 4. A search of `src/`, `test/` and `examples/` found no `FOR`
+    variable read after its loop.
+  - **`REAL` constant expressions fold in single precision**, as `REAL`
+    variables compute.
+  - **Unsigned types** (`SYSTEM.CARD8` to `CARD64`, `CARD`) are not
+    used. They don't mix with signed integers without `SYSTEM.VAL`, so
+    a colour as a `CARD32` (an `Fl_Color` is unsigned, and an RGB colour
+    is a negative `INTEGER`) would put `SYSTEM.VAL` into every colour
+    computation, users' too; `-strict` rejects them; and `int32_t` and
+    `uint32_t` cross the C boundary alike.
+  - The makefile still requires only 0.4.1, the oldest that works.
 - **Fixed in 0.4.1: `ORD` of a `SET` under `-OC`** (2026-10-06). In
   0.3.1 and 0.4.0 any use failed to compile, poc emitting
   `trunc i32 %x to i32`, which clang rejects. 0.4.1 compiles
