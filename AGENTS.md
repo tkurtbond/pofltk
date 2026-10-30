@@ -308,9 +308,11 @@ widgets never shown; `make test` stops with a message without one.
 
 ### Testing on OpenBSD i386 (cymoril)
 
-cymoril runs OpenBSD 7.9 on i386, so it tests a 32-bit build, X11
-without Cairo, and fonts other than Fedora's (2026-10-08). The agent can
-ssh to it as the user and as root.
+cymoril runs OpenBSD 7.9 on i386, so it tests a 32-bit build and fonts
+other than Fedora's (2026-10-08). Until 2026-10-30 it also tested X11
+without Cairo, but its FLTK now has Cairo and Pango (`FLTK_HAVE_CAIRO`,
+`FLTK_USE_CAIRO`, `FLTK_HAVE_CAIROEXT`), and no host here tests FLTK's
+plain X11 drawing. The agent can ssh to it as the user and as root.
 
 - **FLTK**: OpenBSD's package is too old, so FLTK 1.4.5 is built from
   source in `/usr/local/sw/versions/fltk/1.4.5`, for X11 alone. Pass
@@ -343,18 +345,38 @@ ssh to it as the user and as root.
 ### Testing on NetBSD i386 (yishana)
 
 yishana runs NetBSD 11.0 on i386 (2026-10-08): a second 32-bit build,
-with pkgsrc's FLTK 1.4.5, which draws with Cairo and Pango, and X11's
-Luxi fonts. The agent can ssh to it as the user and as root.
+with pkgsrc's FLTK 1.4.5, which draws with Cairo and Pango, and
+DejaVu fonts since 2026-10-30 (X11's Luxi before). The agent can ssh
+to it as the user and as root.
 
 - **FLTK** is pkgsrc's: `FLTK_CONFIG=/usr/pkg/bin/fltk-config`. Its
   image libraries name a `-lpng` pkgsrc doesn't install, which the
   makefile drops (`doc/fltk-issues.md`, 71).
-- **poc** is 0.6.0 (2026-10-15), installed from the release tarball in
-  `/usr/local`; put `/usr/local/bin` first on `PATH` (ssh doesn't).
+- **poc** is 0.10.1 in `/usr/pkg/bin` (2026-10-30); put `/usr/pkg/bin`
+  first on `PATH` (ssh doesn't).
 - **The display**: Xvfb is X11's, `/usr/X11R7/bin/Xvfb`; start it by
   hand as on cymoril. No sway, and no valgrind on NetBSD.
 - Tested there 2026-10-08: `make test` passes, all 814 checks; and
   2026-10-15 with poc 0.6.0, all 823 `ok` lines.
+
+### The other BSD hosts
+
+Surveyed 2026-10-30; each has poc 0.10.1, and the agent can ssh to each
+as the user.
+
+- **artos**: NetBSD 11.0 on amd64, set up as yishana is: pkgsrc's FLTK
+  1.4.5 with Pango, Xvfb, no sway or valgrind. It can build pofltk, but
+  `make test` has not been run there yet.
+- **jherek**: OpenBSD 7.9 on amd64: FLTK 1.4.5 in
+  `/usr/local/sw/versions/fltk/1.4.5` (2026-10-30), with
+  `FLTK_HAVE_CAIRO` and `FLTK_USE_CAIRO`, and cairo, Pango, GL, GLEW
+  and `/usr/X11R6/bin/Xvfb`. Set up as cymoril is, on amd64. `make test`
+  has not been run there yet.
+- **alerik** (FreeBSD 15.1, amd64) and **rackhir** (FreeBSD 15.1,
+  arm64): FLTK 1.4.5 in `/usr/local/sw/versions/fltk/1.4.5` (2026-10-30),
+  with `FLTK_HAVE_CAIRO` and `FLTK_USE_CAIRO`, and cairo, Pango, GL,
+  GLEW and `/usr/local/bin/Xvfb`. DejaVu is their only font.
+  `make test` has not been run there yet.
 
 **So that a test passes on every system**, it must not depend on the
 font, the drawing back end, or the FPU:

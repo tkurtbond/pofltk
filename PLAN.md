@@ -40,10 +40,10 @@ application uses:
 
 Out of scope, at least at first:
 - **Threads** (`Fl::lock`, `Fl::awake`): poc's collector scans one stack.
-- **OpenGL and GLUT.**
-- **Printing and the file surfaces** (PDF, EPS, SVG).
-- **`Fl_Terminal`**: a large API, and FLTKAda hasn't bound it either.
 - **The platform graphics drivers and the FLTK 1.3 API.**
+
+OpenGL and GLUT, printing and the file surfaces, and `Fl_Terminal` were
+out of scope until 2026-10-30. Phases 14 to 22 bring them in.
 
 Later, if wanted: a FLUID back end that writes Oberon-2 instead of C++.
 
@@ -97,6 +97,12 @@ together with their methods and their part of the shim:
 | `FlImages` | `Image`, `RGBImage`, PNG, JPEG, GIF, SVG, BMP, XPM loading (`-lfltk_images`) |
 | `FlPreferences` | `Preferences`: `Fl_Preferences` databases and their groups |
 | `FlTable` | `Table`, `TableRow`: `Fl_Table` and `Fl_Table_Row`, their cells drawn by the program |
+| `FlHelp` (Phase 17) | `HelpView`, `HelpDialog` |
+| `FlTerminal` (Phase 18) | `Terminal`: `Fl_Terminal` |
+| `FlPrint` (Phase 19) | `Printer`, `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile` and their bases |
+| `FlForms` (Phase 20) | `Timer`, `Free`, `FormsBitmap`, `FormsPixmap`, `FormsText` (`-lfltk_forms`), its own library |
+| `FlGl`, `FlGlut` (Phase 21) | `GlWindow`, `gl_draw`, a subset of `gl.h`; `glut.H` (`-lfltk_gl`), their own library |
+| `FlCairo` (Phase 22) | `CairoWindow`, a subset of cairo (`-lcairo`), its own library |
 
 `Fl` exports a few procedures that only the other pofltk modules should
 use (attaching a new widget's handle, registering it), as polibfyaml's
@@ -1019,7 +1025,7 @@ finds the small gaps cheaply. The bindings with new lifetime problems
 Not in these phases: FLTK's classes no example uses (`Fl_Clock`,
 `Fl_Positioner`, `Fl_Input_Choice`, `Fl_File_Input`, `Fl_Help_View`,
 `Fl_Overlay_Window` and others). Each is a small widget binding, for
-when a program needs it.
+when a program needs it. Phases 14 to 22 bind them.
 
 ### Phase 9: Ports that needed little new `[done]`
 
@@ -1438,6 +1444,470 @@ under Xvfb, as Phase 9's were.
   chooser (`Fl_File_Chooser::sort`). `test/names/` holds empty files
   whose names each sort orders differently, which `TestDialogs` and
   `TestBrowsers` list.
+
+### Phases 14 to 22: the rest of FLTK's classes
+
+Planned 2026-10-30, with poc 0.10.1 and FLTK 1.4.5. These phases bind
+every public FLTK class still unbound, and port the four examples
+"Scope" used to leave out, so that all 46 of `examples/` are ported.
+The list came from comparing FLTK's headers with what the C++ parts
+call. As in Phases 9 to 13, a gap goes into the phase that finds it.
+
+Left out: FLTK's internal classes, which a program doesn't use
+directly, and threads.
+
+Each phase ends as Phases 9 to 13 did:
+- every test passes on `make test-headless` and `make test-sway`, and
+  `make valgrind-headless` and `make valgrind-sway` are clean; and also
+  `make test` on cymoril, yishana and artos, since these phases add
+  conditional builds;
+- each binding has its own test, and each new halt its `Halt*` test;
+- `doc/fltk-issues.md` records each FLTK problem found, with the short
+  note in AGENTS.md;
+- the phase is marked `[done]`, with what it found.
+
+Each example:
+- goes in `EXAMPLES`, so `make test` runs it;
+- is a **port**, if an FLTK program uses the class, named for FLTK's
+  file in CamelCase (`InputChoice` for `test/input_choice.cxx`), with
+  the same first comment as other ports, naming the FLTK file. FLTK's
+  `test/` has built binaries, as `examples/` has, so a port from `test/`
+  is compared with FLTK's own build as before;
+- is **new**, if no FLTK program uses the class. A new example is named
+  for what it shows, as `Swatch` and `Menus` are, is small, and has a
+  first comment saying what it shows. It has no FLTK build to compare
+  with, so it is looked at under Xvfb, with `xdotool` driving it.
+
+Order: as before, the cheap bindings come first. Those with new
+lifetime problems follow, and those needing more libraries come last.
+
+Facts behind the plan, each from a program run on 2026-10-30:
+- `Fl_Gl_Window` draws on Xvfb and on the headless sway, with llvmpipe,
+  and `glReadPixels` reads 255 0 0 back on both. It does the same under
+  Xvfb on cymoril, yishana and artos, so GL tests can check pixels on
+  all of them.
+- `Fl_Overlay_Window`'s `can_do_overlay` is 0 on both, and its
+  `draw_overlay` still runs after `redraw_overlay`: FLTK emulates it.
+- `<FL/forms.H>` compiles under `-Wall -Wextra -Werror`, with
+  `Fl_Free`, `Fl_Timer` and `Fl_FormsText`.
+- `Fl_PDF_File_Surface::begin_document` writes a one-page PDF here, and
+  `Fl_PostScript_File_Device` a PostScript file. Without Pango,
+  `Fl_PDF_File_Surface` returns 2 and the message "requires PANGO to be
+  usable" (source: `drivers/PostScript/Fl_PostScript.cxx`).
+- cairo, Pango and GLEW are on Fedora and all six BSDs.
+  FLTK on Fedora and on cymoril (rebuilt 2026-10-30) has
+  `FLTK_HAVE_CAIRO`, and `Fl_Cairo_Window` draws on cymoril, read back
+  as 255 0 0 under Xvfb. The NetBSD FLTKs link cairo for Pango, but
+  don't have `FLTK_HAVE_CAIRO`, so `Fl_Cairo_Window` and
+  `Fl::cairo_make_current` don't exist there. An `Fl_Double_Window`
+  whose `draw()` makes its own context from
+  `cairo_xlib_surface_create(fl_display, fl_window, fl_visual->visual,
+  w, h)` draws on yishana and artos, read back the same way. It also
+  did on cymoril, before its rebuild.
+- jherek (OpenBSD amd64), alerik (FreeBSD amd64) and rackhir (FreeBSD
+  arm64) have FLTK 1.4.5 with `FLTK_HAVE_CAIRO`, and Xvfb, so they can
+  build pofltk and run its tests, which have not been run there yet.
+- `fltk-config --use-gl --use-forms --use-images --ldflags` gives what
+  each needs. libfltk_forms and libfltk_gl exist on all six BSDs.
+
+### Phase 14: Small widgets and types
+
+Widgets with no new lifetime problem, and FLTK's plain small types.
+
+- **First, a baseline**: every host now has poc 0.10.1, and the last
+  full runs were with 0.6.0. Run the four Linux targets and `make test`
+  on the three BSDs before binding anything, so that a failure in this
+  phase isn't blamed on the wrong change, and follow the usual steps
+  for a new poc.
+- **Missing features**: FLTK's builds differ (Cairo on NetBSD, Wayland
+  on the BSDs), and poc has no conditional compilation, so an Oberon
+  module compiles the same everywhere. What FLTK was built without is
+  decided in the C++ parts, with `#if` on `fl_config.h`, as `ofl_paste`
+  does for Wayland. Every `["C"]` procedure must exist at link time, so
+  an absent feature gets a stub, not a missing function; a generated
+  Oberon constant wouldn't remove that need. The later phases use what
+  follows, so it comes first:
+  - **`Fl.Has(feature)`**, one run-time question answered by the shim:
+    `Svg`, `CairoWindow`, `Wayland`, `X11`. The last two open the
+    display first, as `ofl_paste` does.
+  - **`Probe.Wayland` moves into `Fl`**, as `Fl.Has(Fl.Wayland)`, and
+    `TestMenus` and the rest use it.
+  - **A program that uses a missing feature without asking halts**
+    with `Fl.Unsupported`, since it could have asked. Its comment is
+    widened to say so, and 79 stays free. Failures that depend on
+    outside data still come back as a `BOOLEAN`, so PDF without Pango
+    returns FALSE (Phase 19).
+  - **The SVG guard**: `src/FlImages.cpp` uses `Fl_SVG_Image` whatever
+    `FLTK_USE_SVG` says. Build FLTK with it off to see what happens,
+    then guard it with `#if`, and make the SVG `Open`s follow the rule
+    above. Every FLTK here has it, so nothing has shown this yet.
+  - **`Check.Skip(label)`** prints `skip - <label>`, for a check of a
+    feature that is missing, and `Summary` counts them. `make test`
+    totals the skips, so a host that tests less says so.
+  - **`TestFeatures`**: `Fl.Has` against `fl_config.h`, read by a test
+    module's C++ part, as `TestConstants` checks values. It catches a
+    wrong case in the shim.
+- **Valuator presets**, in `FlValuators`: `OpenFillSlider`,
+  `OpenHorSlider`, `OpenHorFillSlider`, `OpenHorValueSlider`,
+  `OpenNiceSlider`, `OpenHorNiceSlider`, `OpenFillDial`, `OpenLineDial`,
+  `OpenSimpleCounter`. Each is a `kind` of `ofl_valuator_new`, making
+  FLTK's class. Most only set the type, but the nice sliders also set
+  `FL_FLAT_BOX`, which a test checks.
+- **`Fl.OpenSingleWindow`** (`Fl_Single_Window`) and
+  **`Fl.OpenMenuWindow`** (`Fl_Menu_Window`), with its `SetOverlay`
+  and `ClearOverlay`.
+- **`FlButtons.ShortcutButton`** (`Fl_Shortcut_Button`): `Value`,
+  `SetValue`, `SetDefault`, `ClearDefault`. The test sends it keys
+  with `Probe`.
+- **`FlInputs.FileInput`** (`Fl_File_Input`): `value` hides
+  `Fl_Input_`'s, so call the class as itself. `errorcolor` is a no-op
+  in the header: check, and record it if so.
+- **`FlValuators.Positioner`** (`Fl_Positioner`): two values, bounds
+  and steps.
+- **`FlValuators.Clock`** (`Fl_Clock_Output`, `Fl_Clock`,
+  `Fl_Round_Clock`): `value` takes an `unsigned long`, 32 bits on i386,
+  so check what happens past 2038 and how it crosses the boundary.
+  `Fl_Clock` runs on an FLTK timer: delete one with it pending under
+  valgrind.
+- **Tooltips**, in `Fl`: `Fl_Tooltip`'s statics (`SetTooltipDelay` and
+  the rest, `EnableTooltips`, `TooltipCurrent`, `EnterArea`). Find
+  whether `current` or `enter_area` keep a widget that may die.
+- **`Fl.Rect`**: `Fl_Rect` as a plain Oberon record, with `Right`,
+  `Bottom`, `Inset`, `InsetBox` and `Equal`. FLTK's type doesn't cross
+  the boundary.
+- **Schemes**, in `Fl`: `SchemeCount`, `SchemeName`, `AddSchemeName`
+  (`Fl_Scheme`). Find whether `add_scheme_name` keeps its pointer.
+- **`Fl.Tracker`** (`Fl_Widget_Tracker`): pofltk's handles already know
+  a dead widget, so an Oberon `Tracker` holds the widget and asks the
+  registry, with `Widget`, `Deleted` and `Exists`. FLTK's class lives on
+  a C++ stack, so nothing of it is kept. The test deletes the widget in
+  its own callback.
+- Ports: `Clock` (`test/clock.cxx`), `DoubleBuffer`
+  (`test/doublebuffer.cxx`).
+- New examples: `Presets`, every preset valuator, tied together;
+  `Positions`, a positioner driving a box; `Shortcuts`, shortcut buttons
+  that set a button's key; `FileInputs`, a file input with its path bar;
+  `Tooltips`, the settings changed live; `Rects`, drawing with `Rect`'s
+  insets; `Trackers`, buttons that delete each other, reporting through
+  a tracker.
+
+### Phase 15: Composite widgets and audits
+
+- **`FlInputs.InputChoice`** (`Fl_Input_Choice`), with `Fl.BeginOpen`
+  and a `kind`, though it is a group: its constructor calls `end()`, and
+  its input and menu button are FLTK's, so `Group.Child` gives NIL for
+  them. Its `Add`, `Clear`, `Value`, `SetValue`, `SetValueIndex`,
+  `Changed`, `ClearChanged`, text and box settings. Its menu is
+  an `Fl_Menu_Button` of FLTK's: its items are reached through the
+  class, and `add` parses `/`, `&` and `|` as `Fl_Menu_::add` does.
+  `value(int)` and `value(const char *)` set the input differently:
+  test both.
+- **`FlMenus.SysMenuBar`** (`Fl_Sys_Menu_Bar`), a `kind` of
+  `ofl_menu_new`. It hides `menu`, `add`, `insert`, `remove`, `replace`,
+  `clear`, `clear_submenu`, `mode`, `shortcut` and `setonly`, so call
+  it as itself: `FlMenus.cpp`'s calls go through a small dispatch on
+  `kind`. Also `About` and `CreateWindowMenu`. On X11 and Wayland it
+  acts as a menu bar.
+- **`FlDialogs.ColorChooser`** (`Fl_Color_Chooser`), a widget, beside
+  the `fl_color_chooser` procedure: `Hue`, `Saturation`, `Value`, `R`,
+  `G`, `B`, `SetHSV`, `SetRGB`, `SetMode`.
+- **`Fl.OverlayWindow`** (`Fl_Overlay_Window`): a pure virtual
+  `draw_overlay`, sent to Oberon as a method `DrawOverlay`, by a
+  dispatcher `Fl`'s body registers, as `Draw`'s is; `RedrawOverlay`,
+  `CanDoOverlay`. `Fl_Gl_Window` has the same virtual (Phase 21), so
+  the dispatcher is written to serve both.
+- **`Fl_Tree_Prefs`**: `Fl_Tree::prefs()` is const and `_prefs` private,
+  so settings go through `Fl_Tree`'s own methods. Audit them: a rough
+  search of `FlBrowsers.cpp` found no call of `openicon`, `closeicon`,
+  `usericon` and their deactivated forms, `labelmarginleft`,
+  `marginbottom`, `openchild_marginbottom`, `usericonmarginleft` or
+  `item_draw_callback`. Bind what `Fl_Tree` exposes, and record what it
+  doesn't. Find out whether FLTK keeps the icons' pointers: if so, the
+  tree holds them through `Keeps`.
+- **`Fl_Text_Selection`**, in `FlText`: an Oberon `Selection` view of
+  the primary, secondary and highlight selections (`Selected`, `Start`,
+  `End`, `Rectangular`, `Includes`, `Length`), with
+  `SecondarySelect`, `SecondaryText`, `RemoveSecondary`,
+  `ReplaceSecondary` and the same for highlights. The view holds the
+  buffer and asks each time, since FLTK's objects live in the buffer.
+- Ports: `InputChoice` (`test/input_choice.cxx`), `MenuBar`
+  (`test/menubar.cxx`), `ColorChooser` (`test/color_chooser.cxx`),
+  `Overlay` (`test/overlay.cxx`).
+- New examples: `TreeIcons`, a tree with its own icons and margins;
+  `Selections`, an editor showing all three selections.
+
+### Phase 16: Images
+
+- **`FlImages.Bitmap`** (`Fl_Bitmap`) from bits: FLTK keeps the pointer
+  unless `alloc_array` is set, so the shim copies and sets it.
+- **XBM and ICO**: `Fl_XBM_Image`, `Fl_ICO_Image`. `format()` gains
+  `#define` and `00 00 01 00`, by contents, as every format is. XBM's
+  magic number is weak, so test a text file that merely starts
+  with `#define`: it must come back as a failed load, not a crash.
+  `Fl_XBM_Image` takes only a file name, so `LoadData` of XBM returns
+  FALSE, unless the phase finds a better way. `test/images/` gains a
+  4x2 file of each, and an ICO with two sizes, for its `id`.
+- **`FlImages.Shared`** (`Fl_Shared_Image`): `Get`, `Find`, `Release`,
+  `Reload`, `Count`, `RefCount`, `Original`. It has its own reference
+  count, and `release` deletes at 0, where `ofl::Shared` already counts
+  what widgets hold. So one `ofl::Shared` holds one FLTK reference, and
+  lets it go at its own 0. Test a `Shared` shown by two widgets, deleted
+  in each order, under valgrind. `Fl_Shared_Image::copy` makes another
+  entry: check its count. `add_handler` takes a C function, so it is
+  bound only as `RegisterImages`, unless a port needs more.
+- **`FlImages.FileIcon`** (`Fl_File_Icon`): `Open`, `Add`, `AddColor`,
+  `AddVertex`, `Load`, `LoadImage`, `LoadSystemIcons`, `Find`, `First`,
+  `Next`, `Draw`, `Label`, and `SetIcon` on a `FileBrowser`. FLTK keeps
+  a global list of icons, and their `pattern` pointer: check both, with
+  what happens to a widget showing an icon that is deleted. Icons FLTK
+  made have no Oberon object until asked for, as a `TreeItem` hasn't.
+- Ports: `Bitmap` (`test/bitmap.cxx`).
+- New example: `Icons`, an XBM, a generated bitmap, the sizes in an ICO,
+  and a shared image on several buttons.
+
+### Phase 17: Choosers and help
+
+- **`FlDialogs.FileChooser`** (`Fl_File_Chooser`), not a widget, owning
+  its windows, handled as `NativeFileChooser` is: `Open`, `Close`,
+  `Show`, `Hide`, `Shown`, `Count`, `Value`, `SetValue`, `Directory`,
+  `Filter`, `FilterValue`, `Rescan`, `Preview`, `ShowHidden`,
+  `SetCallback`, `SetType`, `SetLabel`, `SetOkLabel`, text settings,
+  position and size.
+  - `label` passes straight to `window->label(l)`, which keeps it (30):
+    the shim keeps a copy, as for `directory`, `filter` and `ok_label`,
+    each checked in `src/Fl_File_Chooser.fl`.
+  - The static label strings (`all_files_label` and the rest) are kept
+    pointers: `SetChooserLabels` copies them for the program's life.
+  - Its callback holds an Oberon object, so it is in the registry until
+    `Close`. It may delete the chooser from within: test that.
+  - `add_extra` takes a widget FLTK's chooser then holds: return the
+    old one, and test deleting the chooser first.
+  - `Fl_File_Chooser::sort` stays `ofl::numericsort`.
+- **`FlHelp`**, a new module: `HelpView` (`Fl_Help_View`, a group):
+  `Load`, `SetValue`, `Value`, `Find`, `SetTopLine`, `TopLine`,
+  `SetTopLineName`, `LeftLine`, `Directory`, `FileName`, `Title`,
+  `ClearSelection`, `SelectAll`, text settings. Its scrollbars are
+  FLTK's. `Fl_Help_Func` returns a `const char *` from Oberon for FLTK
+  to use: the view's method `Link(uri): BOOLEAN` fills a buffer the
+  shim keeps until the next. `value` copies (`fl_strdup`).
+- **`FlHelp.HelpDialog`** (`Fl_Help_Dialog`), not a widget, in
+  libfltk_images, which every program links.
+- Ports: `FileChooser` (`test/file_chooser.cxx`), `HelpDialog`
+  (`test/help_dialog.cxx`).
+- New example: `HelpPages`, a help view with its pages in the program,
+  from its link method. `test/` gains a small HTML page.
+
+### Phase 18: The terminal
+
+**`FlTerminal`**, a new module, with one `Terminal` type for
+`Fl_Terminal`, a group whose scrollbars are FLTK's. Its header has
+around 400 methods, most of them protected. The public ones are:
+- size: `DisplayRows`, `DisplayColumns`, `HistoryRows`, `HistoryUse`,
+  `ScrollbarSize`, `HScrollbarStyle`, the margins;
+- text: `TextFont`, `TextSize`, the foreground and background colors
+  (with `_default` and `_xterm`), selection colors, `TextAttrib`;
+- behaviour: `RedrawStyle`, `RedrawRate`, `ShowUnknown`, `ErrorChar`,
+  `Ansi`, `OutputTranslate`;
+- output: `Append`, `AppendAscii`, `AppendUtf8`, `PrintChar`,
+  `PlotChar`, `Clear`, `ClearScreen`, `ClearScreenHome`, `ClearHistory`,
+  `ResetTerminal`, the cursor's movements, `Text`.
+
+Hazards to check:
+- `printf` is C varargs, so it isn't bound: a program formats in
+  Oberon, and calls `Append`.
+- `error_char` keeps its pointer: the shim keeps a copy.
+- `Fl_Terminal` redraws on a timer (`RATE_LIMITED`): test deleting one
+  with a redraw pending, under valgrind.
+- `text()` returns a copy made by `strdup`: copy it to Oberon, and
+  free it.
+- Each method: check for one hiding `Fl_Group`'s, as `Fl_Table`'s do.
+- A UTF-8 character split across two `Append`s must not be corrupted:
+  test it.
+
+Its test reads the grid back through `Text`: output, escape sequences,
+scrolling into history, resizing. Pixels are compared only with the
+widget's own earlier drawing (`doc/fltk-issues.md`, 69).
+
+- Ports: `SimpleTerminal` (`examples/simple-terminal.cxx`).
+  `test/terminal.cxx` is 2521 lines, mostly a FLUID panel, so it is not
+  ported.
+- New example: `Console`, a terminal with colored ANSI output from an
+  input line, using `Pipe`.
+
+### Phase 19: Printing and the file surfaces
+
+**`FlPrint`**, a new module.
+
+- A base type `WidgetSurface` (`Fl_Widget_Surface`): `Translate`,
+  `Untranslate`, `Draw`, `DrawDecoratedWindow`, `PrintWindowPart`,
+  `PrintableRect`, `Origin`. `FlImages.Surface` stays as it is, with
+  this procedure list shared through the C++ parts where it costs
+  nothing.
+- `PagedDevice` (`Fl_Paged_Device`): `BeginPage`, `EndPage`, `EndJob`,
+  `Margins`, `Scale`, `Rotate`, `PrintWidget`, `PrintWindow`.
+- `Printer` (`Fl_Printer`), `PostScriptFile`
+  (`Fl_PostScript_File_Device`), `PDFFile` (`Fl_PDF_File_Surface`),
+  `EPSFile` (`Fl_EPS_File_Surface`), `SVGFile`
+  (`Fl_SVG_File_Surface`).
+- Each is `Open`ed, and made current between `Begin` and `End`, with
+  order checked (`Fl.OutOfOrder`, 77), as `Surface` does. A surface
+  left current when closed halts.
+- `FILE *` stays in the shim, opened with `fl_fopen`. A file that can't
+  be opened comes back as FALSE.
+- `begin_job` and `begin_document` return an allocated message
+  (`perr_message`): copy it to an Oberon string, and free it.
+- `PDFFile.Begin` returns FALSE without Pango (above): bad outside data,
+  so no halt. Its test accepts that only with FLTK's message. Every host
+  here has Pango now, so that path is seen only by building FLTK without
+  it.
+- Find out what `Fl_Printer`'s dialog returns when cancelled, and
+  whether `close_command` keeps its pointer.
+
+`TestPrint` writes each file and reads back its first bytes (`%!PS`,
+`%!PS-Adobe-3.0 EPSF`, `%PDF`, `<svg`). `Printer` is tested only by
+cancelling its dialog with `Probe.Modal`: no test prints.
+
+- Ports: `Device`, a subset of `test/device.cxx` (786 lines);
+  `PixmapBrowser` (`test/pixmap_browser.cxx`).
+- New example: `SaveAs`, a drawing saved as PostScript, EPS, PDF or SVG.
+
+### Phase 20: Optional libraries and forms
+
+Forms, GL and Cairo each need another library, and a program using only
+widgets must not be linked with them.
+
+- **Probe first**: poc's guide says a library's flags reach a program
+  using it "directly or through another library", so a library should
+  be able to import one. Build `pofltk` and a small library using `Fl`
+  from it, run a program using both, and try it in a scratch install.
+- **Design, if the probe passes**: `pofltk` stays as it is. Each of
+  `FlForms`, `FlGl` with `FlGlut`, and `FlCairo` is a library of its
+  own, importing `pofltk`, in its own directory, as the makefile's
+  comment on `POC_OBERON_LIBRARIES` intends. The library names are
+  settled by what `poc -library` accepts. If the probe fails, `make
+  install` takes a list of optional modules, and the library's flags
+  follow the list.
+- **The makefile**:
+  - `MODULES` splits into `MODULES`, and optional lists with their
+    flags (`fltk-config --use-forms`, `--use-gl`, `pkg-config cairo`).
+    `install` and `uninstall` handle each.
+  - `LINK` becomes per program: a list like `EXAMPLEARGS`, as
+    `name=flags`.
+  - An optional part with no library is skipped, with a message, not
+    an error: `HAVE_FORMS`, `HAVE_GL`, `HAVE_GLEW`, `HAVE_CAIRO` come
+    from `fl_config.h` and `pkg-config`. Its tests and examples then
+    aren't in `TESTS` or `EXAMPLES`, and `make test` says so.
+  - A program can't adapt to a missing library at run time: importing
+    `FlCairo` where it wasn't installed fails as the program is built,
+    which is early and clear. Anything meant to be optional at run
+    time has to live in `pofltk` itself.
+  - A library records what FLTK offered as it was built, so rebuilding
+    FLTK with other options means `make install` again, as a new poc
+    does. README.md says so.
+- **`FlForms`**, a new module:
+  - `Timer` (`Fl_Timer`): `Value`, `SetValue`, `Direction`, `Suspended`.
+    It has an FLTK timer: delete one running, under valgrind.
+  - `Free` (`Fl_Free`): a `Handle(event, x, y, key)` method through a
+    dispatcher the module's body registers, as `ofl_table_register`. The
+    C function takes the widget, so it finds its object in the
+    registry. `FL_CONTINUOUS_FREE` and `FL_ALL_FREE` run on timers:
+    delete one with it pending.
+  - `FormsBitmap`, `FormsPixmap`, `FormsText`: check whether `set` and
+    `bitmap` keep pointers.
+  - `fl_add_*` and the rest of `forms.H` are a C API for old programs,
+    and aren't bound; the classes are.
+- **`FlPreferences.Plugin`** and **`PluginManager`** (`Fl_Plugin`,
+  `Fl_Plugin_Manager`), which need no library. A manager is
+  `Fl_Preferences(0, "plugins/<class>")`, a runtime group, and a plugin
+  is stored there as an address. So `Plugin`s stay in the registry
+  until closed. `Plugins`, `PluginAt`, `PluginNamed`. `Load` and
+  `LoadAll` are `dlopen`: whether a poc shared library can be a plugin
+  is unknown. Probe it, and if not, bind them for C++ plugins and say so
+  in the module's comment.
+- Ports: `Forms`, the same window as `test/forms.cxx` but made with
+  `FlForms`' classes.
+- New examples: `FreeForm`, a `Free` tracing the mouse; `Plugins`, two
+  plugins found by class and run.
+
+### Phase 21: OpenGL and GLUT
+
+- **`FlGl`**, a new module:
+  - `GlWindow` (`Fl_Gl_Window`), with `Draw` sent to Oberon as for any
+    window, and `DrawOverlay` through Phase 15's dispatcher: `Mode`,
+    `SetMode`, `CanDo`, `Valid`, `ContextValid`, `Invalidate`,
+    `MakeCurrent`, `SwapBuffers`, `SwapInterval`, `Ortho`, `PixelW`,
+    `PixelH`, `RedrawOverlay`, `HideOverlay`.
+  - `Fl_Gl_Window::mode` takes an `int` or an `int *`: the `int` alone.
+  - `gl_draw`, `gl_font`, `gl_height`, `gl_color`, `gl_rect`,
+    `gl_start`, `gl_finish`.
+  - A subset of `gl.h`, as `FlDraw` is for `fl_draw.H`: what
+    `test/cube.cxx` uses (`glBegin`, `glClear`, `glClearColor`,
+    `glColor3f`, `glColor4f`, `glEnable`, `glDisable`, `glEnd`,
+    `glFrustum`, `glLoadIdentity`, `glOrtho`, `glPushMatrix`,
+    `glPopMatrix`, `glRotatef`, `glScalef`, `glShadeModel`,
+    `glTranslatef`, `glVertex3f`, `glViewport`, `glBlendFunc`), plus
+    `glReadPixels` for tests, through `ofl_gl_` functions. GL's `float`
+    crosses as `double`, by the Conventions.
+  - Constants through `gen-constants.py`, with `SPEC` gaining the GL
+    header and `FL_RGB` and the rest.
+- **`FlGlut`**, a new module: `glut.H`'s window-creating and callback
+  functions (`Init`, `InitDisplayMode`, `InitWindowSize`,
+  `CreateWindow`, `DisplayFunc`, `ReshapeFunc`, `KeyboardFunc`,
+  `MouseFunc`, `IdleFunc`, `MainLoop`, `PostRedisplay`, `SwapBuffers`),
+  and `Fl_Glut_Window`. GLUT's callbacks are global, per window, and
+  plain C: top-level Oberon procedures pass as they are, so no registry
+  is needed, but check that for each. `glutInit` takes `argc`, `argv`:
+  use `Args.argv`, as `Fl.Args` does. `glutMainLoop` never returns,
+  so a test must use `Fl.Check` instead.
+- **OpenGL 3**: the two ports call GL's 3.0 functions, loaded by GLEW.
+  Their shader code stays in a C++ part, `examples/GlThree.cpp`, in
+  `EXAMPLECXX`, with `FlGl` for the window. They need `HAVE_GLEW`,
+  which Fedora, cymoril, yishana and artos all have. Whether GL 3.0
+  runs under the BSDs' Xvfb is not yet tried.
+  Keep FLTK's exception for `GLEW_ERROR_NO_GLX_DISPLAY` under Wayland.
+- `TestGl` draws in a window on both back ends, and reads pixels with
+  `glReadPixels`. It deletes a window with a context, and tests `Valid`
+  after a resize.
+- Ports: `Cube` (`test/cube.cxx`), `GlOverlay` (`test/gl_overlay.cxx`),
+  `GlutTest` (`test/glut_test.cxx`), `OpenGL3Test`
+  (`examples/OpenGL3test.cxx`), `OpenGL3GlutTest`
+  (`examples/OpenGL3-glut-test.cxx`).
+- New example: `GlutCube`, the cube through `FlGlut` with its own
+  `Fl_Glut_Window` beside FLTK widgets.
+
+### Phase 22: Cairo, and finishing
+
+- **`FlCairo`**, a new module: one `CairoWindow` type, and two ways
+  under it:
+  - with `FLTK_HAVE_CAIRO`, `Fl_Cairo_Window`, through `set_draw_cb`,
+    on X11 and Wayland;
+  - without, a `Fl_Double_Window` of the shim's whose `draw` makes a
+    context with `cairo_xlib_surface_create`, on X11 alone. So the
+    module works on every system here, though FLTK's class is missing
+    on NetBSD (above).
+
+  A Wayland FLTK without `FLTK_HAVE_CAIRO` has neither way, so
+  `Fl.Has(Fl.CairoWindow)` is whether one of the two works on this
+  display, and an `Open` where neither does halts with `Fl.Unsupported`
+  (Phase 14).
+
+  The program's `DrawCairo(c)` method gets an opaque `Context`, good
+  only during the call: using one later halts with `Fl.OutOfOrder`.
+- A subset of cairo: what `cairo-draw-x` and `cairo_test` use, as
+  `FlDraw` is for `fl_draw.H` (`SetLineWidth`, `SetSourceRGB`,
+  `SetSourceRGBA`, `MoveTo`, `LineTo`, `Rectangle`, `Arc`, `Stroke`,
+  `Fill`, `Save`, `Restore`, `Translate`, `Scale`, and text).
+- `TestCairo` reads pixels back: on X11 with `fl_read_image` from a
+  shown window, as the probe did. Wayland needs a way of its own: find
+  it. `FLTK_HAVE_CAIROEXT` isn't used.
+- Ports: `CairoDrawX` (`examples/cairo-draw-x.cxx`), `CairoTest`
+  (`test/cairo_test.cxx`). `cairo-draw-x` was the 46th example.
+- **Finishing**:
+  - README.md: the new modules, and the optional libraries;
+  - AGENTS.md: Layout, Build, the facts found; "Status" to Phase 22;
+  - `make install` of each library into a scratch directory, and a
+    program built against each, following the README as Phase 8 did;
+  - `doc/design.md` is history, and isn't changed.
 
 ### poc 0.4.0 `[done]`
 
