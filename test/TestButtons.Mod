@@ -58,6 +58,38 @@ PROCEDURE Click(w: Fl.Widget);
 BEGIN Press(w); Release(w)
 END Click;
 
+(* A key with the text the window system would give it. *)
+PROCEDURE Key(key: INTEGER; keys: SET; text: ARRAY OF CHAR);
+  VAR used: BOOLEAN;
+BEGIN used := Probe.Key(Fl.EvKeyDown, key, keys, text)
+END Key;
+
+PROCEDURE CheckShortcutButton;
+  VAR s: FlButtons.ShortcutButton; k: INTEGER; st: SET; ok: BOOLEAN;
+BEGIN
+  win.Begin;
+  NEW(s); FlButtons.OpenShortcutButton(s, 10, 200, 150, 25, "");
+  win.End;
+  s.Value(k, st);
+  Check.Check((k = 0) & (st = {}), "a shortcut button starts with none");
+  s.SetValue(ORD("q"), Fl.Ctrl);
+  s.Value(k, st);
+  Check.Check((k = ORD("q")) & (st = Fl.Ctrl), "its value reads back as key and state");
+  s.SetValue(0, {});
+
+  (* a click makes it wait for a key, which is its new value *)
+  s.action := Count; s.SetWhen(Fl.WhenChanged); calls := 0;
+  ok := s.TakeFocus();
+  Click(s);
+  Key(ORD("k"), Fl.Alt, "k");
+  s.Value(k, st);
+  Check.Check((k = ORD("k")) & (st = Fl.Alt) & (calls = 1), "a click, then a key, sets it and calls back");
+  Key(ORD("K"), Fl.Shift, "K");
+  s.Value(k, st);
+  Check.Check((k = ORD("k")) & (st = Fl.Shift), "a capital is its letter with Shift");
+  s.Delete
+END CheckShortcutButton;
+
 BEGIN
   NEW(timer); timer.action := Done;
   NEW(win); Fl.OpenWindow(win, 400, 300, "TestButtons");
@@ -149,6 +181,8 @@ BEGIN
   Check.Check((calls = before) & ~rep.Active(),
     "deactivating it stops the repeating (FLTK's FL_DEACTIVATE, through Handle)");
   Release(rep);
+
+  CheckShortcutButton;
 
   win.Delete;
   Check.Check((Fl.OpenWidgets() = 0) & (Fl.PendingTimers() = 0), "every widget deleted, no timer pending");

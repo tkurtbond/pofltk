@@ -60,11 +60,13 @@ BEGIN
   Append('3.5,151.5 c0-6.627-5.373-12-12-12h-343c-6.627,0-12,5.373-12,12v150c0,6');
   Append('.627,5.373,12,12,12h343c6.627,0,12-5.373,12-12V151.5z"/> </svg>');
   NEW(svg);
-  IF ~FlImages.LoadData(svg, logo, n) THEN HALT(1) END;
   NEW(win); Fl.OpenWindow(win, 720, 486, "howto-simple-svg");
   NEW(box); Fl.OpenBox(box, 10, 10, 720 - 20, 486 - 20, "");
-  FlImages.SetImage(box, svg);
-  svg.Close;  (* the box keeps it *)
+  IF FlImages.LoadData(svg, logo, n) THEN
+    FlImages.SetImage(box, svg);
+    svg.Close  (* the box keeps it *)
+  ELSE box.SetLabel("This FLTK has no SVG.")
+  END;
   win.End;
   win.Show;
   Fl.Run

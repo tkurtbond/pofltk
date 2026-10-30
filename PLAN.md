@@ -1510,13 +1510,13 @@ Facts behind the plan, each from a program run on 2026-10-30:
 - `fltk-config --use-gl --use-forms --use-images --ldflags` gives what
   each needs. libfltk_forms and libfltk_gl exist on all six BSDs.
 
-### Phase 14: Small widgets and types
+### Phase 14: Small widgets and types [done]
 
 Widgets with no new lifetime problem, and FLTK's plain small types.
 
 - **First, a baseline**: every host now has poc 0.10.1, and the last
   full runs were with 0.6.0. Run the four Linux targets and `make test`
-  on the three BSDs before binding anything, so that a failure in this
+  on the six BSDs before binding anything, so that a failure in this
   phase isn't blamed on the wrong change, and follow the usual steps
   for a new poc.
 - **Missing features**: FLTK's builds differ (Cairo on NetBSD, Wayland
@@ -1537,10 +1537,12 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
     widened to say so, and 79 stays free. Failures that depend on
     outside data still come back as a `BOOLEAN`, so PDF without Pango
     returns FALSE (Phase 19).
-  - **The SVG guard**: `src/FlImages.cpp` uses `Fl_SVG_Image` whatever
-    `FLTK_USE_SVG` says. Build FLTK with it off to see what happens,
-    then guard it with `#if`, and make the SVG `Open`s follow the rule
-    above. Every FLTK here has it, so nothing has shown this yet.
+  - **The SVG guard**: `src/FlImages.cpp` used `Fl_SVG_Image` whatever
+    FLTK said, and now tests `#if defined(FLTK_USE_SVG)`, as FLTK's
+    source does (`doc/fltk-issues.md`, 73). SVG is reached only by
+    content, through `Load` and `LoadData`, so it is outside data: an
+    FLTK without it returns FALSE, like any file it can't read, and
+    nothing halts.
   - **`Check.Skip(label)`** prints `skip - <label>`, for a check of a
     feature that is missing, and `Summary` counts them. `make test`
     totals the skips, so a host that tests less says so.
@@ -1554,29 +1556,39 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
   FLTK's class. Most only set the type, but the nice sliders also set
   `FL_FLAT_BOX`, which a test checks.
 - **`Fl.OpenSingleWindow`** (`Fl_Single_Window`) and
-  **`Fl.OpenMenuWindow`** (`Fl_Menu_Window`), with its `SetOverlay`
-  and `ClearOverlay`.
-- **`FlButtons.ShortcutButton`** (`Fl_Shortcut_Button`): `Value`,
-  `SetValue`, `SetDefault`, `ClearDefault`. The test sends it keys
-  with `Probe`.
+  **`Fl.OpenMenuWindow`** (`Fl_Menu_Window`). `set_overlay` and
+  `clear_overlay` are not in 1.4.5, so neither is bound.
+- **`Window.SetXClass`, `XClass`** (FLTK copies the name) and
+  **`Group.DrawChild`** were not listed: the `Clock` and `DoubleBuffer`
+  ports need them. `DrawChild` halts with `Fl.NotAChild` for a widget
+  that isn't the group's.
+- **`FlButtons.ShortcutButton`** (`Fl_Shortcut_Button`): `Value` and
+  `SetValue`, as a key and a state. FLTK's `default_value` and
+  `default_clear` are inside `#if 0`, so neither is bound. It is not a
+  `Button`: `Button.Value` is a `BOOLEAN`. The test sends it keys with
+  `Probe`.
 - **`FlInputs.FileInput`** (`Fl_File_Input`): `value` hides
-  `Fl_Input_`'s, so call the class as itself. `errorcolor` is a no-op
-  in the header: check, and record it if so.
+  `Fl_Input_`'s, so call the class as itself. `errorcolor` does
+  nothing and is deprecated, so it isn't bound.
 - **`FlValuators.Positioner`** (`Fl_Positioner`): two values, bounds
   and steps.
 - **`FlValuators.Clock`** (`Fl_Clock_Output`, `Fl_Clock`,
   `Fl_Round_Clock`): `value` takes an `unsigned long`, 32 bits on i386,
   so check what happens past 2038 and how it crosses the boundary.
   `Fl_Clock` runs on an FLTK timer: delete one with it pending under
-  valgrind.
+  valgrind. Found: `SetTime` takes 0 to 2^32-1, as a `HUGEINT`, and
+  halts past that (`doc/fltk-issues.md`, 74); `value(ulong)` writes
+  over what it was given, so the shim calls it twice (76).
 - **Tooltips**, in `Fl`: `Fl_Tooltip`'s statics (`SetTooltipDelay` and
   the rest, `EnableTooltips`, `TooltipCurrent`, `EnterArea`). Find
-  whether `current` or `enter_area` keep a widget that may die.
+  whether `current` or `enter_area` keep a widget that may die. Found:
+  `~Fl_Widget` clears the widget, and `enter_area` keeps its text, so
+  the shim keeps a copy (75).
 - **`Fl.Rect`**: `Fl_Rect` as a plain Oberon record, with `Right`,
   `Bottom`, `Inset`, `InsetBox` and `Equal`. FLTK's type doesn't cross
   the boundary.
 - **Schemes**, in `Fl`: `SchemeCount`, `SchemeName`, `AddSchemeName`
-  (`Fl_Scheme`). Find whether `add_scheme_name` keeps its pointer.
+  (`Fl_Scheme`). `add_scheme_name` copies its name.
 - **`Fl.Tracker`** (`Fl_Widget_Tracker`): pofltk's handles already know
   a dead widget, so an Oberon `Tracker` holds the widget and asks the
   registry, with `Widget`, `Deleted` and `Exists`. FLTK's class lives on
@@ -1585,11 +1597,21 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
 - Ports: `Clock` (`test/clock.cxx`), `DoubleBuffer`
   (`test/doublebuffer.cxx`).
 - New examples: `Presets`, every preset valuator, tied together;
-  `Positions`, a positioner driving a box; `Shortcuts`, shortcut buttons
-  that set a button's key; `FileInputs`, a file input with its path bar;
-  `Tooltips`, the settings changed live; `Rects`, drawing with `Rect`'s
-  insets; `Trackers`, buttons that delete each other, reporting through
-  a tracker.
+  `Positions`, a positioner setting a clock's hands; `Shortcuts`, a
+  shortcut button that sets a button's key; `FileInputs`, a file input
+  with its path bar; `Tooltips`, the settings, and a tooltip for each
+  half of a box; `Rects`, drawing with `Rect`'s insets; `Trackers`, a
+  button that deletes itself in its callback, and handles events there,
+  so only a tracker can say it has gone.
+- `make test-sway` found that a click on `Fl_File_Input`'s bar in a
+  window not shown stops the program under Wayland (77): `TestInputs`
+  shows its window first.
+- Tested 2026-10-30: `test-headless` 932 `ok` lines, `test-sway` 928,
+  `valgrind-headless` 849, `valgrind-sway` 845 (every error summary 0);
+  `make test` on all six BSDs 932; on an FLTK with neither Cairo nor
+  Pango 932, and on one without SVG 932, with 2 skipped.
+- Both ports match FLTK's builds exactly, every window of each, under
+  Xvfb (`magick compare -metric AE -fuzz 1%`, 2026-10-30).
 
 ### Phase 15: Composite widgets and audits
 

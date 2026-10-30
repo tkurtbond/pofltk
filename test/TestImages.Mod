@@ -149,7 +149,10 @@ BEGIN
   Check.Check(Loads("images/rb.jpg", FlImages.RGB), "JPEG (near)");
   Check.Check(Loads("images/rb.bmp", FlImages.RGB), "BMP, with a palette");
   Check.Check(Loads("images/rb.ppm", FlImages.RGB), "PNM");
-  Check.Check(Loads("images/rb.svg", FlImages.RGB), "SVG, rasterized");
+  IF Fl.Has(Fl.Svg) THEN
+    Check.Check(Loads("images/rb.svg", FlImages.RGB), "SVG, rasterized")
+  ELSE Check.Skip("SVG, rasterized")
+  END;
   Check.Check(Loads("images/rb.gif", FlImages.Pixmap), "GIF, a pixmap");
   Check.Check(Loads("images/rb.xpm", FlImages.Pixmap), "XPM");
   NEW(j);
@@ -159,8 +162,14 @@ BEGIN
   Check.Check((n > 0) & FlImages.LoadData(j, data, n) & IsRedBlue(j), "LoadData: PNG");
   j.Close;
   n := Read("images/rb.svg");
-  Check.Check((n > 0) & FlImages.LoadData(j, data, n) & IsRedBlue(j), "SVG text");
-  j.Close;
+  IF Fl.Has(Fl.Svg) THEN
+    Check.Check((n > 0) & FlImages.LoadData(j, data, n) & IsRedBlue(j), "SVG text");
+    j.Close
+  ELSE
+    Check.Skip("SVG text");
+    Check.Check(~FlImages.Load(j, "images/rb.svg") & ~j.IsOpen(), "no SVG: Load is FALSE");
+    Check.Check(~FlImages.LoadData(j, data, n) & ~j.IsOpen(), "and LoadData")
+  END;
   Check.Check(~FlImages.LoadData(j, data, 10) & ~j.IsOpen(), "data cut short is FALSE");
 
   (* An XPM's lines, from an Oberon array *)

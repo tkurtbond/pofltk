@@ -1085,3 +1085,90 @@ Unless an entry says otherwise, the version is FLTK 1.4.5 (Fedora's
   its child, and before being cleared) segfaulted before the change,
   and pass after it, valgrind clean. Each part of the change, taken
   out, fails one of them.
+
+### 73. FLTK built without SVG still has `Fl_SVG_Image`, if CMake built it
+
+- **What happens**: FLTK has an option to leave SVG out, and whether
+  the class is there depends on which build system left it out.
+  `FLTK_USE_SVG` is the macro to test, and it can be defined as 0.
+- **Cause**: CMake's `FLTK_OPTION_SVG=OFF` writes `#define FLTK_USE_SVG 0`
+  (`#cmakedefine01`). `src/Fl_SVG_Image.cxx:19`, `src/nanosvg.cxx:23`,
+  `src/fl_images_core.cxx:127` and
+  `src/drivers/SVG/Fl_SVG_File_Surface.cxx:21` test `defined` or
+  `#ifdef`, so with CMake the class stays, whatever the option says
+  (`nm` on `libfltk_images.a`). `./configure --disable-svg` leaves the
+  macro undefined (`fl_config.in:107`, `configure.ac:136-138`), and the
+  class really goes.
+- **Effect on pofltk**: FlImages must not name the class without it. An
+  `#if FLTK_USE_SVG` would wrongly call a CMake build with the option
+  off SVG-less, though harmlessly; an `#ifdef` matches what FLTK's own
+  sources do, so pofltk tests `defined(FLTK_USE_SVG)`, in `FlImages.cpp`
+  and for `Fl.Has(Fl.Svg)`. Without SVG, `FlImages` halts with
+  `Fl.Unsupported` and `Fl.Has` says so first.
+- **Confirmed**: with an FLTK from `./configure --disable-svg`, `make
+  test` passes, 2 checks skipped, and `examples/SvgSimple.Mod` says it
+  has no SVG (2026-10-30).
+
+### 74. `Fl_Clock_Output::value(ulong)` crashes on a time `localtime` can't convert
+
+- **What happens**: `value(1UL << 60)` segfaults.
+- **Cause**: `src/Fl_Clock.cxx:139-146` dereferences what `localtime`
+  returns. `localtime` returns NULL for a year that doesn't fit its
+  `int`.
+- **Effect on pofltk**: `ClockOutput.SetTime` halts with
+  `Fl.Unsupported` for a time below 0 or above 2^32-1, the most an
+  `unsigned long` holds on the 32-bit systems, so a program behaves
+  alike on all of them.
+- **Confirmed**: a scratch program exited 139 on that call (2026-10-30);
+  `HaltClockTime`.
+
+### 75. `Fl_Tooltip::enter_area` keeps its text
+
+- **What happens**: the tooltip shown after `enter_area(w, x, y, W, H,
+  text)` reads `text` when its delay ends, after the call has returned.
+- **Cause**: `src/Fl_Tooltip.cxx:301` stores the pointer in the static
+  `tip`, and compares pointers, not text, to see whether the tip has
+  changed (`:297`).
+- **Effect on pofltk**: `Fl.EnterArea` would pass a string that may die
+  with a stack frame. The shim keeps one copy, until the next text. The
+  same text keeps the same pointer, or the tip would restart each time
+  the mouse moved in the area; "" frees it, so the last call should be
+  that. The widget can't dangle: `~Fl_Widget` calls `fl_throw_focus`,
+  which clears the current widget (`src/Fl.cxx:1215`).
+- **Confirmed**: by the source; `TestTooltips` runs it clean under
+  valgrind (2026-10-30).
+
+### 76. `Fl_Clock_Output::value()` isn't what `value(ulong)` set
+
+- **What happens**: `value(t)` then `value()` gives `t` only if the
+  hands didn't move. If they did, it gives seconds past midnight in
+  local time. The header says it returns seconds since the epoch, and
+  it does for the same `t` set twice.
+- **Cause**: `src/Fl_Clock.cxx:139-146` stores `value_ = v`, then calls
+  `value(h, m, s)`, which stores `value_ = (H * 60 + m) * 60 + s` when
+  they changed (`:125-131`). `tick` (`:209`) sets a running `Fl_Clock`
+  the same way, once a second.
+- **Effect on pofltk**: `ofl_clock_set_value` calls `value(t)` twice, so
+  `ClockOutput.Time` gives back what `SetTime` set. A running `Clock`
+  can't be helped, and `Time`'s comment says so.
+- **Confirmed**: `TestValuators`, which failed with one call and passes
+  with two (2026-10-30).
+
+### 77. A click on `Fl_File_Input`'s bar in a window not shown stops the program under Wayland
+
+**What happens:** a push on the directory bar of an `Fl_File_Input` in a
+window never shown puts up an alert, "Fl_Window::make_current(), but
+window is not shown().", and the call never returns unless it is
+answered; then FLTK ends the program. On X11 the same click works.
+
+**Cause:** `Fl_File_Input::handle_button` calls
+`window()->make_current()` to measure the path's directories, and
+`Fl_Wayland_Window_Driver::make_current` calls `fl_alert` and
+`Fl::fatal` if the window isn't shown.
+
+**Effect on pofltk:** none on a program, whose clicks come to shown
+windows. It matters only to a test, which sends events to a window
+never shown: `TestInputs` shows its window first.
+
+**Confirmed:** `TestInputs` hung on a headless sway, and gdb showed it
+in `fl_alert` under `make_current` under `handle_button` (2026-10-30).

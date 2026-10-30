@@ -120,8 +120,8 @@ BEGIN
   Check.Check((b.TopLine() = 20) & b.Displayed(20) & ~b.Displayed(1), "SetTopLine");
   b.MakeVisible(1);
   Check.Check(b.Displayed(1), "MakeVisible");
-  Check.Check(b.Load("Check.Mod") & (b.Count() = 36) & Is(b, 1, "MODULE Check; (* Shared ok/FAIL reporting for the test programs *)")
-    & Is(b, 2, "") & Is(b, 36, ""), "Load: a line per newline, and one after the last");
+  Check.Check(b.Load("lines.txt") & (b.Count() = 5) & Is(b, 1, "first line") & Is(b, 2, "")
+    & Is(b, 3, "third line") & Is(b, 5, ""), "Load: a line per newline, and one after the last");
   Check.Check(~b.Load("no such file") & (b.Count() = 0), "Load of a missing file");
 
   (* A hold browser, clicked *)

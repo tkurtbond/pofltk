@@ -30,6 +30,10 @@ CONST
   VertNiceSlider* = 4;
   HorNiceSlider* = 5;
 
+  (* of a clock (ClockOutput.SetKind) *)
+  SquareClock* = 0;
+  RoundClock* = 1;
+
   (* of a dial *)
   NormalDial* = 0;
   LineDial* = 1;
@@ -56,6 +60,9 @@ CONST
   (* the classes, as ofl_valuator_new numbers them *)
   slider = 0; valueSlider = 1; scrollbar = 2; counter = 3; dial = 4;
   roller = 5; adjuster = 6; valueInput = 7; valueOutput = 8;
+  fillSlider = 9; horSlider = 10; horFillSlider = 11; niceSlider = 12;
+  horNiceSlider = 13; horValueSlider = 14; fillDial = 15; lineDial = 16;
+  simpleCounter = 17;
 
 TYPE
   (* FLTK's Fl_Valuator: never opened itself *)
@@ -81,6 +88,19 @@ TYPE
 
   Dial* = POINTER TO DialDesc;
   DialDesc* = RECORD (ValuatorDesc) END;
+
+  (* An x and a y value, from a point dragged in a box. Not a Valuator:
+     FLTK's class has two of everything. *)
+  Positioner* = POINTER TO PositionerDesc;
+  PositionerDesc* = RECORD (Fl.WidgetDesc) END;
+
+  (* A clock that shows the time it is given. *)
+  ClockOutput* = POINTER TO ClockOutputDesc;
+  ClockOutputDesc* = RECORD (Fl.WidgetDesc) END;
+
+  (* A clock that keeps the time, while it is shown. *)
+  Clock* = POINTER TO ClockDesc;
+  ClockDesc* = RECORD (ClockOutputDesc) END;
 
   (* a wheel seen edge on, dragged up and down, or across *)
   Roller* = POINTER TO RollerDesc;
@@ -180,6 +200,19 @@ PROCEDURE ["C", "ofl_chart_bound"] CChBound(c: SYSTEM.ADDRESS; which: SYSTEM.INT
 PROCEDURE ["C", "ofl_chart_set_bounds"] CChSetBounds(c: SYSTEM.ADDRESS; a, b: LONGREAL);
 PROCEDURE ["C", "ofl_chart_get"] CChGet(c: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_chart_set"] CChSet(c: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_positioner_new"] CPosNew(x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_positioner_get"] CPosGet(p: SYSTEM.ADDRESS; what: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_positioner_set"] CPosSet(p: SYSTEM.ADDRESS; what: SYSTEM.INT32; v: LONGREAL);
+PROCEDURE ["C", "ofl_positioner_value"] CPosValue(p: SYSTEM.ADDRESS; x, y: LONGREAL);
+PROCEDURE ["C", "ofl_positioner_xbounds"] CPosXBounds(p: SYSTEM.ADDRESS; a, b: LONGREAL);
+PROCEDURE ["C", "ofl_positioner_ybounds"] CPosYBounds(p: SYSTEM.ADDRESS; a, b: LONGREAL);
+PROCEDURE ["C", "ofl_clock_new"] CClockNew(kind, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_clock_value"] CClockValue(c: SYSTEM.ADDRESS): LONGREAL;
+PROCEDURE ["C", "ofl_clock_set_value"] CClockSetValue(c: SYSTEM.ADDRESS; t: LONGREAL);
+PROCEDURE ["C", "ofl_clock_set_hms"] CClockSetHMS(c: SYSTEM.ADDRESS; h, m, s: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_clock_get"] CClockGet(c: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_clock_set_shadow"] CClockSetShadow(c: SYSTEM.ADDRESS; on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_clock_set_kind"] CClockSetKind(c: SYSTEM.ADDRESS; k: SYSTEM.INT32);
 
 PROCEDURE Open(v: Valuator; class, x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Fl.EndOpen(v, CNew(class, x, y, w, h, label, Fl.BeginOpen(v)))
@@ -201,6 +234,45 @@ END OpenSlider;
 PROCEDURE OpenValueSlider*(v: ValueSlider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Open(v, valueSlider, x, y, w, h, label)
 END OpenValueSlider;
+
+(* FLTK's preset classes, on the same types: a slider, dial or counter of
+   the kind its name says, and for a nice slider a flat box. *)
+
+PROCEDURE OpenFillSlider*(v: Slider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, fillSlider, x, y, w, h, label)
+END OpenFillSlider;
+
+PROCEDURE OpenHorSlider*(v: Slider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, horSlider, x, y, w, h, label)
+END OpenHorSlider;
+
+PROCEDURE OpenHorFillSlider*(v: Slider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, horFillSlider, x, y, w, h, label)
+END OpenHorFillSlider;
+
+PROCEDURE OpenNiceSlider*(v: Slider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, niceSlider, x, y, w, h, label)
+END OpenNiceSlider;
+
+PROCEDURE OpenHorNiceSlider*(v: Slider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, horNiceSlider, x, y, w, h, label)
+END OpenHorNiceSlider;
+
+PROCEDURE OpenHorValueSlider*(v: ValueSlider; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, horValueSlider, x, y, w, h, label)
+END OpenHorValueSlider;
+
+PROCEDURE OpenFillDial*(v: Dial; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, fillDial, x, y, w, h, label)
+END OpenFillDial;
+
+PROCEDURE OpenLineDial*(v: Dial; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, lineDial, x, y, w, h, label)
+END OpenLineDial;
+
+PROCEDURE OpenSimpleCounter*(v: Counter; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(v, simpleCounter, x, y, w, h, label)
+END OpenSimpleCounter;
 
 PROCEDURE OpenScrollbar*(v: Scrollbar; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Open(v, scrollbar, x, y, w, h, label)
@@ -724,6 +796,124 @@ END Kind;
 
 PROCEDURE (c: Chart) SetKind*(k: INTEGER);
 BEGIN CChSet(Fl.Live(c), 6, k)
+END SetKind;
+
+(* Positioners *)
+
+PROCEDURE OpenPositioner*(p: Positioner; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(p, CPosNew(x, y, w, h, label, Fl.BeginOpen(p)))
+END OpenPositioner;
+
+PROCEDURE (p: Positioner) XValue*(): LONGREAL;
+BEGIN RETURN CPosGet(Fl.Live(p), 0)
+END XValue;
+
+PROCEDURE (p: Positioner) YValue*(): LONGREAL;
+BEGIN RETURN CPosGet(Fl.Live(p), 1)
+END YValue;
+
+PROCEDURE (p: Positioner) SetValue*(x, y: LONGREAL);
+BEGIN CPosValue(Fl.Live(p), x, y)
+END SetValue;
+
+PROCEDURE (p: Positioner) SetXValue*(x: LONGREAL);
+BEGIN CPosSet(Fl.Live(p), 0, x)
+END SetXValue;
+
+PROCEDURE (p: Positioner) SetYValue*(y: LONGREAL);
+BEGIN CPosSet(Fl.Live(p), 1, y)
+END SetYValue;
+
+(* The values at the left and right, and at the top and bottom. *)
+PROCEDURE (p: Positioner) SetXBounds*(a, b: LONGREAL);
+BEGIN CPosXBounds(Fl.Live(p), a, b)
+END SetXBounds;
+
+PROCEDURE (p: Positioner) SetYBounds*(a, b: LONGREAL);
+BEGIN CPosYBounds(Fl.Live(p), a, b)
+END SetYBounds;
+
+PROCEDURE (p: Positioner) XMinimum*(): LONGREAL;
+BEGIN RETURN CPosGet(Fl.Live(p), 2)
+END XMinimum;
+
+PROCEDURE (p: Positioner) XMaximum*(): LONGREAL;
+BEGIN RETURN CPosGet(Fl.Live(p), 3)
+END XMaximum;
+
+PROCEDURE (p: Positioner) YMinimum*(): LONGREAL;
+BEGIN RETURN CPosGet(Fl.Live(p), 4)
+END YMinimum;
+
+PROCEDURE (p: Positioner) YMaximum*(): LONGREAL;
+BEGIN RETURN CPosGet(Fl.Live(p), 5)
+END YMaximum;
+
+(* Values are rounded to multiples of the step; 0 is no rounding. *)
+PROCEDURE (p: Positioner) SetXStep*(s: LONGREAL);
+BEGIN CPosSet(Fl.Live(p), 2, s)
+END SetXStep;
+
+PROCEDURE (p: Positioner) SetYStep*(s: LONGREAL);
+BEGIN CPosSet(Fl.Live(p), 3, s)
+END SetYStep;
+
+(* Clocks *)
+
+PROCEDURE OpenClockOutput*(c: ClockOutput; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(c, CClockNew(0, x, y, w, h, label, Fl.BeginOpen(c)))
+END OpenClockOutput;
+
+PROCEDURE OpenClock*(c: Clock; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(c, CClockNew(1, x, y, w, h, label, Fl.BeginOpen(c)))
+END OpenClock;
+
+PROCEDURE OpenRoundClock*(c: Clock; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(c, CClockNew(2, x, y, w, h, label, Fl.BeginOpen(c)))
+END OpenRoundClock;
+
+(* The time shown: in seconds since the epoch after SetTime, and since
+   midnight after SetHMS, or in a running Clock, which FLTK sets as
+   SetHMS does (doc/fltk-issues.md, 76). 0 if never set. *)
+PROCEDURE (c: ClockOutput) Time*(): HUGEINT;
+BEGIN RETURN ENTIER(CClockValue(Fl.Live(c)))
+END Time;
+
+(* t must be from 0 to 2^32-1, which is all an i386 FLTK can take: halts
+   with Fl.Unsupported otherwise (doc/fltk-issues.md, 74). *)
+PROCEDURE (c: ClockOutput) SetTime*(t: HUGEINT);
+BEGIN
+  ASSERT((t >= 0) & (t <= 4294967295), Fl.Unsupported);
+  CClockSetValue(Fl.Live(c), t)
+END SetTime;
+
+PROCEDURE (c: ClockOutput) SetHMS*(hour, minute, second: INTEGER);
+BEGIN CClockSetHMS(Fl.Live(c), hour, minute, second)
+END SetHMS;
+
+PROCEDURE (c: ClockOutput) Hour*(): INTEGER;
+BEGIN RETURN CClockGet(Fl.Live(c), 0)
+END Hour;
+
+PROCEDURE (c: ClockOutput) Minute*(): INTEGER;
+BEGIN RETURN CClockGet(Fl.Live(c), 1)
+END Minute;
+
+PROCEDURE (c: ClockOutput) Second*(): INTEGER;
+BEGIN RETURN CClockGet(Fl.Live(c), 2)
+END Second;
+
+PROCEDURE (c: ClockOutput) Shadow*(): BOOLEAN;
+BEGIN RETURN CClockGet(Fl.Live(c), 3) # 0
+END Shadow;
+
+PROCEDURE (c: ClockOutput) SetShadow*(on: BOOLEAN);
+BEGIN CClockSetShadow(Fl.Live(c), Bool(on))
+END SetShadow;
+
+(* SquareClock or RoundClock. *)
+PROCEDURE (c: ClockOutput) SetKind*(k: INTEGER);
+BEGIN CClockSetKind(Fl.Live(c), k)
 END SetKind;
 
 END FlValuators.

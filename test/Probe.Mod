@@ -16,7 +16,7 @@ PROCEDURE ["C", "ofltest_mouse"] CMouse(win: SYSTEM.ADDRESS; event, x, y, button
 PROCEDURE ["C", "ofltest_wheel"] CWheel(win: SYSTEM.ADDRESS; x, y, dx, dy: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_shortcut"] CShortcut(win: SYSTEM.ADDRESS; key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_handle_key"] CHandleKey(win: SYSTEM.ADDRESS; event, key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
-PROCEDURE ["C", "ofltest_wayland"] CWayland(): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_configured"] CConfigured(feature: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_modal_key"] CModalKey(key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_modal"] CModal(VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_key"] CKey(event, key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
@@ -90,10 +90,11 @@ PROCEDURE ModalKey*(key: INTEGER; state: SET; text-: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CModalKey(key, ORD(state), text) # 0
 END ModalKey;
 
-(* TRUE if FLTK uses Wayland, FALSE if X11. *)
-PROCEDURE Wayland*(): BOOLEAN;
-BEGIN RETURN CWayland() # 0
-END Wayland;
+(* TRUE if fl_config.h gives feature, as Fl numbers them: that this FLTK
+   has it, on some display. *)
+PROCEDURE Configured*(feature: INTEGER): BOOLEAN;
+BEGIN RETURN CConfigured(feature) # 0
+END Configured;
 
 (* A pipe, for Fl.FdWatch: its read end r and write end w; TRUE if it
    was made. *)

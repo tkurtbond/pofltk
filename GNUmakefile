@@ -71,19 +71,19 @@ LIBDIR   = $(POC_OBERON_LIBRARIES)/$(LIBRARY)
 TRIPLE   = $(shell $(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p')
 
 # Test programs (test/<name>.Mod, each a main module).
-TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF
+TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips
 # TestArgs's command line: options of its own and FLTK's, and words that
 # aren't options.
 TESTARGS := -o hello --help -g 120x80 -ti Title -s plastic -nokbd rest more
 # Programs that must halt (test/<name>.Mod), as name:ASSERT-code. poc's
 # ASSERT(x, n) prints "assertion failed (n)" on standard error and exits
 # with status 10, so `make test` requires both.
-HALTTESTS := HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78
+HALTTESTS := HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76
 ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
@@ -125,8 +125,9 @@ display:
 # running after EXAMPLETIME seconds, when timeout ends it (status 124):
 # it started, drew, and didn't crash.
 test: tests display
-	@status=0; for t in $(TESTS); do \
-	  echo "== $$t"; (cd test && timeout $(TIMEOUT) ../$(BUILD)/$$t $$(test $$t = TestArgs && echo $(TESTARGS))) || status=1; \
+	@status=0; skips=0; for t in $(TESTS); do \
+	  echo "== $$t"; (cd test && timeout $(TIMEOUT) ../$(BUILD)/$$t $$(test $$t = TestArgs && echo $(TESTARGS))) > $(BUILD)/$$t.out 2>&1 || status=1; \
+	  cat $(BUILD)/$$t.out; skips=$$((skips + $$(grep -c '^skip - ' $(BUILD)/$$t.out))); \
 	done; \
 	for h in $(HALTTESTS); do \
 	  t=$${h%%:*}; code=$${h##*:}; echo "== $$t (must fail ASSERT code $$code)"; \
@@ -141,7 +142,9 @@ test: tests display
 	  (cd examples && timeout $(EXAMPLETIME) ../$(BUILD)/$$e $$args) > $(BUILD)/$$e.out 2>&1; got=$$?; \
 	  if [ $$got -eq 124 ]; then echo "ok   - $$e"; \
 	  else echo "FAIL - $$e exited with $$got: $$(cat $(BUILD)/$$e.out)"; status=1; fi; \
-	done; exit $$status
+	done; \
+	if [ $$skips -gt 0 ]; then echo "$$skips check(s) skipped: this FLTK lacks what they test."; fi; \
+	exit $$status
 
 # Memory errors fail a test (--error-exitcode); leaks don't count as
 # errors (--errors-for-leak-kinds=none), because FLTK's font cache and

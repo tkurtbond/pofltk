@@ -348,6 +348,8 @@ BEGIN
   Same(FlValuators.HorFillSlider, "FL_HOR_FILL_SLIDER");
   Same(FlValuators.VertNiceSlider, "FL_VERT_NICE_SLIDER");
   Same(FlValuators.HorNiceSlider, "FL_HOR_NICE_SLIDER");
+  Same(FlValuators.SquareClock, "FL_SQUARE_CLOCK");
+  Same(FlValuators.RoundClock, "FL_ROUND_CLOCK");
   Same(FlValuators.NormalDial, "FL_NORMAL_DIAL");
   Same(FlValuators.LineDial, "FL_LINE_DIAL");
   Same(FlValuators.FillDial, "FL_FILL_DIAL");
@@ -496,6 +498,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 477), "each of 477 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 479), "each of 479 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

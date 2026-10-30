@@ -3,6 +3,7 @@
 
 #include "pofltk.h"
 
+#include <FL/Fl_File_Input.H>
 #include <FL/Fl_Float_Input.H>
 #include <FL/Fl_Input.H>
 #include <FL/Fl_Int_Input.H>
@@ -37,6 +38,7 @@ intptr_t ofl_input_new(int32_t kind, int32_t x, int32_t y, int32_t w,
     case 4: return make<Fl_Secret_Input>(x, y, w, h, label, self);
     case 5: return make<Fl_Output>(x, y, w, h, label, self);
     case 6: return make<Fl_Multiline_Output>(x, y, w, h, label, self);
+    case 7: return make<Fl_File_Input>(x, y, w, h, label, self);
     default: return make<Fl_Input>(x, y, w, h, label, self);
   }
 }
@@ -48,6 +50,20 @@ void ofl_input_value(intptr_t i, char *buf, int32_t n) {
 
 // Copied by FLTK (Fl_Input_::value calls put_in_buffer).
 void ofl_input_set_value(intptr_t i, const char *s) { input(i)->value(s); }
+
+// Fl_File_Input::value hides Fl_Input_'s, and alone redraws the bar of
+// the path's parts, so the class is called as itself.
+void ofl_file_input_set_value(intptr_t i, const char *s) {
+  ofl::as<Fl_File_Input>(i)->value(s);
+}
+
+int32_t ofl_file_input_down_box(intptr_t i) {
+  return ofl::as<Fl_File_Input>(i)->down_box();
+}
+
+void ofl_file_input_set_down_box(intptr_t i, int32_t b) {
+  ofl::as<Fl_File_Input>(i)->down_box(static_cast<Fl_Boxtype>(b));
+}
 
 int32_t ofl_input_ivalue(intptr_t i) { return input(i)->ivalue(); }
 double ofl_input_dvalue(intptr_t i) { return input(i)->dvalue(); }

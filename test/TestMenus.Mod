@@ -176,7 +176,7 @@ BEGIN
   (* Under Wayland the compositor closes a pop-up menu of a window that
      doesn't have the focus, as a window no user clicked doesn't
      (doc/fltk-issues.md, 29), so this is checked on X11 alone. *)
-  IF ~Probe.Wayland() THEN
+  IF ~Fl.Has(Fl.Wayland) THEN
     win.Show; win.WaitForExpose;
     NEW(answer); answer.pick := TRUE; Fl.AddTimeout(answer, 0.2D0);
     i := button.Popup();

@@ -15,7 +15,7 @@ IMPORT SYSTEM, Fl;
 CONST
   (* the classes, as ofl_input_new numbers them *)
   input = 0; intInput = 1; floatInput = 2; multilineInput = 3;
-  secretInput = 4; output = 5; multilineOutput = 6;
+  secretInput = 4; output = 5; multilineOutput = 6; fileInput = 7;
 
   keyMask = 10000H;  (* FL_KEY_MASK + 1: a shortcut's key is below it *)
 
@@ -47,9 +47,17 @@ TYPE
   MultilineOutput* = POINTER TO MultilineOutputDesc;
   MultilineOutputDesc* = RECORD (OutputDesc) END;
 
+  (* one line, for a file's path, with a bar above it of the path's
+     directories: a click on one cuts the path there *)
+  FileInput* = POINTER TO FileInputDesc;
+  FileInputDesc* = RECORD (InputDesc) END;
+
 PROCEDURE ["C", "ofl_input_new"] CNew(class, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_input_value"] CValue(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_set_value"] CSetValue(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_file_input_set_value"] CFileSetValue(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_file_input_down_box"] CFileDownBox(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_file_input_set_down_box"] CFileSetDownBox(i: SYSTEM.ADDRESS; b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_ivalue"] CIValue(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_dvalue"] CDValue(i: SYSTEM.ADDRESS): LONGREAL;
 PROCEDURE ["C", "ofl_input_set_ivalue"] CSetIValue(i: SYSTEM.ADDRESS; v: SYSTEM.INT32);
@@ -287,5 +295,24 @@ END CursorColor;
 PROCEDURE (i: Input) SetCursorColor*(c: INTEGER);
 BEGIN CSetCursorColor(Fl.Live(i), c)
 END SetCursorColor;
+
+(* File inputs *)
+
+PROCEDURE OpenFileInput*(i: FileInput; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(i, fileInput, x, y, w, h, label)
+END OpenFileInput;
+
+PROCEDURE (i: FileInput) SetValue*(s-: ARRAY OF CHAR);
+BEGIN CFileSetValue(Fl.Live(i), s)
+END SetValue;
+
+(* The box of each part of the bar. *)
+PROCEDURE (i: FileInput) DownBox*(): INTEGER;
+BEGIN RETURN CFileDownBox(Fl.Live(i))
+END DownBox;
+
+PROCEDURE (i: FileInput) SetDownBox*(b: INTEGER);
+BEGIN CFileSetDownBox(Fl.Live(i), b)
+END SetDownBox;
 
 END FlInputs.

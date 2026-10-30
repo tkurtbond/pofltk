@@ -176,6 +176,8 @@ section("of a slider or value slider")
 add("int", [(camel(k), "FL_" + k) for k in
             """VERT_SLIDER HOR_SLIDER VERT_FILL_SLIDER HOR_FILL_SLIDER
             VERT_NICE_SLIDER HOR_NICE_SLIDER""".split()])
+section("of a clock (ClockOutput.SetKind)")
+add("int", [("SquareClock", "FL_SQUARE_CLOCK"), ("RoundClock", "FL_ROUND_CLOCK")])
 section("of a dial")
 add("int", [(camel(k), "FL_" + k) for k in "NORMAL_DIAL LINE_DIAL FILL_DIAL".split()])
 section("of a counter")
@@ -301,7 +303,7 @@ CHECKS = [
 ]
 
 HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_draw.H>\n"
-           "#include <FL/Fl_Button.H>\n#include <FL/Fl_Chart.H>\n#include <FL/Fl_Counter.H>\n#include <FL/Fl_Dial.H>\n"
+           "#include <FL/Fl_Button.H>\n#include <FL/Fl_Chart.H>\n#include <FL/Fl_Clock.H>\n#include <FL/Fl_Counter.H>\n#include <FL/Fl_Dial.H>\n"
            "#include <FL/Fl_Input_.H>\n#include <FL/Fl_Slider.H>\n#include <FL/Fl_Valuator.H>\n"
            "#include <FL/Fl_Flex.H>\n#include <FL/Fl_Grid.H>\n#include <FL/Fl_Pack.H>\n"
            "#include <FL/Fl_Scroll.H>\n#include <FL/Fl_Tabs.H>\n"

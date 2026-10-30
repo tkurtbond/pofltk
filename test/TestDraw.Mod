@@ -19,11 +19,14 @@ TYPE
   Texty = POINTER TO RECORD (Fl.BoxDesc) font, size, height: INTEGER END;
   (* FLTK's box and label, under a black dot of its own at 2, 2 *)
   Framed = POINTER TO RECORD (Fl.BoxDesc) END;
+  (* its first child alone, on white *)
+  Pair = POINTER TO RECORD (Fl.GroupDesc) END;
 
 VAR
   win: Fl.Window;
   sw: Swatch; cl: Clipped; disc: Disc; tx: Texty; fr: Framed;
-  plain: Fl.Box;
+  plain, left, right: Fl.Box;
+  pair: Pair;
   r, g, b, x, y, dark, w, h: INTEGER;
   white, black: INTEGER;
   two: ARRAY 4 OF CHAR;
@@ -34,6 +37,12 @@ BEGIN
   FlDraw.SetColor(Fl.Red); FlDraw.RectF(s.X(), s.Y(), s.W(), s.H());
   FlDraw.SetColor(Fl.Blue); FlDraw.RectF(s.X() + 10, s.Y() + 10, 10, 10);
   FlDraw.SetRGB(0, 255, 0); FlDraw.XYLine(s.X(), s.Y() + 30, s.X() + s.W() - 1)
+END Draw;
+
+PROCEDURE (p: Pair) Draw*;
+BEGIN
+  FlDraw.SetColor(Fl.White); FlDraw.RectF(p.X(), p.Y(), p.W(), p.H());
+  p.DrawChild(p.Child(0))
 END Draw;
 
 PROCEDURE (c: Clipped) Draw*;
@@ -160,6 +169,17 @@ BEGIN
   Check.Check(Probe.Capture(plain) & (Probe.Pixel(0, 0) = Fl.RGB(r, g, b))
     & (Probe.Pixel(29, 19) = Fl.RGB(r, g, b)),
     "a Box's own Draw: a flat box in its color");
+
+  (* a group's Draw, drawing one child of its own choosing *)
+  NEW(pair); Fl.OpenGroup(pair, 0, 200, 100, 50, "");
+  NEW(left); Fl.OpenBox(left, 0, 200, 50, 50, ""); left.SetBoxType(Fl.FlatBox); left.SetColor(Fl.Red);
+  NEW(right); Fl.OpenBox(right, 50, 200, 50, 50, ""); right.SetBoxType(Fl.FlatBox); right.SetColor(Fl.Red);
+  pair.End;
+  Check.Check(Probe.Capture(pair), "a group drawing one child");
+  Check.Check((Probe.Pixel(10, 10) = Fl.RGB(255, 0, 0)) & (Probe.Pixel(60, 10) # Fl.RGB(255, 0, 0)),
+    "Group.DrawChild draws the child it is given, and no other");
+  Probe.Release;
+  pair.Delete;
 
   (* damage *)
   plain.Redraw;

@@ -72,7 +72,7 @@ BEGIN
   Fl.Paste(in, Fl.Clipboard);
   in.Value(s);
   Check.Check(s = "ahellob", "an input pastes at its cursor");
-  IF ~Probe.Wayland() THEN
+  IF ~Fl.Has(Fl.Wayland) THEN
     Fl.Copy("sel", Fl.Selection);
     Fl.Paste(r, Fl.Selection);
     Check.Check((r.pastes = 2) & (r.text = "sel"), "the selection buffer (X11)");

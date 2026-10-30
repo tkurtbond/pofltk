@@ -6,11 +6,23 @@
 
 #include <FL/Fl_Adjuster.H>
 #include <FL/Fl_Chart.H>
+#include <FL/Fl_Clock.H>
 #include <FL/Fl_Counter.H>
 #include <FL/Fl_Dial.H>
+#include <FL/Fl_Fill_Dial.H>
+#include <FL/Fl_Fill_Slider.H>
+#include <FL/Fl_Hor_Fill_Slider.H>
+#include <FL/Fl_Hor_Nice_Slider.H>
+#include <FL/Fl_Hor_Slider.H>
+#include <FL/Fl_Hor_Value_Slider.H>
+#include <FL/Fl_Line_Dial.H>
+#include <FL/Fl_Nice_Slider.H>
+#include <FL/Fl_Positioner.H>
 #include <FL/Fl_Progress.H>
 #include <FL/Fl_Roller.H>
+#include <FL/Fl_Round_Clock.H>
 #include <FL/Fl_Scrollbar.H>
+#include <FL/Fl_Simple_Counter.H>
 #include <FL/Fl_Slider.H>
 #include <FL/Fl_Spinner.H>
 #include <FL/Fl_Value_Input.H>
@@ -27,6 +39,10 @@ intptr_t make(int32_t x, int32_t y, int32_t w, int32_t h, const char *label,
   ofl::W<T> *v = new ofl::W<T>(x, y, w, h);
   v->copy_label(ofl::label_text(label));
   return ofl::open(v, self);
+}
+
+Fl_Clock_Output *clock_of(intptr_t c) {
+  return ofl::as<Fl_Clock_Output>(c);
 }
 
 Fl_Valuator *valuator(intptr_t v) { return ofl::as<Fl_Valuator>(v); }
@@ -112,6 +128,15 @@ intptr_t ofl_valuator_new(int32_t kind, int32_t x, int32_t y, int32_t w,
     case 6: return make<Fl_Adjuster>(x, y, w, h, label, self);
     case 7: return make<Fl_Value_Input>(x, y, w, h, label, self);
     case 8: return make<Fl_Value_Output>(x, y, w, h, label, self);
+    case 9: return make<Fl_Fill_Slider>(x, y, w, h, label, self);
+    case 10: return make<Fl_Hor_Slider>(x, y, w, h, label, self);
+    case 11: return make<Fl_Hor_Fill_Slider>(x, y, w, h, label, self);
+    case 12: return make<Fl_Nice_Slider>(x, y, w, h, label, self);
+    case 13: return make<Fl_Hor_Nice_Slider>(x, y, w, h, label, self);
+    case 14: return make<Fl_Hor_Value_Slider>(x, y, w, h, label, self);
+    case 15: return make<Fl_Fill_Dial>(x, y, w, h, label, self);
+    case 16: return make<Fl_Line_Dial>(x, y, w, h, label, self);
+    case 17: return make<Fl_Simple_Counter>(x, y, w, h, label, self);
     default: return make<Fl_Slider>(x, y, w, h, label, self);
   }
 }
@@ -389,6 +414,101 @@ void ofl_chart_set(intptr_t c, int32_t what, int32_t v) {
     case 5: t->autosize(static_cast<uchar>(v)); break;
     case 6: t->type(static_cast<uchar>(v)); break;
   }
+}
+
+// Positioners
+
+intptr_t ofl_positioner_new(int32_t x, int32_t y, int32_t w, int32_t h,
+                            const char *label, intptr_t self) {
+  return make<Fl_Positioner>(x, y, w, h, label, self);
+}
+
+// what: 0 x value, 1 y value, 2 x minimum, 3 x maximum, 4 y minimum,
+// 5 y maximum.
+double ofl_positioner_get(intptr_t p, int32_t what) {
+  Fl_Positioner *o = ofl::as<Fl_Positioner>(p);
+  switch (what) {
+    case 0: return o->xvalue();
+    case 1: return o->yvalue();
+    case 2: return o->xminimum();
+    case 3: return o->xmaximum();
+    case 4: return o->yminimum();
+    default: return o->ymaximum();
+  }
+}
+
+// what: 0 x value, 1 y value, 2 x step, 3 y step.
+void ofl_positioner_set(intptr_t p, int32_t what, double v) {
+  Fl_Positioner *o = ofl::as<Fl_Positioner>(p);
+  switch (what) {
+    case 0: o->xvalue(v); break;
+    case 1: o->yvalue(v); break;
+    case 2: o->xstep(v); break;
+    default: o->ystep(v); break;
+  }
+}
+
+// Both at once, so a change is drawn once, not twice.
+void ofl_positioner_value(intptr_t p, double x, double y) {
+  ofl::as<Fl_Positioner>(p)->value(x, y);
+}
+
+void ofl_positioner_xbounds(intptr_t p, double a, double b) {
+  ofl::as<Fl_Positioner>(p)->xbounds(a, b);
+}
+
+void ofl_positioner_ybounds(intptr_t p, double a, double b) {
+  ofl::as<Fl_Positioner>(p)->ybounds(a, b);
+}
+
+// Clocks
+
+// kind is 0 Fl_Clock_Output, 1 Fl_Clock, 2 a round Fl_Clock.
+intptr_t ofl_clock_new(int32_t kind, int32_t x, int32_t y, int32_t w,
+                       int32_t h, const char *label, intptr_t self) {
+  switch (kind) {
+    case 1: return make<Fl_Clock>(x, y, w, h, label, self);
+    case 2: return make<Fl_Round_Clock>(x, y, w, h, label, self);
+    default: return make<Fl_Clock_Output>(x, y, w, h, label, self);
+  }
+}
+
+// A time crosses as a double: an unsigned long is 32 bits on i386, and a
+// double holds every value FlValuators lets through.
+double ofl_clock_value(intptr_t c) {
+  return static_cast<double>(clock_of(c)->value());
+}
+
+// Twice: once the hands have moved, FLTK writes over the time it was given
+// with seconds past midnight, and the second call moves nothing
+// (doc/fltk-issues.md, 76).
+void ofl_clock_set_value(intptr_t c, double t) {
+  Fl_Clock_Output *o = clock_of(c);
+  o->value(static_cast<unsigned long>(t));
+  o->value(static_cast<unsigned long>(t));
+}
+
+void ofl_clock_set_hms(intptr_t c, int32_t h, int32_t m, int32_t s) {
+  clock_of(c)->value(h, m, s);
+}
+
+// what: 0 hour, 1 minute, 2 second, 3 shadow.
+int32_t ofl_clock_get(intptr_t c, int32_t what) {
+  Fl_Clock_Output *o = clock_of(c);
+  switch (what) {
+    case 0: return o->hour();
+    case 1: return o->minute();
+    case 2: return o->second();
+    default: return o->shadow();
+  }
+}
+
+void ofl_clock_set_shadow(intptr_t c, int32_t on) {
+  clock_of(c)->shadow(on);
+}
+
+void ofl_clock_set_kind(intptr_t c, int32_t k) {
+  clock_of(c)->type(static_cast<uchar>(k));
 }
 
 }  // extern "C"

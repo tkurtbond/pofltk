@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-10-07, Phases 0 to 13 of PLAN.md are done, and `README.md`
+As of 2026-10-30, Phases 0 to 14 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
@@ -66,6 +66,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   only" procedures (`BeginOpen`, `EndOpen`) are how another module
   opens a widget of its own class. Keep application code off them.
 - `src/FlDraw.Mod`, `src/FlDraw.cpp`: `fl_draw.H`, for `Draw` methods.
+- `Fl.Has` says what this FLTK has (`Svg`, `CairoWindow`, `Wayland`,
+  `X11`), decided by `#if` in the C++ parts, since poc has no conditional
+  compilation. A test of something missing calls `Check.Skip`.
 - `src/FlButtons`, `src/FlInputs`, `src/FlValuators`, `src/FlLayout`,
   `src/FlMenus`, `src/FlText`, `src/FlBrowsers` (`.Mod` and `.cpp`):
   the widget families of PLAN.md's module table. Each C++ part
@@ -153,7 +156,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 | FLTK docs (HTML) | `/usr/share/doc/fltk-devel/html/` |
 | FLTK 1.3 | also installed (`fltk1.3`, runtime only); never build against it |
 | FLUID | `fltk-fluid-1.4.5` |
-| poc | `/usr/bin/poc` (Peaseblossom RPM 0.6.0); `poc(1)`; `/usr/share/doc/peaseblossom/users-guide.md` (§9, "Calling C") and `reference-guide.md` |
+| poc | `/usr/bin/poc` (Peaseblossom RPM 0.10.1); `poc(1)`; `/usr/share/doc/peaseblossom/users-guide.md` (§9, "Calling C") and `reference-guide.md` |
 | poc source | `~/Repos/Oberon/Peaseblossom` |
 | FLTKAda | `/usr/local/sw/src/tkb/fltkada` (`AGENTS.md`, `doc/binding_architecture.md`, `progress.txt`, `test/`) |
 | polibfyaml | `~/Repos/Oberon/polibfyaml` (`AGENTS.md`, `GNUmakefile`, `test/Check.Mod`, `test/poc-gc.supp`) |
@@ -339,8 +342,8 @@ plain X11 drawing. The agent can ssh to it as the user and as root.
   `CONF_LINKS`) were made by hand on 2026-10-08, and the three now
   match DejaVu Sans, Serif and Sans Mono. `fc-match sans` checks it.
 - Tested there 2026-10-08: `make test` passes, with the poc 0.4.1
-  package (`/usr/local/bin/poc`); and 2026-10-15 with poc 0.6.0, all
-  823 `ok` lines.
+  package (`/usr/local/bin/poc`); 2026-10-15 with poc 0.6.0, all 823
+  `ok` lines; and 2026-10-30 with poc 0.10.1, all 823.
 
 ### Testing on NetBSD i386 (yishana)
 
@@ -356,8 +359,9 @@ to it as the user and as root.
   first on `PATH` (ssh doesn't).
 - **The display**: Xvfb is X11's, `/usr/X11R7/bin/Xvfb`; start it by
   hand as on cymoril. No sway, and no valgrind on NetBSD.
-- Tested there 2026-10-08: `make test` passes, all 814 checks; and
-  2026-10-15 with poc 0.6.0, all 823 `ok` lines.
+- Tested there 2026-10-08: `make test` passes, all 814 checks;
+  2026-10-15 with poc 0.6.0, all 823 `ok` lines; and 2026-10-30 with
+  poc 0.10.1, all 823.
 
 ### The other BSD hosts
 
@@ -365,18 +369,18 @@ Surveyed 2026-10-30; each has poc 0.10.1, and the agent can ssh to each
 as the user.
 
 - **artos**: NetBSD 11.0 on amd64, set up as yishana is: pkgsrc's FLTK
-  1.4.5 with Pango, Xvfb, no sway or valgrind. It can build pofltk, but
-  `make test` has not been run there yet.
+  1.4.5 with Pango, Xvfb, no sway or valgrind. `make test` passed
+  there 2026-10-30, all 823 `ok` lines.
 - **jherek**: OpenBSD 7.9 on amd64: FLTK 1.4.5 in
   `/usr/local/sw/versions/fltk/1.4.5` (2026-10-30), with
   `FLTK_HAVE_CAIRO` and `FLTK_USE_CAIRO`, and cairo, Pango, GL, GLEW
   and `/usr/X11R6/bin/Xvfb`. Set up as cymoril is, on amd64. `make test`
-  has not been run there yet.
+  passed there 2026-10-30, all 823 `ok` lines.
 - **alerik** (FreeBSD 15.1, amd64) and **rackhir** (FreeBSD 15.1,
   arm64): FLTK 1.4.5 in `/usr/local/sw/versions/fltk/1.4.5` (2026-10-30),
   with `FLTK_HAVE_CAIRO` and `FLTK_USE_CAIRO`, and cairo, Pango, GL,
   GLEW and `/usr/local/bin/Xvfb`. DejaVu is their only font.
-  `make test` has not been run there yet.
+  `make test` passed on both 2026-10-30, all 823 `ok` lines.
 
 **So that a test passes on every system**, it must not depend on the
 font, the drawing back end, or the FPU:
@@ -408,7 +412,7 @@ font, the drawing back end, or the FPU:
     that the script still catches a deliberate leak whenever you change
     it.
 
-## Confirmed facts (poc 0.3.1 to 0.6.0, FLTK 1.4.5)
+## Confirmed facts (poc 0.3.1 to 0.10.1, FLTK 1.4.5)
 
 Each was confirmed by a program that ran, in the session of 2026-10-06
 unless it says otherwise.
@@ -621,6 +625,20 @@ held only in C++ memory**.
   the character after a run of digits, and reads past a name's end
   after one. pofltk sorts with its own (`ofl::numericsort`), and sets
   it as FLTK's file chooser's.
+- **Clocks** (`doc/fltk-issues.md`, 74, 76): `value(ulong)` crashes on
+  a time `localtime` can't convert, and writes over what it was given
+  once the hands move, so the shim calls it twice; a running `Fl_Clock`
+  reads as seconds past midnight. `Fl_Round_Clock` is also `FL_NO_BOX`,
+  not just a type.
+- **Tooltips** (`doc/fltk-issues.md`, 75): `enter_area` keeps its text,
+  and knows it by its pointer; `Fl_Tooltip::current` leaves none
+  current for a widget with no tooltip, nor a group around it with one.
+- **`Fl_File_Input`'s bar** takes a click in a shown window alone under
+  Wayland: `make_current` of one not shown is an alert, then a fatal
+  error (`doc/fltk-issues.md`, 77). `Probe` tests show the window first.
+- **`Fl_Shortcut_Button`** takes keys until it loses the focus, and by
+  default calls back only then (`FL_WHEN_RELEASE`). A nice slider has
+  `FL_FLAT_BOX`. `Fl_Positioner` has `FL_DOWN_BOX`, against its header.
 - **Screens**: `Fl::screen_num` is 0 for a point on no screen.
   xvfb-run's default screen is 640x480; `tools/with-sway.sh`'s output
   is 1280x800.
@@ -640,6 +658,13 @@ workaround.
 
 None at present.
 
+- **poc 0.10.1** (2026-10-30): pofltk builds with it unchanged, before
+  Phase 14: `make test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway` pass here (823, 819, 753 and 749 `ok` lines; every
+  valgrind error summary 0), as `make test` does on all six BSDs (823).
+  After Phase 14, the same runs give 932, 928, 849 and 845 here, and
+  932 on all six BSDs, on an FLTK with neither Cairo nor Pango (932),
+  and on one without SVG (932, 2 skipped).
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

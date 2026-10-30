@@ -12,6 +12,7 @@
 #include <FL/Fl_Repeat_Button.H>
 #include <FL/Fl_Return_Button.H>
 #include <FL/Fl_Round_Button.H>
+#include <FL/Fl_Shortcut_Button.H>
 #include <FL/Fl_Toggle_Button.H>
 
 namespace {
@@ -45,8 +46,19 @@ intptr_t ofl_button_new(int32_t kind, int32_t x, int32_t y, int32_t w,
     case 7: return make<Fl_Return_Button>(x, y, w, h, label, self);
     case 8: return make<Fl_Repeat_Button>(x, y, w, h, label, self);
     case 9: return make<Fl_Toggle_Button>(x, y, w, h, label, self);
+    case 10: return make<Fl_Shortcut_Button>(x, y, w, h, label, self);
     default: return make<Fl_Button>(x, y, w, h, label, self);
   }
+}
+
+// Fl_Shortcut_Button::value hides Fl_Button's, so the class is called as
+// itself. A shortcut crosses as an int32_t, as a button's does.
+int32_t ofl_shortcut_button_value(intptr_t b) {
+  return static_cast<int32_t>(ofl::as<Fl_Shortcut_Button>(b)->value());
+}
+
+void ofl_shortcut_button_set_value(intptr_t b, int32_t s) {
+  ofl::as<Fl_Shortcut_Button>(b)->value(static_cast<Fl_Shortcut>(s));
 }
 
 int32_t ofl_button_value(intptr_t b) { return button(b)->value(); }

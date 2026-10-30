@@ -14,6 +14,7 @@ VAR
   secret: FlInputs.SecretInput;
   out: FlInputs.Output;
   mout: FlInputs.MultilineOutput;
+  file: FlInputs.FileInput;
   s: ARRAY 64 OF CHAR;
   small: ARRAY 4 OF CHAR;
   calls: INTEGER;
@@ -143,6 +144,27 @@ BEGIN
   in.SetCursorColor(Fl.Red);
   Check.Check((in.TextFont() = Fl.Courier) & (in.TextSize() = 18) & (in.TextColor() = Fl.Blue)
     & (in.CursorColor() = Fl.Red), "text font, size and color, and cursor color, read back");
+
+  (* a file input: a click on a directory in the bar above the text cuts
+     the path back to it, and the bar is laid out as it draws *)
+  win.Begin;
+  NEW(file); FlInputs.OpenFileInput(file, 60, 200, 300, 40, "file");
+  win.End;
+  file.action := Count; calls := 0;
+  file.SetValue("/usr/share/doc/x");
+  file.Value(s);
+  Check.Check(s = "/usr/share/doc/x", "a file input's value reads back");
+  file.SetDownBox(Fl.FlatBox);
+  Check.Check(file.DownBox() = Fl.FlatBox, "its down box reads back");
+  file.SetDownBox(Fl.UpBox);
+  (* the bar's click makes the window current, which Wayland refuses, in
+     an alert no one answers, for a window not shown *)
+  win.Show; win.WaitForExpose;
+  ok := Probe.Capture(file); Probe.Release;
+  ok := Probe.Mouse(win, Fl.EvPush, 66, 203, Fl.LeftMouse, Fl.Button1, 0);
+  ok := Probe.Mouse(win, Fl.EvRelease, 66, 203, Fl.LeftMouse, {}, 0);
+  file.Value(s);
+  Check.Check((s = "/") & (calls = 1), "a click on its first directory cuts the path to it, and calls back");
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");

@@ -33,7 +33,13 @@ CONST
   NotFiring* = 75;      (* RepeatTimeout outside its timer's Fire *)
   NotAChild* = 76;      (* a widget that must be a group's child isn't *)
   OutOfOrder* = 77;     (* an End that doesn't match the last Begin *)
-  Unsupported* = 78;    (* an argument a call can't take: a multi-label for a window, or in itself *)
+  Unsupported* = 78;    (* an argument a call can't take, or what this FLTK lacks (Has) *)
+
+  (* what an FLTK may lack, for Has *)
+  Svg* = 0;          (* SVG images: Load and LoadData read them *)
+  CairoWindow* = 1;  (* a window to draw in with cairo *)
+  Wayland* = 2;      (* the display is Wayland's *)
+  X11* = 3;          (* the display is X11's *)
 
   (* where Copy puts text, and Paste takes it from: FLTK has no names *)
   Selection* = 0;  (* the selection buffer, pasted with the middle button on X11 *)
@@ -404,6 +410,28 @@ TYPE
   DoubleWindow* = POINTER TO DoubleWindowDesc;
   DoubleWindowDesc* = RECORD (WindowDesc) END;
 
+  (* A window that draws on the screen directly, however FLTK's other
+     windows do it. *)
+  SingleWindow* = POINTER TO SingleWindowDesc;
+  SingleWindowDesc* = RECORD (WindowDesc) END;
+
+  (* A window for a menu or the like, which a program makes itself. *)
+  MenuWindow* = POINTER TO MenuWindowDesc;
+  MenuWindowDesc* = RECORD (SingleWindowDesc) END;
+
+  (* FLTK's Fl_Rect: a place and size. Right and Bottom are the first
+     coordinates outside it. *)
+  Rect* = RECORD
+    x*, y*, w*, h*: INTEGER
+  END;
+
+  (* Says whether a widget still exists, across a call that may delete
+     it. *)
+  Tracker* = POINTER TO TrackerDesc;
+  TrackerDesc* = RECORD
+    w: Widget  (* NIL once it is found deleted *)
+  END;
+
   Box* = POINTER TO BoxDesc;
   BoxDesc* = RECORD (WidgetDesc) END;
 
@@ -479,6 +507,20 @@ PROCEDURE ["C", "ofl_register"] CRegister(callback, draw: SelfProc; handle: Hand
 PROCEDURE ["C", "ofl_group_new"] CGroupNew(x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_window_new"] CWindowNew(placed, x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_double_window_new"] CDoubleWindowNew(placed, x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_single_window_new"] CSingleWindowNew(menu, placed, x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_window_set_xclass"] CSetXClass(w: SYSTEM.ADDRESS; name: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_window_xclass"] CXClass(w: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_group_draw_child"] CDrawChild(g, w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_tooltip_delay"] CTooltipDelay(what: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_tooltip_set_delay"] CTooltipSetDelay(what: SYSTEM.INT32; v: LONGREAL);
+PROCEDURE ["C", "ofl_tooltip_setting"] CTooltipSetting(what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_tooltip_set_setting"] CTooltipSetSetting(what, v: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_tooltip_current"] CTooltipCurrent(): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_tooltip_set_current"] CTooltipSetCurrent(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_tooltip_enter_area"] CEnterArea(w: SYSTEM.ADDRESS; x, y, width, height: SYSTEM.INT32; text: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_scheme_count"] CSchemeCount(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_scheme_name"] CSchemeName(i: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_add_scheme_name"] CAddSchemeName(name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_box_new"] CBoxNew(x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_widget_delete"] CDelete(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_show"] CShow(w: SYSTEM.ADDRESS);
@@ -630,6 +672,7 @@ PROCEDURE ["C", "ofl_inactive"] CInactive(c: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_normal_size"] CNormalSize(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_normal_size"] CSetNormalSize(s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_box_d"] CBoxD(b, what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_has"] CHas(feature: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_scheme"] CSetScheme(name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_scheme"] CScheme(): SYSTEM.ADDRESS;
 
@@ -719,6 +762,26 @@ PROCEDURE OpenDoubleWindowAt*(win: DoubleWindow; x, y, w, h: INTEGER; title-: AR
 BEGIN
   EndOpen(win, CDoubleWindowNew(1, x, y, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
 END OpenDoubleWindowAt;
+
+PROCEDURE OpenSingleWindow*(win: SingleWindow; w, h: INTEGER; title-: ARRAY OF CHAR);
+BEGIN
+  EndOpen(win, CSingleWindowNew(0, 0, 0, 0, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
+END OpenSingleWindow;
+
+PROCEDURE OpenSingleWindowAt*(win: SingleWindow; x, y, w, h: INTEGER; title-: ARRAY OF CHAR);
+BEGIN
+  EndOpen(win, CSingleWindowNew(0, 1, x, y, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
+END OpenSingleWindowAt;
+
+PROCEDURE OpenMenuWindow*(win: MenuWindow; w, h: INTEGER; title-: ARRAY OF CHAR);
+BEGIN
+  EndOpen(win, CSingleWindowNew(1, 0, 0, 0, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
+END OpenMenuWindow;
+
+PROCEDURE OpenMenuWindowAt*(win: MenuWindow; x, y, w, h: INTEGER; title-: ARRAY OF CHAR);
+BEGIN
+  EndOpen(win, CSingleWindowNew(1, 1, x, y, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
+END OpenMenuWindowAt;
 
 PROCEDURE OpenBox*(b: Box; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN
@@ -1079,6 +1142,13 @@ BEGIN
   RETURN SYSTEM.VAL(Widget, CChild(h, i))
 END Child;
 
+(* For an extension's Draw: draws w, which must be one of g's children,
+   with all of it damaged, as a group draws a child; so Draw can put it
+   over what it drew itself. Halts with NotAChild otherwise. *)
+PROCEDURE (g: Group) DrawChild*(w: Widget);
+BEGIN ASSERT(g.Find(w) >= 0, NotAChild); CDrawChild(g.h, w.h)
+END DrawChild;
+
 (* Window *)
 
 (* Shows w, as Show does, with FLTK's command-line options (ParseArgs,
@@ -1140,6 +1210,16 @@ END FullscreenOff;
 PROCEDURE (w: Window) FullscreenActive*(): BOOLEAN;
 BEGIN RETURN CFullscreenActive(Live(w)) # 0
 END FullscreenActive;
+
+(* The name a window system groups the window by, as FLTK's xclass. FLTK
+   makes the first one set the default for every window. *)
+PROCEDURE (w: Window) SetXClass*(name-: ARRAY OF CHAR);
+BEGIN CSetXClass(Live(w), name)
+END SetXClass;
+
+PROCEDURE (w: Window) XClass*(VAR name: ARRAY OF CHAR);
+BEGIN FromC(CXClass(Live(w)), name)
+END XClass;
 
 (* The mouse pointer's shape over the window: CursorDefault, or another
    cursor constant. *)
@@ -1248,6 +1328,64 @@ PROCEDURE BoxDH*(b: INTEGER): INTEGER;
 BEGIN RETURN BoxD(b, 3)
 END BoxDH;
 
+(* Rectangles *)
+
+PROCEDURE (VAR r: Rect) Set*(x, y, w, h: INTEGER);
+BEGIN r.x := x; r.y := y; r.w := w; r.h := h
+END Set;
+
+(* w's place and size. *)
+PROCEDURE (VAR r: Rect) SetFrom*(w: Widget);
+BEGIN r.Set(w.X(), w.Y(), w.W(), w.H())
+END SetFrom;
+
+PROCEDURE (VAR r: Rect) Right*(): INTEGER;
+BEGIN RETURN r.x + r.w
+END Right;
+
+PROCEDURE (VAR r: Rect) Bottom*(): INTEGER;
+BEGIN RETURN r.y + r.h
+END Bottom;
+
+(* Moves the right or bottom edge alone, so the width or height changes. *)
+PROCEDURE (VAR r: Rect) SetRight*(right: INTEGER);
+BEGIN r.w := right - r.x
+END SetRight;
+
+PROCEDURE (VAR r: Rect) SetBottom*(bottom: INTEGER);
+BEGIN r.h := bottom - r.y
+END SetBottom;
+
+(* Shrinks r by each amount on its side, or enlarges it for a negative
+   amount, with no check that anything is left. *)
+PROCEDURE (VAR r: Rect) InsetSides*(left, top, right, bottom: INTEGER);
+BEGIN
+  INC(r.x, left); INC(r.y, top);
+  DEC(r.w, left + right); DEC(r.h, top + bottom)
+END InsetSides;
+
+PROCEDURE (VAR r: Rect) Inset*(d: INTEGER);
+BEGIN r.InsetSides(d, d, d, d)
+END Inset;
+
+(* Shrinks r by the frame of box type b, to what b's box has inside. *)
+PROCEDURE (VAR r: Rect) InsetBox*(b: INTEGER);
+BEGIN
+  INC(r.x, BoxDX(b)); INC(r.y, BoxDY(b));
+  DEC(r.w, BoxDW(b)); DEC(r.h, BoxDH(b))
+END InsetBox;
+
+PROCEDURE (VAR r: Rect) Equal*(other-: Rect): BOOLEAN;
+BEGIN
+  RETURN (r.x = other.x) & (r.y = other.y) & (r.w = other.w) & (r.h = other.h)
+END Equal;
+
+(* TRUE if this FLTK has feature: Svg, CairoWindow, Wayland or X11, for a
+   program that must run on any FLTK. Wayland and X11 open the display. *)
+PROCEDURE Has*(feature: INTEGER): BOOLEAN;
+BEGIN RETURN CHas(feature) # 0
+END Has;
+
 (* FLTK's look: "none" (or "base"), "plastic", "gtk+", "gleam" or "oxy".
    FALSE if FLTK doesn't know name; the look is then "none". *)
 PROCEDURE SetScheme*(name-: ARRAY OF CHAR): BOOLEAN;
@@ -1258,6 +1396,172 @@ END SetScheme;
 PROCEDURE GetScheme*(VAR name: ARRAY OF CHAR);
 BEGIN FromC(CScheme(), name)
 END GetScheme;
+
+(* How many schemes FLTK knows, and each one's name, from 0: "base",
+   "plastic", "gtk+", "gleam", "oxy", then any added. *)
+PROCEDURE SchemeCount*(): INTEGER;
+BEGIN RETURN CSchemeCount()
+END SchemeCount;
+
+PROCEDURE SchemeName*(i: INTEGER; VAR name: ARRAY OF CHAR);
+BEGIN
+  ASSERT((i >= 0) & (i < CSchemeCount()), IndexOutOfRange);
+  FromC(CSchemeName(i), name)
+END SchemeName;
+
+(* Adds name, copied, for a program that defines its own look. FALSE if
+   FLTK has it already, or won't take it: it must be 12 characters at
+   most, of lower-case letters, digits, "$", "+", "_" and ".". *)
+PROCEDURE AddSchemeName*(name-: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CAddSchemeName(name) > 0
+END AddSchemeName;
+
+(* Tooltips, all of them. Delays are in seconds. *)
+
+(* Before a tooltip shows, and how long it stays. *)
+PROCEDURE TooltipDelay*(): LONGREAL;
+BEGIN RETURN CTooltipDelay(0)
+END TooltipDelay;
+
+PROCEDURE SetTooltipDelay*(d: LONGREAL);
+BEGIN CTooltipSetDelay(0, d)
+END SetTooltipDelay;
+
+PROCEDURE TooltipHideDelay*(): LONGREAL;
+BEGIN RETURN CTooltipDelay(1)
+END TooltipHideDelay;
+
+PROCEDURE SetTooltipHideDelay*(d: LONGREAL);
+BEGIN CTooltipSetDelay(1, d)
+END SetTooltipHideDelay;
+
+(* Before the next tooltip shows, soon after one has: it is usually
+   shorter. *)
+PROCEDURE TooltipHoverDelay*(): LONGREAL;
+BEGIN RETURN CTooltipDelay(2)
+END TooltipHoverDelay;
+
+PROCEDURE SetTooltipHoverDelay*(d: LONGREAL);
+BEGIN CTooltipSetDelay(2, d)
+END SetTooltipHoverDelay;
+
+PROCEDURE TooltipFont*(): INTEGER;
+BEGIN RETURN CTooltipSetting(0)
+END TooltipFont;
+
+PROCEDURE SetTooltipFont*(f: INTEGER);
+BEGIN CTooltipSetSetting(0, f)
+END SetTooltipFont;
+
+PROCEDURE TooltipSize*(): INTEGER;
+BEGIN RETURN CTooltipSetting(1)
+END TooltipSize;
+
+PROCEDURE SetTooltipSize*(s: INTEGER);
+BEGIN CTooltipSetSetting(1, s)
+END SetTooltipSize;
+
+PROCEDURE TooltipColor*(): INTEGER;
+BEGIN RETURN CTooltipSetting(2)
+END TooltipColor;
+
+PROCEDURE SetTooltipColor*(c: INTEGER);
+BEGIN CTooltipSetSetting(2, c)
+END SetTooltipColor;
+
+PROCEDURE TooltipTextColor*(): INTEGER;
+BEGIN RETURN CTooltipSetting(3)
+END TooltipTextColor;
+
+PROCEDURE SetTooltipTextColor*(c: INTEGER);
+BEGIN CTooltipSetSetting(3, c)
+END SetTooltipTextColor;
+
+(* The space around the text. *)
+PROCEDURE TooltipMarginWidth*(): INTEGER;
+BEGIN RETURN CTooltipSetting(4)
+END TooltipMarginWidth;
+
+PROCEDURE SetTooltipMarginWidth*(n: INTEGER);
+BEGIN CTooltipSetSetting(4, n)
+END SetTooltipMarginWidth;
+
+PROCEDURE TooltipMarginHeight*(): INTEGER;
+BEGIN RETURN CTooltipSetting(5)
+END TooltipMarginHeight;
+
+PROCEDURE SetTooltipMarginHeight*(n: INTEGER);
+BEGIN CTooltipSetSetting(5, n)
+END SetTooltipMarginHeight;
+
+(* The widest a tooltip's text gets before it wraps. *)
+PROCEDURE TooltipWrapWidth*(): INTEGER;
+BEGIN RETURN CTooltipSetting(6)
+END TooltipWrapWidth;
+
+PROCEDURE SetTooltipWrapWidth*(n: INTEGER);
+BEGIN CTooltipSetSetting(6, n)
+END SetTooltipWrapWidth;
+
+PROCEDURE TooltipsEnabled*(): BOOLEAN;
+BEGIN RETURN CTooltipSetting(7) # 0
+END TooltipsEnabled;
+
+PROCEDURE EnableTooltips*(on: BOOLEAN);
+BEGIN IF on THEN CTooltipSetSetting(7, 1) ELSE CTooltipSetSetting(7, 0) END
+END EnableTooltips;
+
+(* The widget whose tooltip is showing or about to, or NIL; NIL too if
+   FLTK made the widget. *)
+PROCEDURE TooltipCurrent*(): Widget;
+BEGIN RETURN SYSTEM.VAL(Widget, CTooltipCurrent())
+END TooltipCurrent;
+
+(* Sets it, with no tooltip shown, so a tooltip for another widget waits
+   its delay. w may be NIL. A w with no tooltip, nor any group around it,
+   leaves none current. *)
+PROCEDURE SetTooltipCurrent*(w: Widget);
+BEGIN
+  IF w = NIL THEN CTooltipSetCurrent(0) ELSE CTooltipSetCurrent(Live(w)) END
+END SetTooltipCurrent;
+
+(* For a Handle that gives parts of a widget tooltips of their own: when
+   the mouse enters the area x, y, width, height of w, in w's window's
+   coordinates, shows text there as w's tooltip. text is copied. "" ends
+   it, and the last one should, when the mouse leaves. *)
+PROCEDURE EnterArea*(w: Widget; x, y, width, height: INTEGER; text-: ARRAY OF CHAR);
+BEGIN CEnterArea(Live(w), x, y, width, height, text)
+END EnterArea;
+
+(* Trackers *)
+
+(* t watches w, which must be open. *)
+PROCEDURE (t: Tracker) Track*(w: Widget);
+BEGIN
+  ASSERT(w # NIL, NilArgument); ASSERT(w.state = open, NotOpen);
+  t.w := w
+END Track;
+
+(* FLTK's tracker clears when ~Fl_Widget runs, and so does this: a widget
+   Delete has queued, inside a callback, exists until events are next
+   handled, which may be in that callback. *)
+PROCEDURE (t: Tracker) Exists*(): BOOLEAN;
+BEGIN
+  IF (t.w # NIL) & ~t.w.IsOpen() THEN t.w := NIL END;
+  RETURN t.w # NIL
+END Exists;
+
+PROCEDURE (t: Tracker) Deleted*(): BOOLEAN;
+BEGIN RETURN ~t.Exists()
+END Deleted;
+
+(* The widget, or NIL if it was deleted or none is tracked. *)
+PROCEDURE (t: Tracker) Widget*(): Widget;
+VAR w: Widget;
+BEGIN
+  IF t.Exists() THEN w := t.w ELSE w := NIL END;
+  RETURN w
+END Widget;
 
 (* Events. While a widget's Handle runs, these say what the event was:
    where, which key or button, what text. A position is in the window's

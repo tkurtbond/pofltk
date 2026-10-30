@@ -107,6 +107,8 @@ END Hello.
 - `Scribble`: a custom widget drawn and driven by the mouse.
 - `Swatch`: a custom-drawn box.
 - `Menus`: a menu bar, a choice and the dialogs.
+- `Presets`, `Positions`, `Shortcuts`, `FileInputs`, `Tooltips`,
+  `Rects`, `Trackers`: the small widgets and types, one program each.
 - Ports of FLTK's own `examples/` programs, each named for FLTK's file
   in CamelCase, without `howto-`:
   - each module's simplest use: `TableSimple`, `TreeSimple`,
@@ -135,17 +137,18 @@ END Hello.
   - animated GIFs: `AnimGifImageSimple`, `AnimGifImage` (FLTK's tests
     of them, a directory's or a file chosen), `AnimGifImagePlay`
     (played frame by frame by the program) and `AnimGifImageResize`
-    (copied to its canvas's size).
+    (copied to its canvas's size);
+  - from FLTK's `test/`: `Clock`, `DoubleBuffer`.
 
 ## Modules
 
 | Module | Contents |
 |---|---|
-| `Fl` | `Widget`, `Group`, `Window`, `DoubleWindow`, `Box`; the event loop, timers, idle callbacks, file descriptors' watches, the event dispatch, event handlers, events, colors, fonts, box and label types, schemes, options, the clipboard, command-line options, screens, opening URIs |
+| `Fl` | `Widget`, `Group`, `Window`, `DoubleWindow`, `SingleWindow`, `MenuWindow`, `Box`, `Rect`, `Tracker`; the event loop, timers, idle callbacks, file descriptors' watches, the event dispatch, event handlers, events, colors, fonts, box and label types, schemes, options, the clipboard, command-line options, screens, opening URIs, tooltips, `Has` (what this FLTK has) |
 | `FlDraw` | `fl_draw.H`: lines, shapes, paths, transformations, text, fonts, clipping, boxes and symbols |
-| `FlButtons` | `Button` and its kinds: check, light, round, radio, return, repeat, toggle |
-| `FlInputs` | `Input` and its kinds, `Output`, `MultilineOutput` |
-| `FlValuators` | sliders, `Counter`, `Dial`, `Roller`, `Spinner`, `Adjuster`, `ValueInput`, `ValueOutput`, `Scrollbar`, `Progress`, `Chart` |
+| `FlButtons` | `Button` and its kinds: check, light, round, radio, return, repeat, toggle; `ShortcutButton` |
+| `FlInputs` | `Input` and its kinds, `FileInput`, `Output`, `MultilineOutput` |
+| `FlValuators` | sliders, `Counter`, `Dial`, `Roller`, `Spinner`, `Adjuster`, `ValueInput`, `ValueOutput`, `Scrollbar`, `Progress`, `Chart`, `Positioner`, `ClockOutput`, `Clock`, and the presets of each kind |
 | `FlLayout` | `Flex`, `Grid`, `Pack`, `Scroll`, `Tabs`, `Tile`, `Wizard` |
 | `FlMenus` | `MenuBar`, `MenuButton`, `Choice`, `SchemeChoice`, menu items |
 | `FlDialogs` | messages, questions, input, colors, file choosers, `NativeFileChooser`; directories listed |

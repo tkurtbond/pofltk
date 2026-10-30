@@ -6,6 +6,7 @@
 #include <FL/fl_draw.H>
 #include <FL/Fl_Button.H>
 #include <FL/Fl_Chart.H>
+#include <FL/Fl_Clock.H>
 #include <FL/Fl_Counter.H>
 #include <FL/Fl_Dial.H>
 #include <FL/Fl_Input_.H>
@@ -366,6 +367,8 @@ const Entry entries[] = {
   {"FL_HOR_FILL_SLIDER", (int32_t)(FL_HOR_FILL_SLIDER)},
   {"FL_VERT_NICE_SLIDER", (int32_t)(FL_VERT_NICE_SLIDER)},
   {"FL_HOR_NICE_SLIDER", (int32_t)(FL_HOR_NICE_SLIDER)},
+  {"FL_SQUARE_CLOCK", (int32_t)(FL_SQUARE_CLOCK)},
+  {"FL_ROUND_CLOCK", (int32_t)(FL_ROUND_CLOCK)},
   {"FL_NORMAL_DIAL", (int32_t)(FL_NORMAL_DIAL)},
   {"FL_LINE_DIAL", (int32_t)(FL_LINE_DIAL)},
   {"FL_FILL_DIAL", (int32_t)(FL_FILL_DIAL)},

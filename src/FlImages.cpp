@@ -17,7 +17,9 @@
 #include <FL/Fl_PNG_Image.H>
 #include <FL/Fl_PNM_Image.H>
 #include <FL/Fl_Pixmap.H>
+#if defined(FLTK_USE_SVG)
 #include <FL/Fl_SVG_Image.H>
+#endif
 #include <FL/Fl_Tiled_Image.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_XPM_Image.H>
@@ -30,6 +32,15 @@
 #include <vector>
 
 namespace {
+
+// Rasterizes image, if it is an SVG, so that it has pixels to read.
+void normalize(Fl_Image *image) {
+#if defined(FLTK_USE_SVG)
+  if (Fl_SVG_Image *s = dynamic_cast<Fl_SVG_Image *>(image)) s->normalize();
+#else
+  (void)image;
+#endif
+}
 
 // An image, shared by the program's Image and the widgets showing it
 // (ofl::Shared): FLTK keeps a label image's pointer, and doesn't own it.
@@ -58,7 +69,7 @@ public:
       }
       return 0;
     }
-    if (Fl_SVG_Image *s = dynamic_cast<Fl_SVG_Image *>(image)) s->normalize();
+    normalize(image);
     if (Fl_RGB_Image *r = dynamic_cast<Fl_RGB_Image *>(image)) return r;
     if (!rgb_) {
       if (Fl_Pixmap *p = dynamic_cast<Fl_Pixmap *>(image)) {
@@ -310,14 +321,16 @@ intptr_t ofl_image_load(const char *name) {
       scale_pnm(i, pnm_maxval(head, n));
       return make(i);
     }
+#if defined(FLTK_USE_SVG)
     case svgf: return make(new Fl_SVG_Image(name));
+#endif
     default: return 0;
   }
 }
 
 // The image in the n bytes at data, which FLTK decodes into its own
 // memory (SVG copies the text); 0 for a format FLTK reads only from files
-// (XPM, PNM), or data it can't decode.
+// (XPM, PNM), data it can't decode, or SVG in an FLTK without it.
 intptr_t ofl_image_load_data(const unsigned char *data, int32_t n) {
   if (n <= 0) return 0;
   switch (format(data, static_cast<size_t>(n))) {
@@ -325,7 +338,9 @@ intptr_t ofl_image_load_data(const unsigned char *data, int32_t n) {
     case jpeg: return make(new Fl_JPEG_Image(0, data, n));
     case gif: return make(new Fl_GIF_Image(0, data, static_cast<size_t>(n)));
     case bmp: return make(new Fl_BMP_Image(0, data, n));
+#if defined(FLTK_USE_SVG)
     case svgf: return make(new Fl_SVG_Image(0, data, static_cast<size_t>(n)));
+#endif
     default: return 0;
   }
 }
@@ -529,7 +544,7 @@ int32_t ofl_window_shape(intptr_t w, intptr_t i) {
   Fl_RGB_Image *r = img(i)->rgb();
   if (r == 0) return 0;
   Fl_Image *c = r->copy(r->w(), r->h());
-  if (Fl_SVG_Image *s = dynamic_cast<Fl_SVG_Image *>(c)) s->normalize();
+  normalize(c);
   if (c == 0 || c->fail() || c->w() <= 0 || c->h() <= 0) {
     delete c;
     return 0;

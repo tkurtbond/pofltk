@@ -27,7 +27,7 @@ CONST
 
   (* the classes, as ofl_button_new numbers them *)
   button = 0; check = 1; light = 2; round = 3; radio = 4; radioLight = 5;
-  radioRound = 6; return = 7; repeat = 8; toggle = 9;
+  radioRound = 6; return = 7; repeat = 8; toggle = 9; shortcut = 10;
 
   keyMask = 10000H;  (* FL_KEY_MASK + 1: a shortcut's key is below it *)
 
@@ -56,6 +56,12 @@ TYPE
   RadioRoundButton* = POINTER TO RadioRoundButtonDesc;
   RadioRoundButtonDesc* = RECORD (RoundButtonDesc) END;
 
+  (* Shows a shortcut, and takes a new one: a click makes it ready, and
+     the next key is the shortcut. Not a Button, whose value is on or
+     off. *)
+  ShortcutButton* = POINTER TO ShortcutButtonDesc;
+  ShortcutButtonDesc* = RECORD (Fl.WidgetDesc) END;
+
   (* a push button drawn as the default, whose shortcut is the Enter key *)
   ReturnButton* = POINTER TO ReturnButtonDesc;
   ReturnButtonDesc* = RECORD (ButtonDesc) END;
@@ -74,6 +80,8 @@ PROCEDURE ["C", "ofl_button_set_value"] CSetValue(b: SYSTEM.ADDRESS; v: SYSTEM.I
 PROCEDURE ["C", "ofl_button_setonly"] CSetOnly(b: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_button_type"] CType(b: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_button_set_type"] CSetType(b: SYSTEM.ADDRESS; t: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_shortcut_button_value"] CSbValue(b: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_shortcut_button_set_value"] CSbSetValue(b: SYSTEM.ADDRESS; s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_button_shortcut"] CShortcut(b: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_button_set_shortcut"] CSetShortcut(b: SYSTEM.ADDRESS; s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_button_down_box"] CDownBox(b: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -179,5 +187,23 @@ END DownBox;
 PROCEDURE (b: Button) SetDownBox*(t: INTEGER);
 BEGIN CSetDownBox(Fl.Live(b), t)
 END SetDownBox;
+
+(* Shortcut buttons *)
+
+PROCEDURE OpenShortcutButton*(b: ShortcutButton; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(b, CNew(shortcut, x, y, w, h, label, Fl.BeginOpen(b)))
+END OpenShortcutButton;
+
+(* The shortcut shown, as Button.Shortcut gives it; key 0 for none. *)
+PROCEDURE (b: ShortcutButton) Value*(VAR key: INTEGER; VAR state: SET);
+  VAR s: INTEGER;
+BEGIN
+  s := CSbValue(Fl.Live(b));
+  key := s MOD keyMask; state := SYSTEM.VAL(SET, s - key)
+END Value;
+
+PROCEDURE (b: ShortcutButton) SetValue*(key: INTEGER; state: SET);
+BEGIN CSbSetValue(Fl.Live(b), key + ORD(state))
+END SetValue;
 
 END FlButtons.

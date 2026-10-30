@@ -4,6 +4,7 @@ MODULE Check; (* Shared ok/FAIL reporting for the test programs *)
    very end of its body. Output, per check:
      ok   - <label>
      FAIL - <label>
+     skip - <label>, for what this FLTK lacks; make test totals these
    then "All checks passed." or "<N> check(s) failed."
 
    Summary exits with status 1 only when something failed; a passing
@@ -20,6 +21,10 @@ BEGIN
   IF ok THEN Out.String("ok   - ") ELSE Out.String("FAIL - "); INC(failed) END;
   Out.String(label); Out.Ln
 END Check;
+
+PROCEDURE Skip*(label: ARRAY OF CHAR);
+BEGIN Out.String("skip - "); Out.String(label); Out.Ln
+END Skip;
 
 PROCEDURE Summary*;
 BEGIN

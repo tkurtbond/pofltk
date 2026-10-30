@@ -8,12 +8,15 @@ IMPORT Out, Fl, Check;
 VAR
   win: Fl.Window;
   g: Fl.Group;
+  single: Fl.SingleWindow;
+  menu: Fl.MenuWindow;
   a, b, c, d: Fl.Box;
   s: ARRAY 64 OF CHAR;
   short: ARRAY 10 OF CHAR;
   sx, sy, sw, sh, wx, wy, ww, wh: INTEGER;
   r, gr, bl: INTEGER;
   shown: BOOLEAN;
+  n: INTEGER;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 300, 200, "TestWidget");
@@ -159,6 +162,43 @@ BEGIN
   NEW(d); Fl.OpenBox(d, 0, 0, 10, 10, "");
   Check.Check(d.LabelSize() = 18, "a box opened after SetNormalSize gets the size");
   d.Delete; Fl.SetNormalSize(14);
+
+  (* schemes: FLTK's own come first *)
+  Check.Check(Fl.SchemeCount() >= 5, "FLTK has at least its five schemes");
+  Fl.SchemeName(0, s);
+  Check.Check(s = "base", "the first is base");
+  n := Fl.SchemeCount();
+  Check.Check(Fl.AddSchemeName("mine"), "a new scheme name");
+  Check.Check(Fl.SchemeCount() = n + 1, "counts");
+  Fl.SchemeName(n, s);
+  Check.Check(s = "mine", "and is last");
+  Check.Check(~Fl.AddSchemeName("mine"), "a name already there isn't added");
+  Check.Check(~Fl.AddSchemeName("Upper Case"), "nor one with characters FLTK refuses");
+  Check.Check(~Fl.AddSchemeName("thirteenchars"), "nor one over twelve bytes");
+  Check.Check(Fl.SchemeCount() = n + 1, "so none of those counted");
+
+  (* the other windows *)
+  win.SetXClass("Pofltk");
+  win.XClass(s);
+  Check.Check(s = "Pofltk", "a window's class reads back");
+  NEW(single); Fl.OpenSingleWindow(single, 100, 80, "single");
+  single.End;
+  Check.Check((single.W() = 100) & (single.H() = 80), "a single window");
+  single.Delete;
+  NEW(single); Fl.OpenSingleWindowAt(single, 10, 20, 100, 80, "single");
+  single.End;
+  Check.Check((single.X() = 10) & (single.Y() = 20), "placed");
+  single.Delete;
+  NEW(menu); Fl.OpenMenuWindow(menu, 100, 80, "menu");
+  menu.End;
+  Check.Check(menu.H() = 80, "a menu window");
+  menu.Show; shown := Fl.Check();
+  Check.Check(menu.Shown(), "shows");
+  menu.Delete;
+  NEW(menu); Fl.OpenMenuWindowAt(menu, 10, 20, 100, 80, "menu");
+  menu.End;
+  Check.Check(menu.X() = 10, "placed");
+  menu.Delete;
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "all deleted");

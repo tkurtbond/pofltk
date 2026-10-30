@@ -7,8 +7,12 @@
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Flex.H>
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Menu_Window.H>
 #include <FL/Fl_Pack.H>
+#include <FL/Fl_Scheme.H>
+#include <FL/Fl_Single_Window.H>
 #include <FL/Fl_Table.H>
+#include <FL/Fl_Tooltip.H>
 #include <FL/Fl_Window.H>
 #include <FL/filename.H>
 #include <FL/platform.H>
@@ -86,6 +90,17 @@ int handler_trampoline(int event) {
 // pointer until the next event.
 std::vector<char> event_text;
 
+
+// True if the display, which this opens, is Wayland's. An FLTK built
+// without Wayland (OpenBSD's) has no fl_wl_display.
+bool wayland() {
+  fl_open_display();
+#if defined(FLTK_USE_WAYLAND)
+  return fl_wl_display() != 0;
+#else
+  return false;
+#endif
+}
 }  // namespace
 
 extern "C" {
@@ -191,6 +206,18 @@ intptr_t ofl_double_window_new(int32_t placed, int32_t x, int32_t y,
                                int32_t w, int32_t h, intptr_t self) {
   if (placed) return ofl::open(new ofl::W<Fl_Double_Window>(x, y, w, h), self);
   return ofl::open(new ofl::W<Fl_Double_Window>(w, h), self);
+}
+
+// An Fl_Single_Window, or an Fl_Menu_Window if menu is 1.
+intptr_t ofl_single_window_new(int32_t menu, int32_t placed, int32_t x,
+                               int32_t y, int32_t w, int32_t h,
+                               intptr_t self) {
+  if (menu) {
+    if (placed) return ofl::open(new ofl::W<Fl_Menu_Window>(x, y, w, h), self);
+    return ofl::open(new ofl::W<Fl_Menu_Window>(w, h), self);
+  }
+  if (placed) return ofl::open(new ofl::W<Fl_Single_Window>(x, y, w, h), self);
+  return ofl::open(new ofl::W<Fl_Single_Window>(w, h), self);
 }
 
 intptr_t ofl_box_new(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -444,6 +471,15 @@ int32_t ofl_window_shown(intptr_t w) {
   return ofl::as<Fl_Window>(w)->shown() ? 1 : 0;
 }
 
+// FLTK copies the name.
+void ofl_window_set_xclass(intptr_t w, const char *name) {
+  ofl::as<Fl_Window>(w)->xclass(name);
+}
+
+intptr_t ofl_window_xclass(intptr_t w) {
+  return reinterpret_cast<intptr_t>(ofl::as<Fl_Window>(w)->xclass());
+}
+
 void ofl_window_wait_for_expose(intptr_t w) {
   ofl::as<Fl_Window>(w)->wait_for_expose();
 }
@@ -618,10 +654,40 @@ int32_t ofl_open_uri(const char *uri, char *msg, int32_t n) {
   return fl_open_uri(uri, msg, n) != 0;
 }
 
+// What this FLTK has, as Fl numbers it (Has). FLTK_USE_SVG is tested
+// with defined(), as FLTK's source does: CMake's FLTK_OPTION_SVG=OFF
+// defines it as 0 and leaves the class in, and only configure's
+// --disable-svg takes it out (doc/fltk-issues.md, 73).
+int32_t ofl_has(int32_t feature) {
+  switch (feature) {
+#if defined(FLTK_USE_SVG)
+    case 0: return 1;
+#endif
+#if defined(FLTK_HAVE_CAIRO)
+    case 1: return 1;
+#endif
+    case 2: return wayland();
+    case 3: return !wayland();
+    default: return 0;
+  }
+}
+
 int32_t ofl_set_scheme(const char *name) { return Fl::scheme(name); }
 
 // The scheme's name, a const char *, or 0 for none.
 intptr_t ofl_scheme(void) { return reinterpret_cast<intptr_t>(Fl::scheme()); }
+
+int32_t ofl_scheme_count(void) { return Fl_Scheme::num_schemes(); }
+
+// Scheme i's name, a const char *, which FLTK keeps.
+intptr_t ofl_scheme_name(int32_t i) {
+  return reinterpret_cast<intptr_t>(Fl_Scheme::names()[i]);
+}
+
+// FLTK copies name.
+int32_t ofl_add_scheme_name(const char *name) {
+  return Fl_Scheme::add_scheme_name(name);
+}
 
 // A table's children are its cells' widgets, in an inner Fl_Scroll;
 // Fl_Table's begin(), end(), children() and the rest reach them, but
@@ -667,6 +733,17 @@ static Fl_Widget *child(intptr_t g, int i) {
 // The Oberon object of child i, or 0 (ofl::object_of).
 intptr_t ofl_group_child(intptr_t g, int32_t i) {
   return ofl::object_of(child(g, i));
+}
+
+// Fl_Group::draw_child is protected, but a class derived from Fl_Group
+// may name it, and the pointer to member that gives works on any group.
+struct Draws_child : Fl_Group {
+  using Fl_Group::draw_child;
+};
+
+void ofl_group_draw_child(intptr_t g, intptr_t w) {
+  void (Fl_Group::*draw)(Fl_Widget &) const = &Draws_child::draw_child;
+  (ofl::as<Fl_Group>(g)->*draw)(*ofl::widget(w));
 }
 
 void ofl_group_add(intptr_t g, intptr_t w) {
@@ -791,16 +868,9 @@ extern char fl_i_own_selection[2];
 // image: 0 text, 1 an image. Under X11, another program's data is asked
 // for through Fl::first_window. With no window shown, FLTK asks with
 // window 0 anyway, and the X server's BadWindow error is printed, so
-// pofltk doesn't ask: the paste does nothing, as it would have. An FLTK
-// built without Wayland (OpenBSD's) has no fl_wl_display.
+// pofltk doesn't ask: the paste does nothing, as it would have.
 void ofl_paste(intptr_t receiver, int32_t source, int32_t image) {
-  fl_open_display();
-#if defined(FLTK_USE_WAYLAND)
-  bool wayland = fl_wl_display() != 0;
-#else
-  bool wayland = false;
-#endif
-  if (!wayland && !Fl::first_window() &&
+  if (!wayland() && !Fl::first_window() &&
       !fl_i_own_selection[source ? 1 : 0])
     return;
   Fl::paste(*ofl::widget(receiver), source,
@@ -837,6 +907,86 @@ int32_t ofl_option(int32_t o, int32_t what) {
 
 int32_t ofl_event_inside(int32_t x, int32_t y, int32_t w, int32_t h) {
   return Fl::event_inside(x, y, w, h);
+}
+
+// Tooltips: FLTK's settings for all of them.
+
+// what: 0 delay, 1 hide delay, 2 hover delay.
+double ofl_tooltip_delay(int32_t what) {
+  switch (what) {
+    case 0: return Fl_Tooltip::delay();
+    case 1: return Fl_Tooltip::hidedelay();
+    default: return Fl_Tooltip::hoverdelay();
+  }
+}
+
+void ofl_tooltip_set_delay(int32_t what, double v) {
+  float f = static_cast<float>(v);
+  switch (what) {
+    case 0: Fl_Tooltip::delay(f); break;
+    case 1: Fl_Tooltip::hidedelay(f); break;
+    default: Fl_Tooltip::hoverdelay(f); break;
+  }
+}
+
+// what: 0 font, 1 size, 2 color, 3 text color, 4 margin width, 5 margin
+// height, 6 wrap width, 7 enabled.
+int32_t ofl_tooltip_setting(int32_t what) {
+  switch (what) {
+    case 0: return Fl_Tooltip::font();
+    case 1: return Fl_Tooltip::size();
+    case 2: return static_cast<int32_t>(Fl_Tooltip::color());
+    case 3: return static_cast<int32_t>(Fl_Tooltip::textcolor());
+    case 4: return Fl_Tooltip::margin_width();
+    case 5: return Fl_Tooltip::margin_height();
+    case 6: return Fl_Tooltip::wrap_width();
+    default: return Fl_Tooltip::enabled();
+  }
+}
+
+void ofl_tooltip_set_setting(int32_t what, int32_t v) {
+  switch (what) {
+    case 0: Fl_Tooltip::font(v); break;
+    case 1: Fl_Tooltip::size(v); break;
+    case 2: Fl_Tooltip::color(static_cast<Fl_Color>(v)); break;
+    case 3: Fl_Tooltip::textcolor(static_cast<Fl_Color>(v)); break;
+    case 4: Fl_Tooltip::margin_width(v); break;
+    case 5: Fl_Tooltip::margin_height(v); break;
+    case 6: Fl_Tooltip::wrap_width(v); break;
+    default: Fl_Tooltip::enable(v); break;
+  }
+}
+
+// The Oberon object of the tooltip's widget, or 0 (ofl::object_of).
+// FLTK forgets a widget as it dies (fl_throw_focus), so this is never
+// stale.
+intptr_t ofl_tooltip_current(void) {
+  return ofl::object_of(Fl_Tooltip::current());
+}
+
+void ofl_tooltip_set_current(intptr_t w) {
+  Fl_Tooltip::current(w ? ofl::widget(w) : 0);
+}
+
+// Fl_Tooltip::enter_area keeps the text, so this keeps a copy, until the
+// next text (doc/fltk-issues.md, 75). The same text must stay the same
+// pointer, by which FLTK knows the tip it is showing already. "" hides
+// the tip, and lets the copy go.
+void ofl_tooltip_enter_area(intptr_t w, int32_t x, int32_t y, int32_t width,
+                            int32_t height, const char *text) {
+  static char *kept = 0;
+  char *old = kept;
+  if (!*text) {
+    kept = 0;
+    Fl_Tooltip::enter_area(ofl::widget(w), x, y, width, height, 0);
+    free(old);
+  } else if (old && !strcmp(old, text)) {
+    Fl_Tooltip::enter_area(ofl::widget(w), x, y, width, height, old);
+  } else {
+    kept = strdup(text);
+    Fl_Tooltip::enter_area(ofl::widget(w), x, y, width, height, kept);
+    free(old);
+  }
 }
 
 // Each the Oberon object, or 0 (ofl::object_of).
