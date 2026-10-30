@@ -39,7 +39,7 @@ typedef void (*ResizeFn)(intptr_t self, int32_t x, int32_t y, int32_t w,
 
 // The Oberon dispatchers, which Fl's body registers (ofl_register in
 // Fl.cpp): each recovers the object from self and calls its method.
-extern SelfFn on_callback, on_draw, on_deleted;
+extern SelfFn on_callback, on_draw, on_deleted, on_draw_overlay;
 extern HandleFn on_handle;
 extern ResizeFn on_resize;
 
@@ -370,6 +370,21 @@ public:
   void hook_draw_box() override { this->draw_box(); }
   void hook_draw_label() override { this->draw_label(); }
   void hook_draw_focus() override { this->draw_focus(); }
+};
+
+// W<B> for a window class with an overlay: draw_overlay() is sent to the
+// Oberon object too. It is pure in Fl_Overlay_Window, whose constructors
+// are protected.
+template <class B> class Overlaid : public W<B> {
+public:
+  Overlaid(int w, int h) : W<B>(w, h) {}
+  Overlaid(int x, int y, int w, int h) : W<B>(x, y, w, h) {}
+  void draw_overlay() override {
+    if (this->user_data()) {
+      Dispatch d;
+      on_draw_overlay(self_of(this));
+    }
+  }
 };
 
 // Makes w, just made, the widget of the Oberon object at self.

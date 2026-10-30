@@ -6,6 +6,7 @@
 #include <FL/Fl_File_Input.H>
 #include <FL/Fl_Float_Input.H>
 #include <FL/Fl_Input.H>
+#include <FL/Fl_Input_Choice.H>
 #include <FL/Fl_Int_Input.H>
 #include <FL/Fl_Multiline_Input.H>
 #include <FL/Fl_Multiline_Output.H>
@@ -23,6 +24,7 @@ intptr_t make(int32_t x, int32_t y, int32_t w, int32_t h, const char *label,
 }
 
 Fl_Input_ *input(intptr_t i) { return ofl::as<Fl_Input_>(i); }
+Fl_Input_Choice *chooser(intptr_t i) { return ofl::as<Fl_Input_Choice>(i); }
 
 }  // namespace
 
@@ -39,6 +41,7 @@ intptr_t ofl_input_new(int32_t kind, int32_t x, int32_t y, int32_t w,
     case 5: return make<Fl_Output>(x, y, w, h, label, self);
     case 6: return make<Fl_Multiline_Output>(x, y, w, h, label, self);
     case 7: return make<Fl_File_Input>(x, y, w, h, label, self);
+    case 8: return make<Fl_Input_Choice>(x, y, w, h, label, self);
     default: return make<Fl_Input>(x, y, w, h, label, self);
   }
 }
@@ -141,6 +144,71 @@ int32_t ofl_input_cursor_color(intptr_t i) {
 
 void ofl_input_set_cursor_color(intptr_t i, int32_t c) {
   input(i)->cursor_color(static_cast<Fl_Color>(c));
+}
+
+// Fl_Input_Choice is a group, but its children are FLTK's own, with no
+// Oberon objects, and deleting one leaves it holding a dead pointer, so
+// FlInputs gives it none of Fl.Group's methods. Its menu's calls here
+// parse and copy as Fl_Menu_::add does.
+void ofl_input_choice_add(intptr_t i, const char *s) { chooser(i)->add(s); }
+void ofl_input_choice_clear(intptr_t i) { chooser(i)->clear(); }
+
+// As ofl_menu_is_item: an index FLTK wouldn't check.
+int32_t ofl_input_choice_is_item(intptr_t i, int32_t n) {
+  Fl_Menu_Button *m = chooser(i)->menubutton();
+  return n >= 0 && n < m->size() - 1 && m->text(n) != 0;
+}
+
+int32_t ofl_input_choice_length(intptr_t i) {
+  return chooser(i)->menubutton()->size();
+}
+
+void ofl_input_choice_item(intptr_t i, int32_t n, char *buf, int32_t size) {
+  ofl::copy_out(chooser(i)->menubutton()->text(n), buf, size);
+}
+
+int32_t ofl_input_choice_selected(intptr_t i) {
+  return chooser(i)->menubutton()->value();
+}
+
+void ofl_input_choice_value(intptr_t i, char *buf, int32_t n) {
+  ofl::copy_out(chooser(i)->value(), buf, n);
+}
+
+void ofl_input_choice_set_value(intptr_t i, const char *s) {
+  chooser(i)->value(s);
+}
+
+void ofl_input_choice_set_index(intptr_t i, int32_t n) {
+  chooser(i)->value(static_cast<int>(n));
+}
+
+int32_t ofl_input_choice_update_menu(intptr_t i) {
+  return chooser(i)->update_menubutton();
+}
+
+// These hide Fl_Widget's, and read and set the input's too.
+int32_t ofl_input_choice_changed(intptr_t i) { return chooser(i)->changed() != 0; }
+void ofl_input_choice_set_changed(intptr_t i) { chooser(i)->set_changed(); }
+void ofl_input_choice_clear_changed(intptr_t i) { chooser(i)->clear_changed(); }
+
+int32_t ofl_input_choice_down_box(intptr_t i) { return chooser(i)->down_box(); }
+
+void ofl_input_choice_set_down_box(intptr_t i, int32_t b) {
+  chooser(i)->down_box(static_cast<Fl_Boxtype>(b));
+}
+
+int32_t ofl_input_choice_textfont(intptr_t i) { return chooser(i)->textfont(); }
+void ofl_input_choice_set_textfont(intptr_t i, int32_t f) { chooser(i)->textfont(f); }
+int32_t ofl_input_choice_textsize(intptr_t i) { return chooser(i)->textsize(); }
+void ofl_input_choice_set_textsize(intptr_t i, int32_t s) { chooser(i)->textsize(s); }
+
+int32_t ofl_input_choice_textcolor(intptr_t i) {
+  return static_cast<int32_t>(chooser(i)->textcolor());
+}
+
+void ofl_input_choice_set_textcolor(intptr_t i, int32_t c) {
+  chooser(i)->textcolor(static_cast<Fl_Color>(c));
 }
 
 }  // extern "C"

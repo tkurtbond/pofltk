@@ -21,6 +21,8 @@
 #include <FL/Fl_SVG_Image.H>
 #endif
 #include <FL/Fl_Tiled_Image.H>
+#include <FL/Fl_Tree.H>
+#include <FL/Fl_Tree_Item.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_XPM_Image.H>
 #include <FL/fl_draw.H>
@@ -565,6 +567,58 @@ void ofl_browser_icon(intptr_t b, int32_t line, intptr_t i) {
   br->icon(line, m);
   if (i) ofl::ref_of(br)->keep(img(i), m);
   ofl::drop_icons(br);
+}
+
+// Releases the icons tree t no longer shows. Like Fl_Browser::icon, Fl_Tree
+// and Fl_Tree_Item keep the images' pointers (doc/fltk-issues.md, 78). An
+// item removed keeps its icon held until an icon is next replaced, or the
+// tree dies.
+static void drop_tree_icons(Fl_Tree *t) {
+  ofl::ref_of(t)->drop_unused([t](const void *key) {
+    if (t->openicon() == key || t->closeicon() == key || t->usericon() == key) {
+      return true;
+    }
+    for (Fl_Tree_Item *it = t->first(); it; it = it->next()) {
+      if (it->usericon() == key || it->userdeicon() == key) return true;
+    }
+    return false;
+  });
+}
+
+// Tree t's own icons, i 0 for none. what: 0 open, 1 close, 2 user. FLTK
+// makes the deactivated forms, and deletes them with the tree, before the
+// tree's Ref lets go of the images they were copied from.
+void ofl_tree_icon(intptr_t t, int32_t what, intptr_t i) {
+  Fl_Tree *tr = ofl::as<Fl_Tree>(t);
+  Fl_Image *m = i ? img(i)->image : 0;
+  Fl_Image *old = what == 0   ? tr->openicon()
+                  : what == 1 ? tr->closeicon()
+                              : tr->usericon();
+  if (i) ofl::ref_of(tr)->keep(img(i), m);
+  switch (what) {
+    case 0: tr->openicon(m); break;
+    case 1: tr->closeicon(m); break;
+    default: tr->usericon(m); break;
+  }
+  if (old && old != m) drop_tree_icons(tr);
+}
+
+// An item's user icon, what 0, or the one it shows while inactive, what 1,
+// which FLTK doesn't make.
+void ofl_tree_item_icon(intptr_t t, intptr_t p, int32_t what, intptr_t i) {
+  Fl_Tree *tr = ofl::as<Fl_Tree>(t);
+  Fl_Tree_Item *it = reinterpret_cast<Fl_Tree_Item *>(p);
+  Fl_Image *m = i ? img(i)->image : 0;
+  Fl_Image *old = what == 0 ? it->usericon() : it->userdeicon();
+  if (i) ofl::ref_of(tr)->keep(img(i), m);
+  if (what == 0) {
+    it->usericon(m);
+  } else {
+    it->userdeicon(m);
+  }
+  if (old && old != m) drop_tree_icons(tr);
+  tr->recalc_tree();
+  tr->redraw();
 }
 
 // Animated GIFs

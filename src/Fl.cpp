@@ -8,12 +8,14 @@
 #include <FL/Fl_Flex.H>
 #include <FL/Fl_Group.H>
 #include <FL/Fl_Menu_Window.H>
+#include <FL/Fl_Overlay_Window.H>
 #include <FL/Fl_Pack.H>
 #include <FL/Fl_Scheme.H>
 #include <FL/Fl_Single_Window.H>
 #include <FL/Fl_Table.H>
 #include <FL/Fl_Tooltip.H>
 #include <FL/Fl_Window.H>
+#include <FL/fl_draw.H>
 #include <FL/filename.H>
 #include <FL/platform.H>
 #include <string.h>
@@ -22,7 +24,7 @@
 
 namespace ofl {
 
-SelfFn on_callback, on_draw, on_deleted;
+SelfFn on_callback, on_draw, on_deleted, on_draw_overlay;
 HandleFn on_handle;
 ResizeFn on_resize;
 int depth;
@@ -206,6 +208,25 @@ intptr_t ofl_double_window_new(int32_t placed, int32_t x, int32_t y,
                                int32_t w, int32_t h, intptr_t self) {
   if (placed) return ofl::open(new ofl::W<Fl_Double_Window>(x, y, w, h), self);
   return ofl::open(new ofl::W<Fl_Double_Window>(w, h), self);
+}
+
+intptr_t ofl_overlay_window_new(int32_t placed, int32_t x, int32_t y,
+                                int32_t w, int32_t h, intptr_t self) {
+  typedef ofl::Overlaid<Fl_Overlay_Window> Overlay;
+  if (placed) return ofl::open(new Overlay(x, y, w, h), self);
+  return ofl::open(new Overlay(w, h), self);
+}
+
+void ofl_register_overlay(ofl::SelfFn draw_overlay) {
+  ofl::on_draw_overlay = draw_overlay;
+}
+
+int32_t ofl_overlay_can_do(intptr_t w) {
+  return ofl::as<Fl_Overlay_Window>(w)->can_do_overlay();
+}
+
+void ofl_overlay_redraw(intptr_t w) {
+  ofl::as<Fl_Overlay_Window>(w)->redraw_overlay();
 }
 
 // An Fl_Single_Window, or an Fl_Menu_Window if menu is 1.
@@ -525,6 +546,14 @@ void ofl_get_rgb(int32_t c, int32_t *r, int32_t *g, int32_t *b) {
   *r = cr;
   *g = cg;
   *b = cb;
+}
+
+int32_t ofl_menu_linespacing() { return Fl::menu_linespacing(); }
+
+void ofl_set_menu_linespacing(int32_t n) { Fl::menu_linespacing(n); }
+
+void ofl_shortcut_label(int32_t s, char *buf, int32_t n) {
+  ofl::copy_out(fl_shortcut_label(static_cast<unsigned int>(s)), buf, n);
 }
 
 void ofl_background(int32_t r, int32_t g, int32_t b) {

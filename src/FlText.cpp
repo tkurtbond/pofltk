@@ -220,6 +220,59 @@ void ofl_buffer_replace_selection(intptr_t b, const char *s) {
   buffer(b)->replace_selection(s);
 }
 
+// The buffer's secondary selection, which, 1, and its highlight, which, 2.
+void ofl_buffer_mark(intptr_t b, int32_t which, int32_t start, int32_t end) {
+  if (which == 1) {
+    buffer(b)->secondary_select(start, end);
+  } else {
+    buffer(b)->highlight(start, end);
+  }
+}
+
+void ofl_buffer_unmark(intptr_t b, int32_t which) {
+  if (which == 1) {
+    buffer(b)->secondary_unselect();
+  } else {
+    buffer(b)->unhighlight();
+  }
+}
+
+void ofl_buffer_marked_text(intptr_t b, int32_t which, char *buf, int32_t n) {
+  give(which == 1 ? buffer(b)->secondary_selection_text()
+                  : buffer(b)->highlight_text(), buf, n);
+}
+
+void ofl_buffer_remove_secondary(intptr_t b) {
+  buffer(b)->remove_secondary_selection();
+}
+
+void ofl_buffer_replace_secondary(intptr_t b, const char *s) {
+  buffer(b)->replace_secondary_selection(s);
+}
+
+// A selection of the buffer, which 0 primary, 1 secondary, 2 highlight.
+// what: 0 selected, 1 start, 2 end, 3 length.
+int32_t ofl_selection_get(intptr_t b, int32_t which, int32_t what) {
+  const Fl_Text_Buffer *buf = buffer(b);
+  const Fl_Text_Selection *s = which == 0   ? buf->primary_selection()
+                               : which == 1 ? buf->secondary_selection()
+                                            : buf->highlight_selection();
+  switch (what) {
+    case 0: return s->selected() ? 1 : 0;
+    case 1: return s->start();
+    case 2: return s->end();
+    default: return s->length();
+  }
+}
+
+int32_t ofl_selection_includes(intptr_t b, int32_t which, int32_t pos) {
+  const Fl_Text_Buffer *buf = buffer(b);
+  const Fl_Text_Selection *s = which == 0   ? buf->primary_selection()
+                               : which == 1 ? buf->secondary_selection()
+                                            : buf->highlight_selection();
+  return s->includes(pos);
+}
+
 // what: 0 line_start, 1 line_end, 2 word_start, 3 word_end, 4 next_char,
 // 5 prev_char, 6 utf8_align.
 int32_t ofl_buffer_pos(intptr_t b, int32_t what, int32_t pos) {

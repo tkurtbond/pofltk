@@ -16,6 +16,7 @@
 #include <FL/Fl_Menu_Button.H>
 #include <FL/Fl_Menu_Item.H>
 #include <FL/Fl_Scheme_Choice.H>
+#include <FL/Fl_Sys_Menu_Bar.H>
 #include <FL/Fl_Window.H>
 #include <string.h>
 
@@ -142,6 +143,55 @@ int after(Fl_Menu_ *m, int i) {
   return static_cast<int>(items[i].next() - items);
 }
 
+// Fl_Sys_Menu_Bar hides these of Fl_Menu_'s, and under macOS they alone
+// change the system's menu bar; elsewhere it calls Fl_Menu_Bar's.
+Fl_Sys_Menu_Bar *sys(Fl_Menu_ *m) {
+  return dynamic_cast<Fl_Sys_Menu_Bar *>(m);
+}
+
+int insert_item(Fl_Menu_ *m, int index, const char *label, int shortcut,
+                void *action, int flags) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) {
+    return s->insert(index, label, shortcut, 0, action, flags);
+  }
+  return m->insert(index, label, shortcut, 0, action, flags);
+}
+
+void remove_item(Fl_Menu_ *m, int i) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->remove(i);
+  else m->remove(i);
+}
+
+void clear_items(Fl_Menu_ *m) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->clear();
+  else m->clear();
+}
+
+void clear_submenu(Fl_Menu_ *m, int i) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->clear_submenu(i);
+  else m->clear_submenu(i);
+}
+
+void replace_item(Fl_Menu_ *m, int i, const char *text) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->replace(i, text);
+  else m->replace(i, text);
+}
+
+void set_only(Fl_Menu_ *m, Fl_Menu_Item *it) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->setonly(it);
+  else m->setonly(it);
+}
+
+void set_mode(Fl_Menu_ *m, int i, int flags) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->mode(i, flags);
+  else m->mode(i, flags);
+}
+
+void set_shortcut(Fl_Menu_ *m, int i, int key) {
+  if (Fl_Sys_Menu_Bar *s = sys(m)) s->shortcut(i, key);
+  else m->shortcut(i, key);
+}
+
 // Fl_Scheme_Choice's own callback, which pofltk's replaces: sets the
 // scheme chosen (SchemeChoice.Callback's default). It is protected.
 struct Scheme : Fl_Scheme_Choice {
@@ -153,13 +203,14 @@ struct Scheme : Fl_Scheme_Choice {
 extern "C" {
 
 // kind is 0 Fl_Menu_Bar, 1 Fl_Menu_Button, 2 Fl_Choice, 3
-// Fl_Scheme_Choice, as FlMenus numbers them.
+// Fl_Scheme_Choice, 4 Fl_Sys_Menu_Bar, as FlMenus numbers them.
 intptr_t ofl_menu_new(int32_t kind, int32_t x, int32_t y, int32_t w,
                       int32_t h, const char *label, intptr_t self) {
   switch (kind) {
     case 1: return make<Fl_Menu_Button>(x, y, w, h, label, self);
     case 2: return make<Fl_Choice>(x, y, w, h, label, self);
     case 3: return make<Fl_Scheme_Choice>(x, y, w, h, label, self);
+    case 4: return make<Fl_Sys_Menu_Bar>(x, y, w, h, label, self);
     default: return make<Fl_Menu_Bar>(x, y, w, h, label, self);
   }
 }
@@ -181,27 +232,27 @@ int32_t ofl_menu_insert(intptr_t m, int32_t index, const char *label,
                         int32_t shortcut, intptr_t action, int32_t flags) {
   KeepValue keep(menu(m));
   Names names(menu(m));
-  return menu(m)->insert(index, label, shortcut, 0,
-                         reinterpret_cast<void *>(action),
-                         flags & ~FL_SUBMENU_POINTER);
+  return insert_item(menu(m), index, label, shortcut,
+                     reinterpret_cast<void *>(action),
+                     flags & ~FL_SUBMENU_POINTER);
 }
 
 void ofl_menu_remove(intptr_t m, int32_t i) {
   KeepValue keep(menu(m));
   plain(menu(m), i, after(menu(m), i));
-  menu(m)->remove(i);
+  remove_item(menu(m), i);
   ofl::drop_item_labels(menu(m));
 }
 
 void ofl_menu_clear(intptr_t m) {
-  menu(m)->clear();
+  clear_items(menu(m));
   ofl::drop_item_labels(menu(m));
 }
 
 void ofl_menu_clear_submenu(intptr_t m, int32_t i) {
   KeepValue keep(menu(m));
   plain(menu(m), i + 1, after(menu(m), i));
-  menu(m)->clear_submenu(i);
+  clear_submenu(menu(m), i);
   ofl::drop_item_labels(menu(m));
 }
 
@@ -215,7 +266,7 @@ int32_t ofl_menu_set_value(intptr_t m, int32_t i) {
 // callback.
 void ofl_menu_pick(intptr_t m, int32_t i) { menu(m)->picked(item(m, i)); }
 
-void ofl_menu_setonly(intptr_t m, int32_t i) { menu(m)->setonly(item(m, i)); }
+void ofl_menu_setonly(intptr_t m, int32_t i) { set_only(menu(m), item(m, i)); }
 
 void ofl_menu_label(intptr_t m, int32_t i, char *buf, int32_t n) {
   ofl::copy_out(ofl::item_name(menu(m), item(m, i)), buf, n);
@@ -224,7 +275,7 @@ void ofl_menu_label(intptr_t m, int32_t i, char *buf, int32_t n) {
 // Fl_Menu_::replace copies the text of a menu made by add().
 void ofl_menu_set_label(intptr_t m, int32_t i, const char *s) {
   plain(menu(m), i, i + 1);
-  menu(m)->replace(i, s);
+  replace_item(menu(m), i, s);
   ofl::drop_item_labels(menu(m));
 }
 
@@ -243,11 +294,35 @@ int32_t ofl_menu_find_index(intptr_t m, const char *path) {
 
 int32_t ofl_menu_flags(intptr_t m, int32_t i) { return item(m, i)->flags; }
 
+// what: 0 label type, 1 font, 2 size, 3 color, of item i.
+int32_t ofl_menu_item_style(intptr_t m, int32_t i, int32_t what) {
+  const Fl_Menu_Item *it = item(m, i);
+  switch (what) {
+    case 1: return it->labelfont_;
+    case 2: return it->labelsize_;
+    case 3: return static_cast<int32_t>(it->labelcolor_);
+    default: return it->labeltype_;
+  }
+}
+
+void ofl_menu_item_set_style(intptr_t m, int32_t i, int32_t what, int32_t v) {
+  Fl_Menu_Item *it = const_cast<Fl_Menu_Item *>(item(m, i));
+  switch (what) {
+    case 1: it->labelfont_ = static_cast<Fl_Font>(v); break;
+    case 2: it->labelsize_ = static_cast<Fl_Fontsize>(v); break;
+    case 3: it->labelcolor_ = static_cast<Fl_Color>(v); break;
+    default:
+      // An item showing an image or a multi-label keeps its type: its
+      // text isn't text (doc/fltk-issues.md, 54).
+      if (!ofl::special(it)) it->labeltype_ = static_cast<uchar>(v);
+  }
+  menu(m)->redraw();
+}
+
 // The submenu bits stay as they are: they describe the array's shape.
 void ofl_menu_set_flags(intptr_t m, int32_t i, int32_t flags) {
   const int shape = FL_SUBMENU | FL_SUBMENU_POINTER;
-  Fl_Menu_Item *it = item(m, i);
-  it->flags = (it->flags & shape) | (flags & ~shape);
+  set_mode(menu(m), i, (item(m, i)->flags & shape) | (flags & ~shape));
   menu(m)->redraw();
 }
 
@@ -256,7 +331,7 @@ int32_t ofl_menu_shortcut(intptr_t m, int32_t i) {
 }
 
 void ofl_menu_set_shortcut(intptr_t m, int32_t i, int32_t s) {
-  item(m, i)->shortcut(s);
+  set_shortcut(menu(m), i, s);
 }
 
 intptr_t ofl_menu_action(intptr_t m, int32_t i) {
@@ -311,6 +386,18 @@ int32_t ofl_menu_popup(intptr_t m) {
   if (top && top->shown()) top->wait_for_expose();
   if (b->popup() == 0) return -1;
   return b->value();
+}
+
+// System menu bars. These change FLTK's one system menu bar under macOS,
+// and do nothing elsewhere.
+void ofl_sys_menu_about(Fl_Callback *cb) { Fl_Sys_Menu_Bar::about(cb, 0); }
+void ofl_sys_menu_create_window_menu() { Fl_Sys_Menu_Bar::create_window_menu(); }
+
+int32_t ofl_sys_menu_style() { return Fl_Sys_Menu_Bar::window_menu_style(); }
+
+void ofl_sys_menu_set_style(int32_t s) {
+  Fl_Sys_Menu_Bar::window_menu_style(
+      static_cast<Fl_Sys_Menu_Bar::window_menu_style_enum>(s));
 }
 
 int32_t ofl_menu_type(intptr_t m) { return menu(m)->type(); }

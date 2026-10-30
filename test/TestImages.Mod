@@ -11,6 +11,8 @@ VAR
   box: Fl.Box;
   pic: Picture;
   br: FlBrowsers.Browser;
+  tree: FlBrowsers.Tree;
+  item, folder: FlBrowsers.TreeItem;
   ml, ml2: FlImages.MultiLabel;
   choice: FlMenus.Choice;
   label: ARRAY 64 OF CHAR;
@@ -254,6 +256,50 @@ BEGIN
   Check.Check(Probe.Kept(br) = 1, "another icon on the line: the first released");
   br.Clear;
   Check.Check(Probe.Kept(br) = 0, "Clear: released");
+  NEW(tree); FlBrowsers.OpenTree(tree, 0, 0, 120, 100, "");
+  tree.SetShowRoot(FALSE); tree.SetItemLabelSize(14);
+  item := tree.Add("A/B");
+  Check.Check(~FindRed(tree, x, y), "a tree starts with no red icon");
+  Probe.Release;
+
+  (* a tree's icons, drawn after the program closes them *)
+  NEW(j); i.Copy(j, 8, 8); FlImages.SetUserIcon(tree, j); j.Close; Churn;
+  Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "SetUserIcon draws every item's, kept");
+  Probe.Release;
+  NEW(j); i.Copy(j, 8, 8); FlImages.SetUserIcon(tree, j); j.Close;
+  Check.Check(Probe.Kept(tree) = 1, "another: the first released");
+  FlImages.SetUserIcon(tree, NIL);
+  Check.Check(~FindRed(tree, x, y) & (Probe.Kept(tree) = 0), "SetUserIcon NIL: released");
+  Probe.Release;
+  NEW(j); i.Copy(j, 11, 11); FlImages.SetCloseIcon(tree, j); j.Close; Churn;
+  Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "SetCloseIcon: an open item shows it");
+  Probe.Release;
+  folder := tree.Find("A"); folder.Close;
+  Check.Check(~FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "not a closed one");
+  Probe.Release;
+  NEW(j); i.Copy(j, 11, 11); FlImages.SetOpenIcon(tree, j); j.Close; Churn;
+  Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 2), "SetOpenIcon: a closed one shows that");
+  Probe.Release;
+  folder.Open;
+  FlImages.SetOpenIcon(tree, NIL); FlImages.SetCloseIcon(tree, NIL);
+  Check.Check(~FindRed(tree, x, y) & (Probe.Kept(tree) = 0), "NIL: FLTK's own, the icons released");
+  Probe.Release;
+
+  NEW(j); i.Copy(j, 8, 8); FlImages.SetItemIcon(item, j);
+  FlImages.SetItemInactiveIcon(item, j); j.Close; Churn;
+  Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "SetItemIcon shows it, held once with the inactive icon");
+  Probe.Release;
+  item.Activate(FALSE);
+  Check.Check(FindRed(tree, x, y), "SetItemInactiveIcon shows it on an inactive item");
+  Probe.Release;
+  item.Activate(TRUE);
+  FlImages.SetItemIcon(item, NIL);
+  Check.Check(Probe.Kept(tree) = 1, "kept while the inactive icon is set");
+  NEW(j); i.Copy(j, 8, 8); FlImages.SetUserIcon(tree, j); j.Close;
+  NEW(j); i.Copy(j, 8, 8); FlImages.SetOpenIcon(tree, j); j.Close;
+  item.Remove;
+  tree.Delete;
+
   NEW(j); i.Copy(j, 8, 20); br.Add("One"); FlImages.SetLineIcon(br, 1, j); j.Close;
   br.Delete;  (* and the image with it *)
 

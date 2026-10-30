@@ -123,6 +123,8 @@ PROCEDURE ["C", "ofl_multi_contains"] CMultiContains(m, n: SYSTEM.ADDRESS): SYST
 PROCEDURE ["C", "ofl_widget_multi_label"] CWidgetMultiLabel(w: SYSTEM.ADDRESS; m: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_menu_item_label"] CMenuItemLabel(m: SYSTEM.ADDRESS; i, kind: SYSTEM.INT32; p: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_browser_icon"] CBrowserIcon(b: SYSTEM.ADDRESS; line: SYSTEM.INT32; i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_tree_icon"] CTreeIcon(t: SYSTEM.ADDRESS; what: SYSTEM.INT32; i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_tree_item_icon"] CTreeItemIcon(t, p: SYSTEM.ADDRESS; what: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_image"] CWidgetImage(w: SYSTEM.ADDRESS; slot: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_icon"] CWindowIcon(w, i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_shape"] CWindowShape(w, i: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -401,6 +403,35 @@ BEGIN
   h := Fl.Live(b); ASSERT((line >= 1) & (line <= b.Count()), Fl.IndexOutOfRange);
   CBrowserIcon(h, line, Handle(i))
 END SetLineIcon;
+
+(* The icons of t, which it keeps while it shows them; NIL for none. An
+   item with children shows the open icon when closed, for opening it,
+   and the close icon when open, in place of FLTK's [+] and [-]. Every
+   item shows the user icon, unless it has one of its own. FLTK makes
+   their inactive forms. *)
+PROCEDURE SetOpenIcon*(t: FlBrowsers.Tree; i: Image);
+BEGIN CTreeIcon(Fl.Live(t), 0, Handle(i))
+END SetOpenIcon;
+
+PROCEDURE SetCloseIcon*(t: FlBrowsers.Tree; i: Image);
+BEGIN CTreeIcon(Fl.Live(t), 1, Handle(i))
+END SetCloseIcon;
+
+PROCEDURE SetUserIcon*(t: FlBrowsers.Tree; i: Image);
+BEGIN CTreeIcon(Fl.Live(t), 2, Handle(i))
+END SetUserIcon;
+
+(* The icon of item alone, and the one it shows while inactive, which
+   without this is none: FLTK makes this form only of a tree's icons. *)
+PROCEDURE SetItemIcon*(item: FlBrowsers.TreeItem; i: Image);
+  VAR t, p: SYSTEM.ADDRESS;
+BEGIN FlBrowsers.ItemHandles(item, t, p); CTreeItemIcon(t, p, 0, Handle(i))
+END SetItemIcon;
+
+PROCEDURE SetItemInactiveIcon*(item: FlBrowsers.TreeItem; i: Image);
+  VAR t, p: SYSTEM.ADDRESS;
+BEGIN FlBrowsers.ItemHandles(item, t, p); CTreeItemIcon(t, p, 1, Handle(i))
+END SetItemInactiveIcon;
 
 (* Animated GIFs *)
 

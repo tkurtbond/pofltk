@@ -399,6 +399,10 @@ BEGIN
   Same(ORD(FlMenus.MenuInvisible), "FL_MENU_INVISIBLE");
   Same(ORD(FlMenus.Submenu), "FL_SUBMENU");
   Same(ORD(FlMenus.MenuDivider), "FL_MENU_DIVIDER");
+  Same(FlMenus.NoWindowMenu, "Fl_Sys_Menu_Bar::no_window_menu");
+  Same(FlMenus.TabbingModeNone, "Fl_Sys_Menu_Bar::tabbing_mode_none");
+  Same(FlMenus.TabbingModeAutomatic, "Fl_Sys_Menu_Bar::tabbing_mode_automatic");
+  Same(FlMenus.TabbingModePreferred, "Fl_Sys_Menu_Bar::tabbing_mode_preferred");
   Same(FlMenus.Popup1, "Fl_Menu_Button::POPUP1");
   Same(FlMenus.Popup2, "Fl_Menu_Button::POPUP2");
   Same(FlMenus.Popup12, "Fl_Menu_Button::POPUP12");
@@ -498,6 +502,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 479), "each of 479 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 483), "each of 483 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

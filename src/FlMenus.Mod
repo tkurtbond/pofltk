@@ -35,6 +35,12 @@ CONST
   Submenu* = {6};
   MenuDivider* = {7};
 
+  (* macOS's Window menu (SetWindowMenuStyle) *)
+  NoWindowMenu* = 0;
+  TabbingModeNone* = 1;
+  TabbingModeAutomatic* = 2;
+  TabbingModePreferred* = 3;
+
   (* kinds of menu button (MenuButton.SetKind): the mouse buttons that pop it up *)
   Popup1* = 1;
   Popup2* = 2;
@@ -46,7 +52,7 @@ CONST
 (* END generated constants *)
 
   (* the classes, as ofl_menu_new numbers them *)
-  menuBar = 0; menuButton = 1; choice = 2; schemeChoice = 3;
+  menuBar = 0; menuButton = 1; choice = 2; schemeChoice = 3; sysMenuBar = 4;
 
   (* what ofl_menu_style reads or sets *)
   textFont = 0; textSize = 1; textColor = 2; downBox = 3; menuBox = 4;
@@ -66,6 +72,11 @@ TYPE
   MenuBar* = POINTER TO MenuBarDesc;
   MenuBarDesc* = RECORD (MenuDesc) END;
 
+  (* a menu bar that under macOS is the system's, at the top of the
+     screen, and elsewhere is a MenuBar *)
+  SysMenuBar* = POINTER TO SysMenuBarDesc;
+  SysMenuBarDesc* = RECORD (MenuBarDesc) END;
+
   (* a button that pops up its menu, or a menu that pops up at the mouse
      when given a Kind (Popup1 and the rest) *)
   MenuButton* = POINTER TO MenuButtonDesc;
@@ -80,6 +91,12 @@ TYPE
      in use, which sets the scheme chosen (Fl.SetScheme) *)
   SchemeChoice* = POINTER TO SchemeChoiceDesc;
   SchemeChoiceDesc* = RECORD (ChoiceDesc) END;
+
+  AboutProc = PROCEDURE (w, data: SYSTEM.ADDRESS);
+
+VAR
+  aboutMenu: SysMenuBar;  (* what About was last given *)
+  aboutAction: Action;
 
 PROCEDURE ["C", "ofl_menu_new"] CNew(class, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_menu_scheme_chosen"] CSchemeChosen(m: SYSTEM.ADDRESS);
@@ -99,6 +116,8 @@ PROCEDURE ["C", "ofl_menu_pathname"] CPathname(m: SYSTEM.ADDRESS; i: SYSTEM.INT3
 PROCEDURE ["C", "ofl_menu_find_index"] CFindIndex(m: SYSTEM.ADDRESS; path: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_flags"] CFlags(m: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_set_flags"] CSetFlags(m: SYSTEM.ADDRESS; i, flags: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_menu_item_style"] CItemStyle(m: SYSTEM.ADDRESS; i, what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_menu_item_set_style"] CSetItemStyle(m: SYSTEM.ADDRESS; i, what, v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_shortcut"] CShortcut(m: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_set_shortcut"] CSetShortcut(m: SYSTEM.ADDRESS; i, s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_action"] CAction(m: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -107,6 +126,10 @@ PROCEDURE ["C", "ofl_menu_style"] CStyle(m: SYSTEM.ADDRESS; what: SYSTEM.INT32):
 PROCEDURE ["C", "ofl_menu_set_style"] CSetStyle(m: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_global"] CGlobal(m: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_menu_popup"] CPopup(m: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_sys_menu_about"] CAbout(cb: AboutProc);
+PROCEDURE ["C", "ofl_sys_menu_create_window_menu"] CCreateWindowMenu;
+PROCEDURE ["C", "ofl_sys_menu_style"] CWindowMenuStyle(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_sys_menu_set_style"] CSetWindowMenuStyle(s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_type"] CType(m: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_set_type"] CSetType(m: SYSTEM.ADDRESS; t: SYSTEM.INT32);
 
@@ -129,6 +152,42 @@ END OpenChoice;
 PROCEDURE OpenSchemeChoice*(m: SchemeChoice; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Open(m, schemeChoice, x, y, w, h, label)
 END OpenSchemeChoice;
+
+PROCEDURE OpenSysMenuBar*(m: SysMenuBar; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Open(m, sysMenuBar, x, y, w, h, label)
+END OpenSysMenuBar;
+
+PROCEDURE RunAbout(w, data: SYSTEM.ADDRESS);
+BEGIN aboutAction(aboutMenu)
+END RunAbout;
+
+(* Under macOS, runs a when the user picks About in the application menu,
+   giving it m; elsewhere does nothing. *)
+PROCEDURE (m: SysMenuBar) About*(a: Action);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(m); ASSERT(a # NIL, Fl.NilArgument);
+  aboutMenu := m; aboutAction := a; CAbout(RunAbout)
+END About;
+
+(* Under macOS, adds the Window menu to the end of the system's menu bar;
+   elsewhere does nothing. *)
+PROCEDURE CreateWindowMenu*;
+BEGIN CCreateWindowMenu
+END CreateWindowMenu;
+
+(* The style of macOS's Window menu, one of the WindowMenu constants;
+   NoWindowMenu elsewhere. *)
+PROCEDURE WindowMenuStyle*(): INTEGER;
+BEGIN RETURN CWindowMenuStyle()
+END WindowMenuStyle;
+
+(* Sets it, before the first window is shown; elsewhere does nothing. *)
+PROCEDURE SetWindowMenuStyle*(s: INTEGER);
+BEGIN
+  ASSERT((s >= NoWindowMenu) & (s <= TabbingModePreferred), Fl.IndexOutOfRange);
+  CSetWindowMenuStyle(s)
+END SetWindowMenuStyle;
 
 (* m's handle, halting unless i is an item of m. *)
 PROCEDURE Item(m: Menu; i: INTEGER): SYSTEM.ADDRESS;
@@ -234,6 +293,43 @@ END ItemLabel;
 PROCEDURE (m: Menu) SetItemLabel*(i: INTEGER; label-: ARRAY OF CHAR);
 BEGIN CSetLabel(Item(m, i), i, label)
 END SetItemLabel;
+
+(* An item's own look. Label type, Fl.NormalLabel to Fl.EmbossedLabel,
+   halting (Unsupported) for the types of a multi-label, an image or an
+   icon. An item showing one keeps its type whatever is set here. A font
+   and size are used if either isn't 0, otherwise the menu's; a color
+   if it isn't 0, otherwise the menu's. *)
+PROCEDURE (m: Menu) ItemLabelType*(i: INTEGER): INTEGER;
+BEGIN RETURN CItemStyle(Item(m, i), i, 0)
+END ItemLabelType;
+
+PROCEDURE (m: Menu) SetItemLabelType*(i, t: INTEGER);
+BEGIN ASSERT((t < 5) OR (t > 7), Fl.Unsupported); CSetItemStyle(Item(m, i), i, 0, t)
+END SetItemLabelType;
+
+PROCEDURE (m: Menu) ItemLabelFont*(i: INTEGER): INTEGER;
+BEGIN RETURN CItemStyle(Item(m, i), i, 1)
+END ItemLabelFont;
+
+PROCEDURE (m: Menu) SetItemLabelFont*(i, f: INTEGER);
+BEGIN CSetItemStyle(Item(m, i), i, 1, f)
+END SetItemLabelFont;
+
+PROCEDURE (m: Menu) ItemLabelSize*(i: INTEGER): INTEGER;
+BEGIN RETURN CItemStyle(Item(m, i), i, 2)
+END ItemLabelSize;
+
+PROCEDURE (m: Menu) SetItemLabelSize*(i, s: INTEGER);
+BEGIN CSetItemStyle(Item(m, i), i, 2, s)
+END SetItemLabelSize;
+
+PROCEDURE (m: Menu) ItemLabelColor*(i: INTEGER): INTEGER;
+BEGIN RETURN CItemStyle(Item(m, i), i, 3)
+END ItemLabelColor;
+
+PROCEDURE (m: Menu) SetItemLabelColor*(i, c: INTEGER);
+BEGIN CSetItemStyle(Item(m, i), i, 3, c)
+END SetItemLabelColor;
 
 (* Item i's path ("File/Open"); FALSE, with path "", if it doesn't fit. *)
 PROCEDURE (m: Menu) ItemPath*(i: INTEGER; VAR path: ARRAY OF CHAR): BOOLEAN;

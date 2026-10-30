@@ -13,6 +13,7 @@ TYPE
 VAR
   win: Fl.Window;
   b, other, styles: FlText.TextBuffer;
+  primary, secondary, lit: FlText.Selection;
   w: Watched;
   d, d2: FlText.TextDisplay;
   e: FlText.TextEditor;
@@ -120,6 +121,37 @@ BEGIN
   Check.Check(ok & (s = "") & (pos = 0), "Undo undoes insertions one after another together");
   ok := b.Redo(pos); b.GetText(s);
   Check.Check(ok & (s = "abcdef") & (pos = 6), "Redo");
+
+  (* the three selections *)
+  b.SetText("one two three four");
+  primary := b.PrimarySelection(); secondary := b.SecondarySelection(); lit := b.HighlightSelection();
+  b.Unselect;
+  Check.Check(~primary.Selected() & ~secondary.Selected() & ~lit.Selected()
+    & (primary.Start() = 0) & (primary.End() = 0) & (primary.Length() = 0), "no selection is set to start with");
+  b.Select(4, 7); b.SecondarySelect(8, 13); b.Highlight(14, 18);
+  Check.Check(primary.Selected() & (primary.Start() = 4) & (primary.End() = 7) & (primary.Length() = 3)
+    & primary.Includes(4) & primary.Includes(6) & ~primary.Includes(7) & ~primary.Includes(3),
+    "a Selection reads the primary selection");
+  Check.Check(secondary.Selected() & (secondary.Start() = 8) & (secondary.End() = 13)
+    & lit.Selected() & (lit.Start() = 14) & (lit.End() = 18), "the secondary and the highlight");
+  b.SecondaryText(s);
+  Check.Check(s = "three", "SecondaryText");
+  b.HighlightText(s);
+  Check.Check(s = "four", "HighlightText");
+  b.Replace(0, 3, "first");
+  Check.Check((primary.Start() = 6) & (secondary.Start() = 10) & (lit.Start() = 16),
+    "they move with the text");
+  b.ReplaceSecondary("3");
+  b.GetText(s);
+  Check.Check((s = "first two 3 four") & ~secondary.Selected(), "ReplaceSecondary");
+  b.SecondarySelect(6, 9);
+  b.RemoveSecondary;
+  b.GetText(s);
+  Check.Check((s = "first  3 four") & ~secondary.Selected(), "RemoveSecondary");
+  b.SecondarySelect(0, 5);
+  b.SecondaryUnselect; b.Unhighlight;
+  Check.Check(~secondary.Selected() & ~lit.Selected(), "SecondaryUnselect and Unhighlight");
+  b.Unselect;
 
   (* selection, lines, words, search *)
   Lines("first line", "second line", "third", s); b.SetText(s);

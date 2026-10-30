@@ -109,6 +109,10 @@ BEGIN
   t.SetWidgetMarginLeft(12);
   Check.Check((t.ItemDrawMode() = FlBrowsers.ItemDrawLabelAndWidget + FlBrowsers.ItemHeightFromWidget)
     & (t.WidgetMarginLeft() = 12), "ItemDrawMode and WidgetMarginLeft");
+  t.SetMarginBottom(3); t.SetOpenChildMarginBottom(4); t.SetUserIconMarginLeft(5); t.SetLabelMarginLeft(6);
+  Check.Check((t.MarginBottom() = 3) & (t.OpenChildMarginBottom() = 4) & (t.UserIconMarginLeft() = 5)
+    & (t.LabelMarginLeft() = 6), "the other margins read back");
+  t.SetMarginBottom(20); t.SetOpenChildMarginBottom(0); t.SetUserIconMarginLeft(3); t.SetLabelMarginLeft(3);
   i := t.Add("w/one");
   b := NewButton(); i.SetWidget(b);
   Check.Check((i.Widget() = b) & (b.Parent() = NIL) & (win.Find(b) = -1), "SetWidget: the tree's child, no group");

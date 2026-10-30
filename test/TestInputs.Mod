@@ -15,6 +15,7 @@ VAR
   out: FlInputs.Output;
   mout: FlInputs.MultilineOutput;
   file: FlInputs.FileInput;
+  chooser: FlInputs.InputChoice;
   s: ARRAY 64 OF CHAR;
   small: ARRAY 4 OF CHAR;
   calls: INTEGER;
@@ -165,6 +166,44 @@ BEGIN
   ok := Probe.Mouse(win, Fl.EvRelease, 66, 203, Fl.LeftMouse, {}, 0);
   file.Value(s);
   Check.Check((s = "/") & (calls = 1), "a click on its first directory cuts the path to it, and calls back");
+
+  (* an input choice *)
+  win.Begin;
+  NEW(chooser); FlInputs.OpenInputChoice(chooser, 60, 250, 120, 25, "choice");
+  win.End;
+  chooser.action := Count; calls := 0;
+  Check.Check((chooser.Length() = 0) & ~chooser.IsItem(0), "an input choice starts with no items");
+  chooser.Add("one"); chooser.Add("two|three");
+  Check.Check((chooser.Length() = 4) & chooser.IsItem(2) & ~chooser.IsItem(3), "Add, and | separates items");
+  chooser.Item(2, s);
+  Check.Check(s = "three", "Item");
+  chooser.SetValueIndex(1);
+  chooser.Value(s);
+  Check.Check((s = "two") & (chooser.Selected() = 1) & (calls = 0),
+    "SetValueIndex selects an item and sets the text, without a call back");
+  chooser.SetValue("four");
+  chooser.Value(s);
+  Check.Check((s = "four") & (chooser.Selected() = 1), "SetValue leaves the menu alone");
+  Check.Check(~chooser.UpdateMenu() & (chooser.Selected() = 1), "UpdateMenu finds no such item");
+  chooser.SetValue("three");
+  Check.Check(chooser.UpdateMenu() & (chooser.Selected() = 2), "UpdateMenu finds the text's item");
+  chooser.SetChanged(TRUE);
+  Check.Check(chooser.Changed(), "SetChanged reaches the input");
+  chooser.SetChanged(FALSE);
+  Check.Check(~chooser.Changed(), "and clears");
+  chooser.SetDownBox(Fl.FlatBox); chooser.SetTextSize(18); chooser.SetTextColor(Fl.Blue);
+  chooser.SetTextFont(Fl.Courier);
+  Check.Check((chooser.DownBox() = Fl.FlatBox) & (chooser.TextSize() = 18)
+    & (chooser.TextColor() = Fl.Blue) & (chooser.TextFont() = Fl.Courier),
+    "the box and text settings read back");
+  chooser.SetValue("");
+  ok := Probe.Mouse(win, Fl.EvPush, 70, 260, Fl.LeftMouse, Fl.Button1, 0);
+  ok := Probe.Mouse(win, Fl.EvRelease, 70, 260, Fl.LeftMouse, {}, 0);
+  Type("x");
+  chooser.Value(s);
+  Check.Check((calls = 1) & (s = "x"), "typing in it calls back");
+  chooser.Clear;
+  Check.Check(chooser.Length() = 0, "Clear");
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");

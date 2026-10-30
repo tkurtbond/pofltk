@@ -13,6 +13,7 @@ VAR
   choice: FlMenus.Choice;
   schemes: FlMenus.SchemeChoice;
   button: FlMenus.MenuButton;
+  sysBar: FlMenus.SysMenuBar;
   answer: Answer;
   last: Fl.Widget;
   opened, quitted, barCalls, cleared, n: INTEGER;
@@ -95,6 +96,17 @@ BEGIN
   Check.Check(ok & (quitted = 1), "a shortcut changed by Add");
   bar.Pick(grid);
   Check.Check(FlMenus.MenuValue * bar.ItemFlags(grid) # {}, "picking a toggle item turns it on");
+  bar.SetItemLabelType(grid, Fl.ShadowLabel); bar.SetItemLabelFont(grid, Fl.Courier);
+  bar.SetItemLabelSize(grid, 20); bar.SetItemLabelColor(grid, Fl.Red);
+  Check.Check((bar.ItemLabelType(grid) = Fl.ShadowLabel) & (bar.ItemLabelFont(grid) = Fl.Courier)
+    & (bar.ItemLabelSize(grid) = 20) & (bar.ItemLabelColor(grid) = Fl.Red), "an item's look reads back");
+  bar.SetItemLabelType(grid, Fl.NormalLabel); bar.SetItemLabelFont(grid, 0);
+  bar.SetItemLabelSize(grid, 0); bar.SetItemLabelColor(grid, 0);
+  Fl.SetMenuLinespacing(7);
+  Check.Check(Fl.MenuLinespacing() = 7, "MenuLinespacing reads back");
+  Fl.SetMenuLinespacing(4);
+  Fl.ShortcutLabel(ORD("s"), Fl.Ctrl, s);
+  Check.Check(s = "Ctrl+S", "ShortcutLabel");
   bar.Pick(grid);
   Check.Check(FlMenus.MenuValue * bar.ItemFlags(grid) = {}, "and off");
   bar.Pick(large);
@@ -195,6 +207,41 @@ BEGIN
   Fl.GetScheme(s);
   Check.Check(s = "gleam", "and sets the one chosen");
   schemes.Delete;
+
+  (* a system menu bar, here a menu bar, through its own class's calls *)
+  NEW(sysBar); FlMenus.OpenSysMenuBar(sysBar, 0, 0, 100, 25, "");
+  i := sysBar.Add("File/Open", ORD("o"), Fl.Ctrl, Open, {});
+  n := sysBar.Add("File/Quit", 0, {}, Quit, {});
+  Check.Check(sysBar.FindIndex("File/Quit") = n, "a system menu bar adds items");
+  i := sysBar.Insert(i, "New", 0, {}, NIL, {});
+  sysBar.ItemLabel(i, s);
+  Check.Check((s = "New") & (sysBar.FindIndex("File/Quit") = n + 1), "inserts them");
+  sysBar.SetItemLabel(i, "Fresh");
+  sysBar.ItemLabel(i, s);
+  Check.Check(s = "Fresh", "relabels them");
+  sysBar.SetItemFlags(i, FlMenus.MenuInactive);
+  Check.Check(sysBar.ItemFlags(i) = FlMenus.MenuInactive, "sets their flags");
+  sysBar.SetItemShortcut(i, ORD("f"), Fl.Ctrl);
+  sysBar.ItemShortcut(i, key, state);
+  Check.Check((key = ORD("f")) & (state = Fl.Ctrl), "their shortcuts");
+  i := sysBar.Add("Size/Small", 0, {}, NIL, FlMenus.MenuRadio + FlMenus.MenuValue);
+  n := sysBar.Add("Size/Large", 0, {}, NIL, FlMenus.MenuRadio);
+  sysBar.SetOnly(n);
+  Check.Check((sysBar.ItemFlags(n) * FlMenus.MenuValue # {}) & (sysBar.ItemFlags(i) * FlMenus.MenuValue = {}),
+    "their radio items");
+  sysBar.Remove(n);
+  Check.Check(sysBar.FindIndex("Size/Large") < 0, "removes them");
+  sysBar.ClearSubmenu(sysBar.FindIndex("Size"));
+  Check.Check(sysBar.FindIndex("Size/Small") < 0, "clears a submenu");
+  opened := 0; sysBar.Pick(sysBar.FindIndex("File/Open"));
+  Check.Check(opened = 1, "and an item picked runs its action");
+  sysBar.About(Open);
+  FlMenus.SetWindowMenuStyle(FlMenus.TabbingModeNone);
+  FlMenus.CreateWindowMenu;
+  Check.Check(FlMenus.WindowMenuStyle() = FlMenus.NoWindowMenu, "only macOS has a Window menu");
+  sysBar.Clear;
+  Check.Check(sysBar.Length() = 0, "and Clear");
+  sysBar.Delete;
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");

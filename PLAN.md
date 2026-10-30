@@ -1459,8 +1459,8 @@ directly, and threads.
 Each phase ends as Phases 9 to 13 did:
 - every test passes on `make test-headless` and `make test-sway`, and
   `make valgrind-headless` and `make valgrind-sway` are clean; and also
-  `make test` on cymoril, yishana and artos, since these phases add
-  conditional builds;
+  `make test` on all six BSDs, since these phases add conditional
+  builds;
 - each binding has its own test, and each new halt its `Halt*` test;
 - `doc/fltk-issues.md` records each FLTK problem found, with the short
   note in AGENTS.md;
@@ -1510,7 +1510,7 @@ Facts behind the plan, each from a program run on 2026-10-30:
 - `fltk-config --use-gl --use-forms --use-images --ldflags` gives what
   each needs. libfltk_forms and libfltk_gl exist on all six BSDs.
 
-### Phase 14: Small widgets and types [done]
+### Phase 14: Small widgets and types `[done]`
 
 Widgets with no new lifetime problem, and FLTK's plain small types.
 
@@ -1613,7 +1613,7 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
 - Both ports match FLTK's builds exactly, every window of each, under
   Xvfb (`magick compare -metric AE -fuzz 1%`, 2026-10-30).
 
-### Phase 15: Composite widgets and audits
+### Phase 15: Composite widgets and audits `[done]`
 
 - **`FlInputs.InputChoice`** (`Fl_Input_Choice`), with `Fl.BeginOpen`
   and a `kind`, though it is a group: its constructor calls `end()`, and
@@ -1657,6 +1657,36 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
   `Overlay` (`test/overlay.cxx`).
 - New examples: `TreeIcons`, a tree with its own icons and margins;
   `Selections`, an editor showing all three selections.
+- `InputChoice` is a `Widget`, not a `Group`: `Group.Clear` and `Remove`
+  would delete the input and menu button FLTK's methods go on using.
+- `SysMenuBar` is tested on X11 and Wayland, where it is a menu bar and
+  `About` does nothing. Its macOS system menu is untested: no host here
+  has macOS.
+- `Fl_Tree_Prefs`: `item_draw_callback` is on `Fl_Tree_Prefs` alone,
+  which `Fl_Tree` doesn't expose, so it can't be reached. The rest is
+  bound as `Fl_Tree`'s: `SetOpenIcon`, `SetCloseIcon` and `SetUserIcon`
+  in `FlImages` (FLTK keeps the pointers, 78), and the margins in
+  `FlBrowsers`. `SetItemIcon` and `SetItemInactiveIcon` were added,
+  since an item's icon goes the same way.
+- `Selection` is a read-only view. `Fl_Text_Selection` in 1.4.5 has no
+  rectangular selections, so there is no `Rectangular`; and its `set`
+  and `update` don't redisplay, so a selection is set through the
+  buffer.
+- `MenuBar` needed what the plan left out, now bound: an item's look
+  (`ItemLabelType`, `ItemLabelFont`, `ItemLabelSize`, `ItemLabelColor`
+  and setters), `Fl.MenuLinespacing` and `Fl.ShortcutLabel`.
+  `FL_SUBMENU_POINTER` isn't bound, so `&Huge`'s items are added.
+- `InputChoice` and `MenuBar` write to `Err` what FLTK's write to an
+  `Fl_Terminal`, and keep the window's size. Phase 18 finishes them.
+  `ColorChooser` leaves out FLTK's argument naming an X11 visual, since
+  `Fl::visual` and `Fl::own_colormap` aren't bound.
+- The ports match FLTK's builds under Xvfb: `Overlay` and `ColorChooser`
+  exactly, every shot, and `InputChoice` and `MenuBar` above the terminal,
+  through every menu of `MenuBar` and its pop-up. `MenuBar` found 79.
+- Tested 2026-10-30: `test-headless` 1005 `ok` lines, `test-sway` 1001,
+  `valgrind-headless` 914, `valgrind-sway` 910 (every error summary 0);
+  `make test` on all six BSDs 1005; on an FLTK with neither Cairo nor
+  Pango 1005, and on one without SVG 1005, with 2 skipped.
 
 ### Phase 16: Images
 

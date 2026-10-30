@@ -19,6 +19,7 @@
 #include <FL/Fl_Tabs.H>
 #include <FL/Fl_Menu_Item.H>
 #include <FL/Fl_Menu_Button.H>
+#include <FL/Fl_Sys_Menu_Bar.H>
 #include <FL/fl_ask.H>
 #include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_Text_Display.H>
@@ -418,6 +419,10 @@ const Entry entries[] = {
   {"FL_MENU_INVISIBLE", (int32_t)(FL_MENU_INVISIBLE)},
   {"FL_SUBMENU", (int32_t)(FL_SUBMENU)},
   {"FL_MENU_DIVIDER", (int32_t)(FL_MENU_DIVIDER)},
+  {"Fl_Sys_Menu_Bar::no_window_menu", (int32_t)(Fl_Sys_Menu_Bar::no_window_menu)},
+  {"Fl_Sys_Menu_Bar::tabbing_mode_none", (int32_t)(Fl_Sys_Menu_Bar::tabbing_mode_none)},
+  {"Fl_Sys_Menu_Bar::tabbing_mode_automatic", (int32_t)(Fl_Sys_Menu_Bar::tabbing_mode_automatic)},
+  {"Fl_Sys_Menu_Bar::tabbing_mode_preferred", (int32_t)(Fl_Sys_Menu_Bar::tabbing_mode_preferred)},
   {"Fl_Menu_Button::POPUP1", (int32_t)(Fl_Menu_Button::POPUP1)},
   {"Fl_Menu_Button::POPUP2", (int32_t)(Fl_Menu_Button::POPUP2)},
   {"Fl_Menu_Button::POPUP12", (int32_t)(Fl_Menu_Button::POPUP12)},

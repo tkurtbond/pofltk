@@ -109,6 +109,8 @@ END Hello.
 - `Menus`: a menu bar, a choice and the dialogs.
 - `Presets`, `Positions`, `Shortcuts`, `FileInputs`, `Tooltips`,
   `Rects`, `Trackers`: the small widgets and types, one program each.
+- `TreeIcons`: a tree's icons and margins.
+- `Selections`: an editor with a text buffer's three selections.
 - Ports of FLTK's own `examples/` programs, each named for FLTK's file
   in CamelCase, without `howto-`:
   - each module's simplest use: `TableSimple`, `TreeSimple`,

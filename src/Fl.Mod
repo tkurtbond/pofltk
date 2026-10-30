@@ -412,6 +412,12 @@ TYPE
 
   (* A window that draws on the screen directly, however FLTK's other
      windows do it. *)
+  (* a window with a picture over its widgets, drawn by DrawOverlay, that
+     changes without their being redrawn: a selection's rectangle. FLTK
+     erases it first. *)
+  OverlayWindow* = POINTER TO OverlayWindowDesc;
+  OverlayWindowDesc* = RECORD (DoubleWindowDesc) END;
+
   SingleWindow* = POINTER TO SingleWindowDesc;
   SingleWindowDesc* = RECORD (WindowDesc) END;
 
@@ -503,6 +509,10 @@ VAR
   dispatching: INTEGER;      (* how many dispatch calls are running *)
   handlers: HandlerNode;     (* the event handlers, newest first *)
 
+PROCEDURE ["C", "ofl_overlay_window_new"] COverlayWindowNew(placed, x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_register_overlay"] CRegisterOverlay(drawOverlay: SelfProc);
+PROCEDURE ["C", "ofl_overlay_can_do"] COverlayCanDo(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_overlay_redraw"] COverlayRedraw(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_register"] CRegister(callback, draw: SelfProc; handle: HandleProc; resize: ResizeProc; deleted, timeout: SelfProc);
 PROCEDURE ["C", "ofl_group_new"] CGroupNew(x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_window_new"] CWindowNew(placed, x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
@@ -663,6 +673,9 @@ PROCEDURE ["C", "ofl_window_fullscreen_off"] CFullscreenOff(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_fullscreen_active"] CFullscreenActive(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_color"] CSetIndexColor(i, c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_get_rgb"] CGetRGB(c: SYSTEM.INT32; VAR r, g, b: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_menu_linespacing"] CMenuLinespacing(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_menu_linespacing"] CSetMenuLinespacing(n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_shortcut_label"] CShortcutLabel(s: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_background"] CBackground(r, g, b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_background2"] CBackground2(r, g, b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_foreground"] CForeground(r, g, b: SYSTEM.INT32);
@@ -762,6 +775,16 @@ PROCEDURE OpenDoubleWindowAt*(win: DoubleWindow; x, y, w, h: INTEGER; title-: AR
 BEGIN
   EndOpen(win, CDoubleWindowNew(1, x, y, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
 END OpenDoubleWindowAt;
+
+PROCEDURE OpenOverlayWindow*(win: OverlayWindow; w, h: INTEGER; title-: ARRAY OF CHAR);
+BEGIN
+  EndOpen(win, COverlayWindowNew(0, 0, 0, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
+END OpenOverlayWindow;
+
+PROCEDURE OpenOverlayWindowAt*(win: OverlayWindow; x, y, w, h: INTEGER; title-: ARRAY OF CHAR);
+BEGIN
+  EndOpen(win, COverlayWindowNew(1, x, y, w, h, BeginOpen(win))); CCopyLabel(win.h, title)
+END OpenOverlayWindowAt;
 
 PROCEDURE OpenSingleWindow*(win: SingleWindow; w, h: INTEGER; title-: ARRAY OF CHAR);
 BEGIN
@@ -1156,6 +1179,25 @@ END DrawChild;
    class name, and, for the first window shown this way, its geometry;
    and the colors and scheme. A title or class not given is the
    program's name. *)
+(* Draws a window's overlay, as Draw draws a widget. It is here, not on
+   OverlayWindow, so that any window class with an overlay shares it;
+   other windows never call it. *)
+PROCEDURE (w: Window) DrawOverlay*;
+END DrawOverlay;
+
+(* Marks the overlay to be drawn again. It stays clear until this is first
+   called, so call it after Show for an overlay to start with. *)
+PROCEDURE (w: OverlayWindow) RedrawOverlay*;
+BEGIN COverlayRedraw(Live(w))
+END RedrawOverlay;
+
+(* Whether the display has a real overlay. Without one, as on X11 and
+   Wayland, FLTK redraws the window from its back buffer, and overlays
+   work the same, a little slower. *)
+PROCEDURE (w: OverlayWindow) CanDoOverlay*(): BOOLEAN;
+BEGIN RETURN COverlayCanDo(Live(w)) # 0
+END CanDoOverlay;
+
 PROCEDURE (w: Window) ShowArgs*;
 BEGIN CWindowShowArgs(Live(w), Args.argc, Args.argv)
 END ShowArgs;
@@ -1875,6 +1917,20 @@ PROCEDURE ArgsHelp*(VAR s: ARRAY OF CHAR);
 BEGIN FromC(CArgsHelp(), s)
 END ArgsHelp;
 
+(* The pixels between a menu's lines, for menus opened from now on. *)
+PROCEDURE MenuLinespacing*(): INTEGER;
+BEGIN RETURN CMenuLinespacing()
+END MenuLinespacing;
+
+PROCEDURE SetMenuLinespacing*(n: INTEGER);
+BEGIN CSetMenuLinespacing(n)
+END SetMenuLinespacing;
+
+(* A shortcut as FLTK shows it ("Ctrl+S"), truncated to fit s. *)
+PROCEDURE ShortcutLabel*(key: INTEGER; state: SET; VAR s: ARRAY OF CHAR);
+BEGIN CShortcutLabel(key + ORD(state), s, SHORT(LEN(s)))
+END ShortcutLabel;
+
 (* Opens uri with the desktop's program for it (xdg-open, on Linux),
    which runs on by itself: a file:, ftp:, http:, https:, mailto: or
    news: URI. TRUE if the program was started, with msg its command;
@@ -2117,6 +2173,13 @@ PROCEDURE CallbackD(self: SYSTEM.ADDRESS);
 BEGIN w := SYSTEM.VAL(Widget, self); w.Callback
 END CallbackD;
 
+PROCEDURE DrawOverlayD(self: SYSTEM.ADDRESS);
+  VAR w: Widget;
+BEGIN
+  w := SYSTEM.VAL(Widget, self);
+  w(Window).DrawOverlay
+END DrawOverlayD;
+
 PROCEDURE DrawD(self: SYSTEM.ADDRESS);
   VAR w: Widget;
 BEGIN w := SYSTEM.VAL(Widget, self); w.Draw
@@ -2186,5 +2249,6 @@ END HandlerD;
 
 BEGIN
   CRegister(CallbackD, DrawD, HandleD, ResizeD, DeletedD, TimeoutD);
+  CRegisterOverlay(DrawOverlayD);
   CRegisterLoop(IdleD, FdD, DispatchD, HandlerD)
 END Fl.

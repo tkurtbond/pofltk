@@ -63,9 +63,18 @@ CONST
   scrollbarSize = 10; shortcut = 11; insertMode = 12; tabNav = 13;
 
 TYPE
+  (* A view of one of a buffer's three selections, which reads it each
+     time it is asked, so it follows the text's changes. *)
+  Selection* = POINTER TO SelectionDesc;
+
   TextBuffer* = POINTER TO TextBufferDesc;
   TextBufferDesc* = RECORD
     h: SYSTEM.ADDRESS  (* the C++ buffer, 0 once closed *)
+  END;
+
+  SelectionDesc* = RECORD
+    buffer: TextBuffer;
+    which: INTEGER  (* 0 primary, 1 secondary, 2 highlight *)
   END;
 
   (* FLTK's Fl_Text_Display: shows a buffer, scrolled, wrapped or not,
@@ -109,6 +118,13 @@ PROCEDURE ["C", "ofl_buffer_selection"] CSelection(b: SYSTEM.ADDRESS; VAR start,
 PROCEDURE ["C", "ofl_buffer_selection_text"] CSelectionText(b: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_buffer_remove_selection"] CRemoveSelection(b: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_buffer_replace_selection"] CReplaceSelection(b: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_buffer_mark"] CMark(b: SYSTEM.ADDRESS; which, start, end: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_buffer_unmark"] CUnmark(b: SYSTEM.ADDRESS; which: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_buffer_marked_text"] CMarkedText(b: SYSTEM.ADDRESS; which: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_buffer_remove_secondary"] CRemoveSecondary(b: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_buffer_replace_secondary"] CReplaceSecondary(b: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_selection_get"] CSelectionGet(b: SYSTEM.ADDRESS; which, what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_selection_includes"] CSelectionIncludes(b: SYSTEM.ADDRESS; which, pos: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_buffer_pos"] CPos(b: SYSTEM.ADDRESS; what, pos: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_buffer_line_text"] CLineText(b: SYSTEM.ADDRESS; pos: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_buffer_count_lines"] CCountLines(b: SYSTEM.ADDRESS; start, end: SYSTEM.INT32): SYSTEM.INT32;
@@ -313,6 +329,81 @@ END RemoveSelection;
 PROCEDURE (b: TextBuffer) ReplaceSelection*(s-: ARRAY OF CHAR);
 BEGIN CReplaceSelection(H(b), s)
 END ReplaceSelection;
+
+(* A buffer has two more selections, for the program's own uses, which
+   displays show in their own colors: the secondary, and the highlight.
+   Typing and clicking change neither. *)
+
+PROCEDURE (b: TextBuffer) SecondarySelect*(start, end: INTEGER);
+BEGIN CMark(H(b), 1, start, end)
+END SecondarySelect;
+
+PROCEDURE (b: TextBuffer) SecondaryUnselect*;
+BEGIN CUnmark(H(b), 1)
+END SecondaryUnselect;
+
+PROCEDURE (b: TextBuffer) SecondaryText*(VAR s: ARRAY OF CHAR);
+BEGIN CMarkedText(H(b), 1, s, SHORT(LEN(s)))
+END SecondaryText;
+
+PROCEDURE (b: TextBuffer) RemoveSecondary*;
+BEGIN CRemoveSecondary(H(b))
+END RemoveSecondary;
+
+PROCEDURE (b: TextBuffer) ReplaceSecondary*(s-: ARRAY OF CHAR);
+BEGIN CReplaceSecondary(H(b), s)
+END ReplaceSecondary;
+
+PROCEDURE (b: TextBuffer) Highlight*(start, end: INTEGER);
+BEGIN CMark(H(b), 2, start, end)
+END Highlight;
+
+PROCEDURE (b: TextBuffer) Unhighlight*;
+BEGIN CUnmark(H(b), 2)
+END Unhighlight;
+
+PROCEDURE (b: TextBuffer) HighlightText*(VAR s: ARRAY OF CHAR);
+BEGIN CMarkedText(H(b), 2, s, SHORT(LEN(s)))
+END HighlightText;
+
+PROCEDURE NewSelection(b: TextBuffer; which: INTEGER): Selection;
+  VAR s: Selection; h: SYSTEM.ADDRESS;
+BEGIN h := H(b); NEW(s); s.buffer := b; s.which := which; RETURN s
+END NewSelection;
+
+PROCEDURE (b: TextBuffer) PrimarySelection*(): Selection;
+BEGIN RETURN NewSelection(b, 0)
+END PrimarySelection;
+
+PROCEDURE (b: TextBuffer) SecondarySelection*(): Selection;
+BEGIN RETURN NewSelection(b, 1)
+END SecondarySelection;
+
+PROCEDURE (b: TextBuffer) HighlightSelection*(): Selection;
+BEGIN RETURN NewSelection(b, 2)
+END HighlightSelection;
+
+PROCEDURE (s: Selection) Selected*(): BOOLEAN;
+BEGIN RETURN CSelectionGet(H(s.buffer), s.which, 0) # 0
+END Selected;
+
+(* Start and End are 0 unless text is selected. *)
+PROCEDURE (s: Selection) Start*(): INTEGER;
+BEGIN RETURN CSelectionGet(H(s.buffer), s.which, 1)
+END Start;
+
+PROCEDURE (s: Selection) End*(): INTEGER;
+BEGIN RETURN CSelectionGet(H(s.buffer), s.which, 2)
+END End;
+
+PROCEDURE (s: Selection) Length*(): INTEGER;
+BEGIN RETURN CSelectionGet(H(s.buffer), s.which, 3)
+END Length;
+
+(* Whether the text at pos is selected. *)
+PROCEDURE (s: Selection) Includes*(pos: INTEGER): BOOLEAN;
+BEGIN RETURN CSelectionIncludes(H(s.buffer), s.which, pos) # 0
+END Includes;
 
 (* Positions, lines and words. A line ends at a newline, not counted in
    it; words are separated by spaces, tabs and punctuation. *)

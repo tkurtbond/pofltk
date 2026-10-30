@@ -1172,3 +1172,54 @@ never shown: `TestInputs` shows its window first.
 
 **Confirmed:** `TestInputs` hung on a headless sway, and gdb showed it
 in `fl_alert` under `make_current` under `handle_button` (2026-10-30).
+
+### 78. A tree keeps its icons' pointers, and copies some of them
+
+**What happens:** `Fl_Tree::openicon`, `closeicon` and `usericon` and
+`Fl_Tree_Item::usericon` and `userdeicon` keep the image they are given,
+and a tree draws it for as long as it is set. An image deleted first
+is read after it is freed. `Fl_Tree_Prefs` also makes an inactive form
+of each of the tree's three icons, as a copy it owns, but an item's
+inactive icon is the program's to make.
+
+**Cause:** `Fl_Tree_Prefs::openicon`, `closeicon` and `usericon` store
+the pointer and call `copy()` and `inactive()` on it for `_opendeimage`,
+`_closedeimage` and `_userdeimage`, which its destructor deletes.
+`Fl_Tree_Item::usericon` and `userdeicon` store their pointer alone.
+
+**Effect on pofltk:** `FlImages.SetOpenIcon`, `SetCloseIcon`,
+`SetUserIcon`, `SetItemIcon` and `SetItemInactiveIcon` keep the image
+in the tree's `Ref`, counted, and let go of one nothing shows any more
+(`drop_tree_icons`). The deactivated copies are FLTK's: they die with
+the prefs, before the `Ref` lets go of what they copied.
+
+**Confirmed:** from FLTK's source, and `TestImages`' tree icons under
+valgrind (2026-10-30).
+
+### 79. `Fl_Menu_::add` can't see a hidden item, and matches a label it can
+
+**What happens:** two things about how `add` finds an item already
+there:
+- a label added again in the same (sub)menu is the same item: its
+  shortcut, callback and flags are replaced, and no item is added. So
+  two items with one label can't both be added by `add`;
+- a hidden item isn't found. A path through a hidden submenu makes
+  another submenu of that name, not hidden, and the first stays empty.
+  A hidden item added again is added twice.
+
+**Cause:** `Fl_Menu_Item::insert` looks for a title or an item with
+`m = m->next()`, and `next` skips what isn't `visible()`; and it fills
+in the item it finds, which `compare` matched ignoring `&`.
+
+**Effect on pofltk:** none in the binding, whose `Add` is FLTK's. A
+table in C++ doesn't meet this, since it isn't searched, but a program
+adding the same table one item at a time does. `examples/MenuBar.Mod`
+adds such an item under a label of its own and sets the label after
+(`SetItemLabel`), and hides a submenu after filling it (`SetItemFlags`).
+Also, `Fl_Menu_::menu` sets the value to the first item, and items
+added leave none, so a port sets it: a menu button shows its value
+under the mouse.
+
+**Confirmed:** `MenuBar` showed an `Invisible` submenu FLTK's build
+doesn't, until it hid it last, and then its menus matched FLTK's
+(2026-10-30).

@@ -124,6 +124,55 @@ int32_t ofl_color_chooser(const char *title, int32_t *r, int32_t *g,
   return 1;
 }
 
+// Color choosers. FLTK's class holds its children as members, so FlDialogs
+// gives it none of Fl.Group's methods: clearing it would delete them.
+
+intptr_t ofl_color_chooser_new(int32_t x, int32_t y, int32_t w, int32_t h,
+                               const char *label, intptr_t self) {
+  ofl::W<Fl_Color_Chooser> *c = new ofl::W<Fl_Color_Chooser>(x, y, w, h);
+  c->copy_label(ofl::label_text(label));
+  return ofl::open(c, self);
+}
+
+// what: 0 hue, 1 saturation, 2 value, 3 red, 4 green, 5 blue.
+double ofl_color_chooser_get(intptr_t c, int32_t what) {
+  Fl_Color_Chooser *cc = ofl::as<Fl_Color_Chooser>(c);
+  switch (what) {
+    case 1: return cc->saturation();
+    case 2: return cc->value();
+    case 3: return cc->r();
+    case 4: return cc->g();
+    case 5: return cc->b();
+    default: return cc->hue();
+  }
+}
+
+int32_t ofl_color_chooser_set_hsv(intptr_t c, double h, double s, double v) {
+  return ofl::as<Fl_Color_Chooser>(c)->hsv(h, s, v);
+}
+
+int32_t ofl_color_chooser_set_rgb(intptr_t c, double r, double g, double b) {
+  return ofl::as<Fl_Color_Chooser>(c)->rgb(r, g, b);
+}
+
+int32_t ofl_color_chooser_mode(intptr_t c) {
+  return ofl::as<Fl_Color_Chooser>(c)->mode();
+}
+
+void ofl_color_chooser_set_mode(intptr_t c, int32_t m) {
+  ofl::as<Fl_Color_Chooser>(c)->mode(m);
+}
+
+void ofl_hsv_to_rgb(double h, double s, double v, double *r, double *g,
+                    double *b) {
+  Fl_Color_Chooser::hsv2rgb(h, s, v, *r, *g, *b);
+}
+
+void ofl_rgb_to_hsv(double r, double g, double b, double *h, double *s,
+                    double *v) {
+  Fl_Color_Chooser::rgb2hsv(r, g, b, *h, *s, *v);
+}
+
 int32_t ofl_show_colormap(int32_t old) {
   return static_cast<int32_t>(fl_show_colormap(static_cast<Fl_Color>(old)));
 }

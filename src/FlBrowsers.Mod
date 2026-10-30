@@ -609,6 +609,12 @@ BEGIN
   RETURN h
 END T;
 
+(* For pofltk's modules only: i's tree's handle, and i's, halting unless
+   i is still in its tree. *)
+PROCEDURE ItemHandles*(i: TreeItem; VAR tree, item: SYSTEM.ADDRESS);
+BEGIN tree := T(i); item := i.p
+END ItemHandles;
+
 (* TRUE if a and b refer to the same item, or are both NIL. *)
 PROCEDURE Same*(a, b: TreeItem): BOOLEAN;
 BEGIN
@@ -856,6 +862,40 @@ END ConnectorWidth;
 PROCEDURE (t: Tree) SetConnectorWidth*(n: INTEGER);
 BEGIN TSet(t, 18, n)
 END SetConnectorWidth;
+
+(* Spacing, in pixels: below the last item, below an open item's last
+   child, left of a user icon, and left of a label. *)
+PROCEDURE (t: Tree) MarginBottom*(): INTEGER;
+BEGIN RETURN TGet(t, 22)
+END MarginBottom;
+
+PROCEDURE (t: Tree) SetMarginBottom*(n: INTEGER);
+BEGIN TSet(t, 22, n)
+END SetMarginBottom;
+
+PROCEDURE (t: Tree) OpenChildMarginBottom*(): INTEGER;
+BEGIN RETURN TGet(t, 23)
+END OpenChildMarginBottom;
+
+PROCEDURE (t: Tree) SetOpenChildMarginBottom*(n: INTEGER);
+BEGIN TSet(t, 23, n)
+END SetOpenChildMarginBottom;
+
+PROCEDURE (t: Tree) UserIconMarginLeft*(): INTEGER;
+BEGIN RETURN TGet(t, 24)
+END UserIconMarginLeft;
+
+PROCEDURE (t: Tree) SetUserIconMarginLeft*(n: INTEGER);
+BEGIN TSet(t, 24, n)
+END SetUserIconMarginLeft;
+
+PROCEDURE (t: Tree) LabelMarginLeft*(): INTEGER;
+BEGIN RETURN TGet(t, 25)
+END LabelMarginLeft;
+
+PROCEDURE (t: Tree) SetLabelMarginLeft*(n: INTEGER);
+BEGIN TSet(t, 25, n)
+END SetLabelMarginLeft;
 
 (* How an item with a widget is drawn: {} for the widget in place of the
    label, or ItemDrawLabelAndWidget, and ItemHeightFromWidget for the

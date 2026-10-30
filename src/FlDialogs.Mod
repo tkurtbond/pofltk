@@ -70,6 +70,13 @@ TYPE
     h: SYSTEM.ADDRESS
   END;
 
+  (* FLTK's color chooser as a widget: a hue box, a value slider and three
+     inputs, for a panel of the program's own. Its Callback runs when the
+     user changes the color. FLTK's is a group, but its parts are its own,
+     so this is a widget. *)
+  ColorChooser* = POINTER TO ColorChooserDesc;
+  ColorChooserDesc* = RECORD (Fl.WidgetDesc) END;
+
   (* A directory's names (ListDirectory) *)
   Name* = POINTER TO ARRAY OF CHAR;
   Names* = POINTER TO ARRAY OF Name;
@@ -88,6 +95,14 @@ PROCEDURE ["C", "ofl_dialog_set_font"] CSetFont(font, size: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_beep"] CBeep(kind: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_color_chooser"] CColorChooser(title: ARRAY OF CHAR; VAR r, g, b: SYSTEM.INT32; mode: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_show_colormap"] CShowColormap(old: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_color_chooser_new"] CColorChooserNew(x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_color_chooser_get"] CColorChooserGet(c: SYSTEM.ADDRESS; what: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_color_chooser_set_hsv"] CColorChooserSetHSV(c: SYSTEM.ADDRESS; h, s, v: LONGREAL): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_color_chooser_set_rgb"] CColorChooserSetRGB(c: SYSTEM.ADDRESS; r, g, b: LONGREAL): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_color_chooser_mode"] CColorChooserMode(c: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_color_chooser_set_mode"] CColorChooserSetMode(c: SYSTEM.ADDRESS; m: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_hsv_to_rgb"] CHSVToRGB(h, s, v: LONGREAL; VAR r, g, b: LONGREAL);
+PROCEDURE ["C", "ofl_rgb_to_hsv"] CRGBToHSV(r, g, b: LONGREAL; VAR h, s, v: LONGREAL);
 PROCEDURE ["C", "ofl_file_chooser"] CFileChooser(dir: SYSTEM.INT32; title, pattern: ARRAY OF CHAR; VAR buf: ARRAY OF CHAR; n, relative: SYSTEM.INT32): SYSTEM.INT32;
 
 PROCEDURE ["C", "ofl_fnfc_new"] CFnfcNew(kind: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -208,6 +223,70 @@ END ChooseColor;
 PROCEDURE ChooseFromColormap*(old: INTEGER): INTEGER;
 BEGIN RETURN CShowColormap(old)
 END ChooseFromColormap;
+
+(* Color choosers *)
+
+PROCEDURE OpenColorChooser*(c: ColorChooser; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(c, CColorChooserNew(x, y, w, h, label, Fl.BeginOpen(c)))
+END OpenColorChooser;
+
+(* The hue, from 0 up to 6: 0 is red, 1 yellow, 2 green and so on. *)
+PROCEDURE (c: ColorChooser) Hue*(): LONGREAL;
+BEGIN RETURN CColorChooserGet(Fl.Live(c), 0)
+END Hue;
+
+(* The saturation and value, and red, green and blue, each from 0 to 1. *)
+PROCEDURE (c: ColorChooser) Saturation*(): LONGREAL;
+BEGIN RETURN CColorChooserGet(Fl.Live(c), 1)
+END Saturation;
+
+PROCEDURE (c: ColorChooser) Value*(): LONGREAL;
+BEGIN RETURN CColorChooserGet(Fl.Live(c), 2)
+END Value;
+
+PROCEDURE (c: ColorChooser) R*(): LONGREAL;
+BEGIN RETURN CColorChooserGet(Fl.Live(c), 3)
+END R;
+
+PROCEDURE (c: ColorChooser) G*(): LONGREAL;
+BEGIN RETURN CColorChooserGet(Fl.Live(c), 4)
+END G;
+
+PROCEDURE (c: ColorChooser) B*(): LONGREAL;
+BEGIN RETURN CColorChooserGet(Fl.Live(c), 5)
+END B;
+
+(* Sets the color, without a call of Callback: TRUE if it changed. A hue is
+   taken modulo 6, and s and v are brought into 0 to 1. *)
+PROCEDURE (c: ColorChooser) SetHSV*(h, s, v: LONGREAL): BOOLEAN;
+BEGIN RETURN CColorChooserSetHSV(Fl.Live(c), h, s, v) # 0
+END SetHSV;
+
+(* Sets the color, without a call of Callback: TRUE if it changed. FLTK
+   leaves each as it is, so keep them from 0 to 1. *)
+PROCEDURE (c: ColorChooser) SetRGB*(r, g, b: LONGREAL): BOOLEAN;
+BEGIN RETURN CColorChooserSetRGB(Fl.Live(c), r, g, b) # 0
+END SetRGB;
+
+(* How the inputs show the color: ColorRGB, ColorByte, ColorHex or ColorHSV. *)
+PROCEDURE (c: ColorChooser) Mode*(): INTEGER;
+BEGIN RETURN CColorChooserMode(Fl.Live(c))
+END Mode;
+
+PROCEDURE (c: ColorChooser) SetMode*(m: INTEGER);
+BEGIN
+  ASSERT((m >= ColorRGB) & (m <= ColorHSV), Fl.IndexOutOfRange);
+  CColorChooserSetMode(Fl.Live(c), m)
+END SetMode;
+
+(* Converts a color between the two forms, as a ColorChooser's ranges. *)
+PROCEDURE HSVToRGB*(h, s, v: LONGREAL; VAR r, g, b: LONGREAL);
+BEGIN CHSVToRGB(h, s, v, r, g, b)
+END HSVToRGB;
+
+PROCEDURE RGBToHSV*(r, g, b: LONGREAL; VAR h, s, v: LONGREAL);
+BEGIN CRGBToHSV(r, g, b, h, s, v)
+END RGBToHSV;
 
 (* FLTK's file chooser: asks for a file matching pattern ("*.txt", or
    several, each a name and a pattern in brackets, separated by tabs, as

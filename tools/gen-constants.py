@@ -213,6 +213,11 @@ add("set", [("MenuInactive", "FL_MENU_INACTIVE"), ("MenuToggle", "FL_MENU_TOGGLE
             ("MenuValue", "FL_MENU_VALUE"), ("MenuRadio", "FL_MENU_RADIO"),
             ("MenuInvisible", "FL_MENU_INVISIBLE"), ("Submenu", "FL_SUBMENU"),
             ("MenuDivider", "FL_MENU_DIVIDER")])
+section("macOS's Window menu (SetWindowMenuStyle)")
+add("int", [("NoWindowMenu", "Fl_Sys_Menu_Bar::no_window_menu"),
+            ("TabbingModeNone", "Fl_Sys_Menu_Bar::tabbing_mode_none"),
+            ("TabbingModeAutomatic", "Fl_Sys_Menu_Bar::tabbing_mode_automatic"),
+            ("TabbingModePreferred", "Fl_Sys_Menu_Bar::tabbing_mode_preferred")])
 section("kinds of menu button (MenuButton.SetKind): the mouse buttons that pop it up")
 add("int", [("Popup" + k, "Fl_Menu_Button::POPUP" + k) for k in
             "1 2 12 3 13 23 123".split()])
@@ -307,7 +312,7 @@ HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_dr
            "#include <FL/Fl_Input_.H>\n#include <FL/Fl_Slider.H>\n#include <FL/Fl_Valuator.H>\n"
            "#include <FL/Fl_Flex.H>\n#include <FL/Fl_Grid.H>\n#include <FL/Fl_Pack.H>\n"
            "#include <FL/Fl_Scroll.H>\n#include <FL/Fl_Tabs.H>\n"
-           "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/fl_ask.H>\n"
+           "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/Fl_Sys_Menu_Bar.H>\n#include <FL/fl_ask.H>\n"
            "#include <FL/Fl_Native_File_Chooser.H>\n"
            "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
            "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n"

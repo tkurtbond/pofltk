@@ -16,6 +16,7 @@ CONST
   (* the classes, as ofl_input_new numbers them *)
   input = 0; intInput = 1; floatInput = 2; multilineInput = 3;
   secretInput = 4; output = 5; multilineOutput = 6; fileInput = 7;
+  inputChoice = 8;
 
   keyMask = 10000H;  (* FL_KEY_MASK + 1: a shortcut's key is below it *)
 
@@ -51,6 +52,14 @@ TYPE
      directories: a click on one cuts the path there *)
   FileInput* = POINTER TO FileInputDesc;
   FileInputDesc* = RECORD (InputDesc) END;
+
+  (* one line of text, with a button beside it that pops up a menu of
+     texts to put in it. FLTK's is a group, but its input and button are
+     its own, so this is a widget, and not an Input: Value is its text,
+     and its Callback runs for each change, typed or chosen. Items are
+     named by index, as FlMenus' are, and a label is a path, as there. *)
+  InputChoice* = POINTER TO InputChoiceDesc;
+  InputChoiceDesc* = RECORD (Fl.WidgetDesc) END;
 
 PROCEDURE ["C", "ofl_input_new"] CNew(class, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_input_value"] CValue(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
@@ -90,6 +99,27 @@ PROCEDURE ["C", "ofl_input_textcolor"] CTextColor(i: SYSTEM.ADDRESS): SYSTEM.INT
 PROCEDURE ["C", "ofl_input_set_textcolor"] CSetTextColor(i: SYSTEM.ADDRESS; c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_cursor_color"] CCursorColor(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_set_cursor_color"] CSetCursorColor(i: SYSTEM.ADDRESS; c: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_add"] CChoiceAdd(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_input_choice_clear"] CChoiceClear(i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_input_choice_is_item"] CChoiceIsItem(i: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_length"] CChoiceLength(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_item"] CChoiceItem(i: SYSTEM.ADDRESS; n: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; size: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_selected"] CChoiceSelected(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_value"] CChoiceValue(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_set_value"] CChoiceSetValue(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_input_choice_set_index"] CChoiceSetIndex(i: SYSTEM.ADDRESS; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_update_menu"] CChoiceUpdateMenu(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_changed"] CChoiceChanged(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_set_changed"] CChoiceSetChanged(i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_input_choice_clear_changed"] CChoiceClearChanged(i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_input_choice_down_box"] CChoiceDownBox(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_set_down_box"] CChoiceSetDownBox(i: SYSTEM.ADDRESS; b: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_textfont"] CChoiceTextFont(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_set_textfont"] CChoiceSetTextFont(i: SYSTEM.ADDRESS; f: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_textsize"] CChoiceTextSize(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_set_textsize"] CChoiceSetTextSize(i: SYSTEM.ADDRESS; s: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_textcolor"] CChoiceTextColor(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_choice_set_textcolor"] CChoiceSetTextColor(i: SYSTEM.ADDRESS; c: SYSTEM.INT32);
 
 PROCEDURE Open(i: Input; class, x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Fl.EndOpen(i, CNew(class, x, y, w, h, label, Fl.BeginOpen(i)))
@@ -314,5 +344,109 @@ END DownBox;
 PROCEDURE (i: FileInput) SetDownBox*(b: INTEGER);
 BEGIN CFileSetDownBox(Fl.Live(i), b)
 END SetDownBox;
+
+(* Input choices *)
+
+PROCEDURE OpenInputChoice*(i: InputChoice; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+BEGIN Fl.EndOpen(i, CNew(inputChoice, x, y, w, h, label, Fl.BeginOpen(i)))
+END OpenInputChoice;
+
+(* Adds an item with the label s; "|" in s separates several. *)
+PROCEDURE (i: InputChoice) Add*(s-: ARRAY OF CHAR);
+BEGIN CChoiceAdd(Fl.Live(i), s)
+END Add;
+
+PROCEDURE (i: InputChoice) Clear*;
+BEGIN CChoiceClear(Fl.Live(i))
+END Clear;
+
+(* The menu's array's length, with its ends, as FlMenus.Menu.Length. *)
+PROCEDURE (i: InputChoice) Length*(): INTEGER;
+BEGIN RETURN CChoiceLength(Fl.Live(i))
+END Length;
+
+(* Whether n names an item. *)
+PROCEDURE (i: InputChoice) IsItem*(n: INTEGER): BOOLEAN;
+BEGIN RETURN CChoiceIsItem(Fl.Live(i), n) # 0
+END IsItem;
+
+(* Item n's label, truncated to fit s. *)
+PROCEDURE (i: InputChoice) Item*(n: INTEGER; VAR s: ARRAY OF CHAR);
+BEGIN
+  ASSERT(i.IsItem(n), Fl.IndexOutOfRange);
+  CChoiceItem(Fl.Live(i), n, s, SHORT(LEN(s)))
+END Item;
+
+(* The item last chosen, or -1. Typing doesn't change it, nor does
+   SetValue, until UpdateMenu. *)
+PROCEDURE (i: InputChoice) Selected*(): INTEGER;
+BEGIN RETURN CChoiceSelected(Fl.Live(i))
+END Selected;
+
+(* The text, truncated to fit s. *)
+PROCEDURE (i: InputChoice) Value*(VAR s: ARRAY OF CHAR);
+BEGIN CChoiceValue(Fl.Live(i), s, SHORT(LEN(s)))
+END Value;
+
+(* Sets the text, which need not be an item, and leaves Selected alone. *)
+PROCEDURE (i: InputChoice) SetValue*(s-: ARRAY OF CHAR);
+BEGIN CChoiceSetValue(Fl.Live(i), s)
+END SetValue;
+
+(* Selects item n, and sets the text to its label. *)
+PROCEDURE (i: InputChoice) SetValueIndex*(n: INTEGER);
+BEGIN
+  ASSERT(i.IsItem(n), Fl.IndexOutOfRange);
+  CChoiceSetIndex(Fl.Live(i), n)
+END SetValueIndex;
+
+(* Selects the first item whose label is the text; FALSE if none is. *)
+PROCEDURE (i: InputChoice) UpdateMenu*(): BOOLEAN;
+BEGIN RETURN CChoiceUpdateMenu(Fl.Live(i)) # 0
+END UpdateMenu;
+
+(* Changed counts the input's own state too. *)
+PROCEDURE (i: InputChoice) Changed*(): BOOLEAN;
+BEGIN RETURN CChoiceChanged(Fl.Live(i)) # 0
+END Changed;
+
+PROCEDURE (i: InputChoice) SetChanged*(c: BOOLEAN);
+BEGIN
+  IF c THEN CChoiceSetChanged(Fl.Live(i)) ELSE CChoiceClearChanged(Fl.Live(i)) END
+END SetChanged;
+
+(* The box of the menu's selected item. *)
+PROCEDURE (i: InputChoice) DownBox*(): INTEGER;
+BEGIN RETURN CChoiceDownBox(Fl.Live(i))
+END DownBox;
+
+PROCEDURE (i: InputChoice) SetDownBox*(b: INTEGER);
+BEGIN CChoiceSetDownBox(Fl.Live(i), b)
+END SetDownBox;
+
+(* The text's font, size and color. *)
+PROCEDURE (i: InputChoice) TextFont*(): INTEGER;
+BEGIN RETURN CChoiceTextFont(Fl.Live(i))
+END TextFont;
+
+PROCEDURE (i: InputChoice) SetTextFont*(f: INTEGER);
+BEGIN CChoiceSetTextFont(Fl.Live(i), f)
+END SetTextFont;
+
+PROCEDURE (i: InputChoice) TextSize*(): INTEGER;
+BEGIN RETURN CChoiceTextSize(Fl.Live(i))
+END TextSize;
+
+PROCEDURE (i: InputChoice) SetTextSize*(s: INTEGER);
+BEGIN CChoiceSetTextSize(Fl.Live(i), s)
+END SetTextSize;
+
+PROCEDURE (i: InputChoice) TextColor*(): INTEGER;
+BEGIN RETURN CChoiceTextColor(Fl.Live(i))
+END TextColor;
+
+PROCEDURE (i: InputChoice) SetTextColor*(c: INTEGER);
+BEGIN CChoiceSetTextColor(Fl.Live(i), c)
+END SetTextColor;
 
 END FlInputs.

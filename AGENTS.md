@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-10-30, Phases 0 to 14 of PLAN.md are done, and `README.md`
+As of 2026-10-30, Phases 0 to 15 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
@@ -61,6 +61,8 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   - `ofl::ItemLabel`, a menu item's image or multi-label, which keeps
     the item's text (`doc/fltk-issues.md`, 54);
   - `ofl::label_text`, which every label goes through ("" is none);
+  - `ofl::Overlaid<B>`, `ofl::W<B>` with `draw_overlay()` sent to
+    Oberon too;
   - the dispatch depth.
 - `src/Fl.Mod`, `src/Fl.cpp`: the core module. Its "For pofltk's modules
   only" procedures (`BeginOpen`, `EndOpen`) are how another module
@@ -535,7 +537,12 @@ held only in C++ memory**.
     which `remove` and `replace` free and paths read as text (a bug,
     54): each such item has an `ofl::ItemLabel` of its own, and
     `FlMenus.cpp` swaps the item's text in around FLTK's calls;
-  - `find_index` takes a path with its labels' `&`s.
+  - `find_index` takes a path with its labels' `&`s;
+  - `add` of a label already in that (sub)menu replaces the item, and
+    can't see a hidden item, so a hidden submenu is hidden after it is
+    filled (79);
+  - `Fl_Menu_::menu` sets the value to the first item; items added
+    leave none, and a menu button shows its value under the mouse.
 - **Dialogs**: `fl_message` and the rest take a printf format, so pass
   text as `"%s"`; `fl_file_chooser`, and `Fl_Native_File_Chooser` using
   FLTK's chooser, keep their title pointer (`doc/fltk-issues.md`, 30,
@@ -577,6 +584,9 @@ held only in C++ memory**.
   - an item removed in the tree's callback as it is pushed becomes the
     last one clicked after it is freed, and a drag moves it (a bug,
     59): the tree clears that after an event with removals;
+  - a tree and its items keep their icons' pointers, and the tree
+    makes inactive copies, an item not (78): the tree's `Ref` keeps
+    them;
   - `Fl_Tree::add`, `insert`, `remove` and `clear` hide `Fl_Group`'s;
     `Fl_Group::on_remove` is virtual in 1.4.
 - **Images** (`doc/fltk-issues.md`, 44 to 47):

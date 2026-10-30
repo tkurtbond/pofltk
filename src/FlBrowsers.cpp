@@ -546,7 +546,8 @@ void ofl_tree_clear(intptr_t t) {
 // foreground, 9 background, 10 connector color, 11 scrollbar size, 12
 // vposition, 13 hposition, 14 showcollapse, 15 marginleft, 16 margintop,
 // 17 linespacing, 18 connectorwidth, 19 selectbox, 20 item_draw_mode, 21
-// widgetmarginleft.
+// widgetmarginleft, 22 marginbottom, 23 openchild_marginbottom, 24
+// usericonmarginleft, 25 labelmarginleft.
 int32_t ofl_tree_get(intptr_t t, int32_t what) {
   Fl_Tree *tr = tree(t);
   switch (what) {
@@ -571,6 +572,10 @@ int32_t ofl_tree_get(intptr_t t, int32_t what) {
     case 19: return tr->selectbox();
     case 20: return tr->item_draw_mode();
     case 21: return tr->widgetmarginleft();
+    case 22: return tr->marginbottom();
+    case 23: return tr->openchild_marginbottom();
+    case 24: return tr->usericonmarginleft();
+    case 25: return tr->labelmarginleft();
     default: return tr->callback_reason();
   }
 }
@@ -601,6 +606,10 @@ void ofl_tree_set(intptr_t t, int32_t what, int32_t v) {
     case 19: tr->selectbox(static_cast<Fl_Boxtype>(v)); break;
     case 20: tr->item_draw_mode(v); tr->recalc_tree(); break;
     case 21: tr->widgetmarginleft(v); tr->recalc_tree(); break;
+    case 22: tr->marginbottom(v); break;
+    case 23: tr->openchild_marginbottom(v); break;
+    case 24: tr->usericonmarginleft(v); break;
+    case 25: tr->labelmarginleft(v); break;
     default: break;
   }
   tr->redraw();

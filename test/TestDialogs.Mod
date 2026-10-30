@@ -21,8 +21,11 @@ VAR
   names: FlDialogs.Names;
   title: ARRAY 16 OF CHAR;
   s: ARRAY 256 OF CHAR;
-  i, r, g, b, font, size, c: INTEGER;
+  i, r, g, b, font, size, c, calls: INTEGER;
+  x, y, z: LONGREAL;
   ok: BOOLEAN;
+  win: Fl.Window;
+  chooser: FlDialogs.ColorChooser;
 
 PROCEDURE (a: Answer) Fire*;
   VAR i: INTEGER; c: ARRAY 2 OF CHAR; ok: BOOLEAN;
@@ -39,6 +42,10 @@ BEGIN
     a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
   END
 END Fire;
+
+PROCEDURE Count(w: Fl.Widget);
+BEGIN INC(calls)
+END Count;
 
 (* Answers the next dialog by typing text and then key. *)
 PROCEDURE Reply(text: ARRAY OF CHAR; key: INTEGER; keyText: ARRAY OF CHAR);
@@ -199,6 +206,34 @@ BEGIN
   Check.Check(ok & Order(names, "./ ../ a1yb a1za a2 a10 ab12 ab12y ab12z B1"), "CaseNumericSort");
   ok := FlDialogs.ListDirectory("no-such-directory", FlDialogs.CaseNumericSort, names);
   Check.Check(~ok & (names = NIL), "a directory that can't be read");
+
+  (* a color chooser, in a window of the program's *)
+  NEW(win); Fl.OpenWindow(win, 220, 110, "TestDialogs");
+  NEW(chooser); FlDialogs.OpenColorChooser(chooser, 5, 5, 200, 95, "");
+  win.End;
+  chooser.action := Count; calls := 0;
+  Check.Check(chooser.SetRGB(1.0D0, 0.0D0, 0.0D0), "SetRGB says it changed the color");
+  Check.Check(~chooser.SetRGB(1.0D0, 0.0D0, 0.0D0), "and when it didn't");
+  x := chooser.Hue(); y := chooser.Saturation(); z := chooser.Value();
+  Check.Check((x = 0.0D0) & (y = 1.0D0) & (z = 1.0D0), "red's hue, saturation and value");
+  Check.Check(chooser.SetHSV(8.0D0, 2.0D0, 1.0D0), "SetHSV");
+  x := chooser.Hue(); y := chooser.Saturation();
+  Check.Check((x = 2.0D0) & (y = 1.0D0), "takes the hue modulo 6, and limits the saturation");
+  x := chooser.R(); y := chooser.G(); z := chooser.B();
+  Check.Check((x = 0.0D0) & (y = 1.0D0) & (z = 0.0D0), "and sets red, green and blue");
+  Check.Check(calls = 0, "neither calls back");
+  chooser.SetMode(FlDialogs.ColorHSV);
+  Check.Check(chooser.Mode() = FlDialogs.ColorHSV, "Mode reads back");
+  chooser.SetMode(FlDialogs.ColorRGB);
+  ok := Probe.Mouse(win, Fl.EvPush, 25, 60, Fl.LeftMouse, Fl.Button1, 0);
+  ok := Probe.Mouse(win, Fl.EvRelease, 25, 60, Fl.LeftMouse, {}, 0);
+  x := chooser.Hue();
+  Check.Check((calls >= 1) & (x # 2.0D0), "a click on the hue box changes the color, and calls back");
+  win.Delete;
+  FlDialogs.HSVToRGB(4.0D0, 1.0D0, 1.0D0, x, y, z);
+  Check.Check((x = 0.0D0) & (y = 0.0D0) & (z = 1.0D0), "HSVToRGB");
+  FlDialogs.RGBToHSV(0.0D0, 0.0D0, 1.0D0, x, y, z);
+  Check.Check((x = 4.0D0) & (y = 1.0D0) & (z = 1.0D0), "RGBToHSV");
 
   Check.Check(Fl.OpenWidgets() = 0, "no widget left open");
   Check.Summary
