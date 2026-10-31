@@ -21,13 +21,13 @@ anything:
 
 ## Status
 
-As of 2026-10-31, Phases 0 to 21 of PLAN.md are done, and `README.md`
+As of 2026-10-31, Phases 0 to 22 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
 `FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`,
 `FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, `src/gl/`
-has `FlGl` and `FlGlut`, and the tests pass. Also kept:
+has `FlGl` and `FlGlut`, `src/cairo/` has `FlCairo`, and the tests pass. Also kept:
 
 - `doc/design.md`: the feasibility analysis.
 - `doc/fltk-issues.md`: every FLTK bug and pitfall found, with its
@@ -69,8 +69,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   only" procedures (`BeginOpen`, `EndOpen`) are how another module
   opens a widget of its own class. Keep application code off them.
 - `src/FlDraw.Mod`, `src/FlDraw.cpp`: `fl_draw.H`, for `Draw` methods.
-- `Fl.Has` says what this FLTK has (`Svg`, `CairoWindow`, `Wayland`,
-  `X11`), decided by `#if` in the C++ parts, since poc has no conditional
+- `Fl.Has` says what this FLTK has (`Svg`, `Wayland`, `X11`), decided by `#if` in the C++ parts, since poc has no conditional
   compilation. A test of something missing calls `Check.Skip`.
 - `src/FlButtons`, `src/FlInputs`, `src/FlValuators`, `src/FlLayout`,
   `src/FlMenus`, `src/FlText`, `src/FlBrowsers` (`.Mod` and `.cpp`):
@@ -141,6 +140,12 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   is in `Fl::flush`, where a hide waits (112). `GLEW` is an optional
   part of an optional part: `HAVE_GLEW`, for the OpenGL 3 ports, and
   their `examples/GlThree.cpp`, which is outside `EXAMPLECXX`.
+- `src/cairo/FlCairo.Mod`, `src/cairo/FlCairo.cpp`: a window drawn with
+  cairo, and part of cairo. The third optional part, library
+  `pofltk-cairo`; `HAVE_CAIRO` is `pkg-config`'s, of `cairo`, and
+  `cairo-xlib` where FLTK has X11, and `CAIROLINK` links its programs.
+  It doesn't use `Fl_Cairo_Window` or need `FLTK_HAVE_CAIRO`: `Cw` makes
+  a context for each draw, by back end (`doc/fltk-issues.md`, 114).
 - `FlPreferences`' plugins: `Plugin` and `PluginManager`, with a
   `Pin : Fl_Plugin` in the C++ part holding the Oberon object. A
   plugin library is `dlopen`ed; `test/CPlugin.cpp` is one, in C++, built
@@ -170,8 +175,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     widget's pixels, captured into an `Fl_Image_Surface`; mouse, wheel
     and key events sent as the window system would; the modal window (a
     dialog) and keys sent to it; whether FLTK uses Wayland; and how
-    many things a widget keeps (`Kept`, `Ref::keep`); and pipes
-    (`Pipe`, `Write`, `Read`, `Close`), for `TestLoop`'s fd watches.
+    many things a widget keeps (`Kept`, `Ref::keep`); pipes
+    (`Pipe`, `Write`, `Read`, `Close`), for `TestLoop`'s fd watches; and
+    what a shown window shows (`ShownPixel`), on either back end.
   - `images/`: one 4x2 image, red left and blue right, in each format
     `TestImages` reads; `anim.gif`, three frames of it, for
     `TestAnimGIF`; and for `TestImageFiles` and `TestFileIcons`, `rb.xbm`,
@@ -273,8 +279,8 @@ make install    # the poc library pofltk, into $(POC_OBERON_LIBRARIES)/pofltk
 make uninstall  # remove exactly what make install wrote
 ```
 
-`pofltk-forms`, where FLTK has Forms, and `pofltk-gl`, where it has GL,
-go beside it, and a program using one adds `-library-path` for it.
+`pofltk-forms`, where FLTK has Forms, `pofltk-gl`, where it has GL, and
+`pofltk-cairo`, where there is cairo, go beside it, and a program using one adds `-library-path` for it.
 
 `poc -library` always links a shared object too, so `make install` fails
 on an FLTK of static libraries built without `-fPIC`, as on cymoril,
@@ -755,6 +761,14 @@ held only in C++ memory**.
   free in `Fl::flush`. Any event makes its window current. Windows past
   the 31st share number 32. `glutSwapBuffers` in a display function does
   nothing. `glutMainLoop` is `Fl::run`, and returns.
+- **Cairo** (`doc/fltk-issues.md`, 114): `Fl_Cairo_Window` is only in
+  an FLTK built for it, and under Wayland its context is FLTK's own, so
+  one `cairo_restore` too many stops the window for good. `fl_wl_gc()` is
+  there without the option. It is valid only with the display current.
+  `has_feature(NATIVE)` is 0 on Cairo drivers, so test the surface. Cairo
+  doesn't check an enumeration, clamps a negative radius, and refuses a
+  scale of 0. `make_current` and `fl_read_image` read a shown window on
+  X11 and Wayland.
 - **Printing** (`doc/fltk-issues.md`, 100 to 103): text with no font
   set crashes on PostScript, PDF and EPS. A Cairo error makes
   `Fl_PostScript_File_Device::end_job` write to a closed file and close
@@ -835,7 +849,12 @@ None at present.
   1621 and 1612 (2 skipped) here; 1780 on NetBSD and FreeBSD and 1772,
   1 skipped, on OpenBSD; 1770, 3 skipped, with neither Cairo nor Pango;
   1562, 19 skipped, with no SVG, printing or GL; 1718 with no Forms;
-  1664 with no GL; 1778 with no GLEW.
+  1664 with no GL; 1778 with no GLEW. After Phase 22, 1823, 1813 (3
+  skipped), 1656 and 1647 (2 skipped) here; 1823 on NetBSD and FreeBSD
+  and 1815, 1 skipped, on OpenBSD; 1813, 3 skipped, with neither Cairo nor
+  Pango; 1605, 19 skipped, with no SVG, printing or GL; 1761 with no
+  Forms; 1707 with no GL; 1821 with no GLEW; 1779 with no cairo; and on
+  a Wayland FLTK without `FLTK_HAVE_CAIRO`, 1823 on Xvfb and 1813 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

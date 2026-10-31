@@ -37,9 +37,8 @@ CONST
 
   (* what an FLTK may lack, for Has *)
   Svg* = 0;          (* SVG images: Load and LoadData read them *)
-  CairoWindow* = 1;  (* a window to draw in with cairo *)
-  Wayland* = 2;      (* the display is Wayland's *)
-  X11* = 3;          (* the display is X11's *)
+  Wayland* = 1;      (* the display is Wayland's *)
+  X11* = 2;          (* the display is X11's *)
 
   (* where Copy puts text, and Paste takes it from: FLTK has no names *)
   Selection* = 0;  (* the selection buffer, pasted with the middle button on X11 *)
@@ -1434,7 +1433,7 @@ BEGIN
   RETURN (r.x = other.x) & (r.y = other.y) & (r.w = other.w) & (r.h = other.h)
 END Equal;
 
-(* TRUE if this FLTK has feature: Svg, CairoWindow, Wayland or X11, for a
+(* TRUE if this FLTK has feature: Svg, Wayland or X11, for a
    program that must run on any FLTK. Wayland and X11 open the display. *)
 PROCEDURE Has*(feature: INTEGER): BOOLEAN;
 BEGIN RETURN CHas(feature) # 0

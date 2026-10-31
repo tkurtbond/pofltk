@@ -103,7 +103,7 @@ together with their methods and their part of the shim:
 | `FlPrint` (Phase 19) | `Printer`, `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile` and their bases |
 | `FlForms` (Phase 20) | `Timer`, `Free`, `FormsBitmap`, `FormsPixmap`, `FormsText` (`-lfltk_forms`), its own library |
 | `FlGl`, `FlGlut` (Phase 21) | `GlWindow`, `gl_draw`, a subset of `gl.h`; `glut.H` (`-lfltk_gl`), their own library |
-| `FlCairo` (Phase 22) | `CairoWindow`, a subset of cairo (`-lcairo`), its own library |
+| `FlCairo` (Phase 22) | `CairoWindow`, `Context`, `Pattern`: a subset of cairo (`-lcairo`), its own library |
 
 `Fl` exports a few procedures that only the other pofltk modules should
 use (attaching a new widget's handle, registering it), as polibfyaml's
@@ -1530,7 +1530,7 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
   follows, so it comes first:
   - **`Fl.Has(feature)`**, one run-time question answered by the shim:
     `Svg`, `CairoWindow`, `Wayland`, `X11`. The last two open the
-    display first, as `ofl_paste` does.
+    display first, as `ofl_paste` does. (`CairoWindow` went in Phase 22.)
   - **`Probe.Wayland` moves into `Fl`**, as `Fl.Has(Fl.Wayland)`, and
     `TestMenus` and the rest use it.
   - **A program that uses a missing feature without asking halts**
@@ -2164,7 +2164,7 @@ Done 2026-10-31. Decided and found:
   `GlutCube`'s drag, keys and pop-up menu were tried with `xdotool`.
   All six also ran on a headless sway.
 
-### Phase 22: Cairo, and finishing
+### Phase 22: Cairo, and finishing [done]
 
 - **`FlCairo`**, a new module: one `CairoWindow` type, and two ways
   under it:
@@ -2197,6 +2197,56 @@ Done 2026-10-31. Decided and found:
   - `make install` of each library into a scratch directory, and a
     program built against each, following the README as Phase 8 did;
   - `doc/design.md` is history, and isn't changed.
+
+Done 2026-10-31. Findings and decisions:
+
+- **One way, not two.** The plan's second way, a shim's `Fl_Double_Window`
+  making its own context, turned out to serve every FLTK by itself, so
+  `Fl_Cairo_Window` isn't used at all. Wayland needs nothing of
+  `FLTK_HAVE_CAIRO`: `fl_wl_gc()` is there anyway, and a context made on
+  its surface with its matrix draws correctly at any scale, so the plan's
+  gap, a Wayland FLTK without the option, is closed. The class is also the
+  worse way under Wayland (`doc/fltk-issues.md`, 114). Probed under Xvfb
+  and a headless sway, at scale 1 and `FLTK_SCALING_FACTOR=2`.
+- **`Fl.Has(Fl.CairoWindow)` is gone**, and `Open` has no halt: nothing
+  is left that a run-time question could answer. A system with no cairo
+  doesn't build `FlCairo` (`HAVE_CAIRO`, by `pkg-config`), which is a
+  build's matter, as Forms is. `Has`' numbers moved: `Svg` 0, `Wayland` 1,
+  `X11` 2. `FLTK_HAVE_CAIRO` no longer appears in the C++ parts.
+- **`FlCairo` needs `cairo-xlib` too** where FLTK has X11, since FLTK
+  doesn't link it when it wasn't built for Cairo.
+- `DrawCairo` comes after the window's box and widgets, as in
+  `Fl_Cairo_Window`, and through the base's `Draw`, so a program's `Draw`
+  has it by `w.Draw^`.
+- It runs for the display alone. On other surfaces the window shows its
+  widgets, and `Probe.Capture` doesn't call it.
+- Beyond the plan's list: `CurveTo`, `ClosePath`, `Rotate`, `Clip`,
+  `Paint`, `SetAntialias`, gradients (`Pattern`), which `cairo_test` needs,
+  and `Ok`. Cairo doesn't check its enumerations, so `FlCairo` does
+  (`Fl.IndexOutOfRange`).
+- A negative radius isn't an error: cairo clamps it. A scale of 0 is.
+- **Reading a shown window back works on both displays**:
+  `make_current` and `fl_read_image` (`Probe.ShownPixel`), which is what the
+  plan asked for under Wayland.
+- `CairoDrawX` and `CairoTest` match FLTK's programs, built against the
+  same FLTK: `magick compare` finds 0 pixels different under Xvfb. FLTK's
+  `FLTK_HAVE_CAIROEXT` branch of `cairo_test` isn't ported; no use for
+  it here.
+- **A static FLTK with Wayland and GL didn't link**: the makefile kept
+  only `-lGL...` of `fltk-config --use-gl`, so EGL's libraries were lost.
+  It keeps `-lOpenGL`, `-lEGL` and `-lwayland-egl` too; every other FLTK
+  here gives the same list as before. Found by the test FLTK below.
+- Tested: `test-headless` 1823 `ok` lines, `test-sway` 1813 (3 skipped),
+  `valgrind-headless` 1656, `valgrind-sway` 1647 (2 skipped), no valgrind
+  errors. `make test`: 1823 on NetBSD and FreeBSD, 1815, 1 skipped, on
+  OpenBSD. On other FLTKs, on Xvfb: 1813, 3 skipped, with neither Cairo nor
+  Pango; 1605, 19 skipped, with no SVG, printing or GL; 1761 with no
+  Forms; 1707 with no GL; 1821 with no GLEW. A Wayland and X11 FLTK
+  without `FLTK_HAVE_CAIRO` gives 1823 on Xvfb and 1813, 3 skipped, on
+  sway. With no cairo, 1779, and `Not built`: Cairo. `make install` into
+  a scratch directory, a program built on the installed `pofltk-cairo`
+  and run, and `make uninstall` leaving no file, here; installed likewise
+  on yishana and artos.
 
 ### Phase 23: Free functions
 

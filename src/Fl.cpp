@@ -705,11 +705,8 @@ int32_t ofl_has(int32_t feature) {
 #if defined(FLTK_USE_SVG)
     case 0: return 1;
 #endif
-#if defined(FLTK_HAVE_CAIRO)
-    case 1: return 1;
-#endif
-    case 2: return wayland();
-    case 3: return !wayland();
+    case 1: return wayland();
+    case 2: return !wayland();
     default: return 0;
   }
 }

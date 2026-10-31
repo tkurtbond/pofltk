@@ -65,7 +65,7 @@ MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs F
 HEADERS := src/pofltk.h
 LIBSRC  := $(MODULES:%=src/%.Mod) $(MODULES:%=src/%.cpp) $(HEADERS)
 # Test modules with a C++ part (test/<Module>.cpp).
-TESTCXX := CConstants CFormsConstants CGlConstants CGlutConstants Probe
+TESTCXX := CCairoConstants CConstants CFormsConstants CGlConstants CGlutConstants Probe
 TESTSRC := $(TESTCXX:%=test/%.Mod) $(TESTCXX:%=test/%.cpp)
 # Example modules, not programs, with a C++ part (examples/<Module>.cpp).
 EXAMPLECXX := Pipe
@@ -83,6 +83,8 @@ FORMSLIBRARY := pofltk-forms
 FORMSLIBDIR   = $(POC_OBERON_LIBRARIES)/$(FORMSLIBRARY)
 GLLIBRARY := pofltk-gl
 GLLIBDIR   = $(POC_OBERON_LIBRARIES)/$(GLLIBRARY)
+CAIROLIBRARY := pofltk-cairo
+CAIROLIBDIR   = $(POC_OBERON_LIBRARIES)/$(CAIROLIBRARY)
 TRIPLE   = $(shell $(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p')
 
 # Test programs (test/<name>.Mod, each a main module).
@@ -126,8 +128,9 @@ GLTESTS := TestGl TestGlConstants TestGlut TestGlutConstants
 GLHALTS := HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72
 GLEXAMPLES := Cube GlOverlay GlutTest GlutCube
 GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
-# fltk-config says which GL libraries, on some systems.
-GL_LIBS := $(or $(filter -lGL%,$(shell $(FLTK_CONFIG) --use-gl --ldflags)),-lGL)
+# fltk-config says which GL libraries, on some systems. A static FLTK with
+# Wayland needs EGL's too.
+GL_LIBS := $(or $(filter -lGL% -lOpenGL -lEGL -lwayland-egl,$(shell $(FLTK_CONFIG) --use-gl --ldflags)),-lGL)
 GLLINK := -import-path src/gl -link -lfltk_gl $(GL_LIBS:%=-link %)
 # FLTK's OpenGL 3 examples load GL's functions with GLEW, which isn't FLTK's.
 GL3EXAMPLES := OpenGL3Test OpenGL3GlutTest
@@ -145,6 +148,24 @@ ifeq ($(HAVE_GL),yes)
   EXAMPLES += $(GLEXAMPLES)
 else
   MISSING += OpenGL
+endif
+# FlCairo needs cairo, with X11's surface where FLTK has X11, not an FLTK
+# built for it (PLAN.md, Phase 22).
+CAIROTESTS := TestCairo TestCairoConstants
+CAIROHALTS := HaltCairoStale:77 HaltCairoClosed:73 HaltCairoNil:72 HaltCairoExtend:74 HaltCairoAntialias:74 HaltCairoSlant:74
+CAIROEXAMPLES := CairoDrawX CairoTest
+CAIROSRC := src/cairo/FlCairo.Mod src/cairo/FlCairo.cpp
+CAIRO_PKGS := cairo $(shell grep -q 'define FLTK_USE_X11 1' $(FLTK_CONFIG_H) && echo cairo-xlib)
+HAVE_CAIRO := $(shell pkg-config --exists $(CAIRO_PKGS) 2>/dev/null && echo yes)
+CAIRO_CFLAGS := $(addprefix -c-flag ,$(shell pkg-config --cflags $(CAIRO_PKGS) 2>/dev/null))
+CAIRO_LIBS := $(shell pkg-config --libs $(CAIRO_PKGS) 2>/dev/null)
+CAIROLINK := -import-path src/cairo $(CAIRO_CFLAGS) $(CAIRO_LIBS:%=-link %)
+ifeq ($(HAVE_CAIRO),yes)
+  TESTS += $(CAIROTESTS)
+  HALTTESTS += $(CAIROHALTS)
+  EXAMPLES += $(CAIROEXAMPLES)
+else
+  MISSING += Cairo
 endif
 
 TESTBINS := $(TESTS:%=$(BUILD)/%)
@@ -178,6 +199,9 @@ $(GLPROGRAMS): MORE := $(GLLINK)
 $(GLPROGRAMS): $(GLSRC)
 $(GL3EXAMPLES:%=$(BUILD)/%): MORE := $(GLLINK) $(GLEW_FLAGS)
 $(GL3EXAMPLES:%=$(BUILD)/%): $(GLSRC)
+CAIROPROGRAMS := $(CAIROTESTS:%=$(BUILD)/%) $(CAIROEXAMPLES:%=$(BUILD)/%) $(foreach h,$(CAIROHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
+$(CAIROPROGRAMS): MORE := $(CAIROLINK)
+$(CAIROPROGRAMS): $(CAIROSRC)
 
 $(BUILD)/Test%: test/Test%.Mod test/Check.Mod $(LIBSRC) $(TESTSRC) | $(BUILD)
 	$(POC) $(POCFLAGS) -import-path src -import-path test -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
@@ -287,6 +311,12 @@ ifeq ($(HAVE_GL),yes)
 	install -d $(GLLIBDIR)
 	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-gl -output-dir $(GLLIBDIR) -install-library $(GLLIBRARY)
 endif
+ifeq ($(HAVE_CAIRO),yes)
+	cd src/cairo && $(POC) $(POCFLAGS) -library-path $(abspath $(BUILD))/lib -output-dir $(abspath $(BUILD))/lib-cairo \
+	  $(CFLAGS) $(CAIRO_CFLAGS) $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)) $(CAIRO_LIBS),-link $(f)) -library $(CAIROLIBRARY) FlCairo.Mod
+	install -d $(CAIROLIBDIR)
+	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-cairo -output-dir $(CAIROLIBDIR) -install-library $(CAIROLIBRARY)
+endif
 
 # Remove what make install wrote, and only that.
 uninstall:
@@ -301,6 +331,10 @@ uninstall:
 	d=$(GLLIBDIR)/$(TRIPLE)/OC; \
 	rm -f $$d/lib$(GLLIBRARY).a $$d/lib$(GLLIBRARY).so $$d/$(GLLIBRARY).library \
 	  $$d/FlGl.sym $$d/FlGl.owner $$d/FlGlut.sym $$d/FlGlut.owner; \
+	rmdir $$d 2>/dev/null; \
+	d=$(CAIROLIBDIR)/$(TRIPLE)/OC; \
+	rm -f $$d/lib$(CAIROLIBRARY).a $$d/lib$(CAIROLIBRARY).so $$d/$(CAIROLIBRARY).library \
+	  $$d/FlCairo.sym $$d/FlCairo.owner; \
 	rmdir $$d 2>/dev/null; true
 
 clean:

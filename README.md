@@ -93,6 +93,10 @@ poc -OC -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk \
 OpenGL: such a program adds that library's path, and is linked with
 `-lfltk_gl` and GL.
 
+`FlCairo` is `pofltk-cairo`, if this system has cairo, whatever FLTK was
+built with: such a program adds that library's path, and is linked with
+cairo.
+
 A library records what FLTK offered as it was built: run `make install`
 again after rebuilding FLTK with other options.
 
@@ -198,6 +202,7 @@ END Hello.
 | `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |
 | `FlGl` | `GlWindow`, FLTK's text and rectangles in GL, and the part of GL its programs use; in its own library, `pofltk-gl` |
 | `FlGlut` | FLTK's GLUT, with numbers checked and strings copied; `Window`, a GLUT window as a widget among others; in `pofltk-gl` |
+| `FlCairo` | `CairoWindow`, a double window drawn with cairo on any FLTK, and the part of cairo FLTK's programs use; in its own library, `pofltk-cairo` |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which
 flattens FLTK to C functions; `src/pofltk.h` is what they share.

@@ -11,6 +11,7 @@ PROCEDURE ["C", "ofltest_write"] CWrite(fd: SYSTEM.INT32; s: ARRAY OF CHAR): SYS
 PROCEDURE ["C", "ofltest_read"] CRead(fd: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_close"] CClose(fd: SYSTEM.INT32);
 PROCEDURE ["C", "ofltest_pixel"] CPixel(x, y: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_shown_pixel"] CShownPixel(w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_release"] CRelease;
 PROCEDURE ["C", "ofltest_mouse"] CMouse(win: SYSTEM.ADDRESS; event, x, y, button, state, clicks: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_wheel"] CWheel(win: SYSTEM.ADDRESS; x, y, dx, dy: SYSTEM.INT32): SYSTEM.INT32;
@@ -33,6 +34,14 @@ END Capture;
 PROCEDURE Kept*(w: Fl.Widget): INTEGER;
 BEGIN RETURN CKept(w.h)
 END Kept;
+
+(* Pixel x, y of what shown window w shows, as Fl.RGB gives it. *)
+PROCEDURE ShownPixel*(w: Fl.Window; x, y: INTEGER): INTEGER;
+  VAR p: INTEGER;
+BEGIN
+  p := CShownPixel(w.h, x, y);
+  RETURN Fl.RGB(p DIV 10000H, p DIV 100H MOD 100H, p MOD 100H)
+END ShownPixel;
 
 (* Pixel x, y of the capture, from w's top left, as Fl.RGB gives it: its
    red, green and blue, and 0. *)

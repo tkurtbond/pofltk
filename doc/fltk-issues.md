@@ -2018,3 +2018,40 @@ has GL (`HAVE_GL` in the makefile).
 
 **Confirmed:** `Fl_Gl_Window.cxx`, `Cube`, and a build of FLTK with GL
 turned off (2026-10-31).
+
+## 114. `Fl_Cairo_Window`: a class of some FLTKs, and FLTK's own context under Wayland
+
+**What happens:** `Fl_Cairo_Window` exists only in an FLTK built with
+`FLTK_OPTION_CAIRO_WINDOW`, and pkgsrc's isn't. In one that has it, under
+Wayland, one `cairo_restore` too many in the draw callback stops the
+window for good: the next draw's context is already in error
+(`CAIRO_STATUS_INVALID_RESTORE`), and FLTK's own drawing is lost with
+the program's. A box's color changed after that doesn't show. On X11 the
+same call only ends that draw, whose context is the window's alone.
+
+**Cause:** `Fl::cairo_make_current` (`src/Fl_Cairo.cxx:100`) gives
+under Wayland `fl_wl_gc()`, the context FLTK itself draws the window with,
+which has one `cairo_save` of FLTK's on its stack from the start
+(`src/drivers/Wayland/Fl_Wayland_Graphics_Driver.cxx:219`). The extra
+restore takes that one, FLTK's own next `cairo_restore` then fails, and a
+cairo context stays in error. X11 makes a context from the window.
+
+Also, `Fl_Graphics_Driver::has_feature(NATIVE)` is 0 on a Cairo driver,
+which doesn't override it as the Xlib and GDI ones do, so it can't say
+whether a draw is for the display.
+
+**Effect on pofltk:** `FlCairo` doesn't use `Fl_Cairo_Window`. Its window
+is a `Fl_Double_Window` of the shim's that makes a context of its own for
+each draw, by the back end in use: from `fl_wl_gc()`'s surface and
+matrix under Wayland, from `fl_window` with `cairo_xlib_surface_create` on
+X11. So it needs no option of FLTK's, one way serves every FLTK, and an
+error stays in its context. It draws only when the current surface is
+the display (`Fl_Surface_Device::surface()`), since `fl_window` and
+`fl_wl_gc()` aren't another surface's; there the window shows its
+widgets alone.
+
+**Confirmed:** a program with `Fl_Cairo_Window` under Xvfb and on a headless
+sway, reading pixels back: under Wayland the context pointer was the same
+at each draw, its status 2 from the second draw on, and a box's new
+color didn't appear; on X11 the pointer differed and the color did
+(2026-10-31). `TestCairo` checks `FlCairo`'s window for the same.

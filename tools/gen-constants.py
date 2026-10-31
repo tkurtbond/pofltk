@@ -34,7 +34,8 @@ OPTIONAL = {"FlForms": ("src/forms/FlForms.Mod", "Forms", "#include <FL/forms.H>
                        "#pragma clang diagnostic ignored \"-Wunknown-warning-option\"\n"
                        "#pragma clang diagnostic ignored \"-Wcast-function-type-mismatch\"\n"
                        "#include <FL/glut.H>\n"
-                       "#pragma clang diagnostic pop\n")}
+                       "#pragma clang diagnostic pop\n"),
+            "FlCairo": ("src/cairo/FlCairo.Mod", "Cairo", "#include <cairo.h>\n")}
 current = None
 
 def module(name):
@@ -384,6 +385,19 @@ add("int", [("Zero", "GL_ZERO"), ("One", "GL_ONE"), ("SrcAlpha", "GL_SRC_ALPHA")
 section("GetError's result when there is none")
 add("int", [("NoError", "GL_NO_ERROR")])
 
+module("FlCairo")
+section("Context.SelectFontFace's slant")
+add("int", [("SlantNormal", "CAIRO_FONT_SLANT_NORMAL"), ("SlantItalic", "CAIRO_FONT_SLANT_ITALIC"),
+            ("SlantOblique", "CAIRO_FONT_SLANT_OBLIQUE")])
+section("Context.SelectFontFace's weight")
+add("int", [("WeightNormal", "CAIRO_FONT_WEIGHT_NORMAL"), ("WeightBold", "CAIRO_FONT_WEIGHT_BOLD")])
+section("Context.SetAntialias's modes")
+add("int", [("Antialias" + k.capitalize(), "CAIRO_ANTIALIAS_%s" % k) for k in
+            "DEFAULT NONE GRAY SUBPIXEL FAST GOOD BEST".split()])
+section("Pattern.SetExtend's modes")
+add("int", [("Extend" + k.capitalize(), "CAIRO_EXTEND_%s" % k) for k in
+            "NONE REPEAT REFLECT PAD".split()])
+
 module("FlGlut")
 section("display modes (InitDisplayMode), added together")
 add("int", [(camel(k), "GLUT_%s" % k) for k in
@@ -466,6 +480,7 @@ def values():
         '  printf("%%lld\\n", (long long)(int32_t)(%s));\n' % e for e in exprs) + "}\n"
     flags = subprocess.check_output(["fltk-config", "--cxxflags"], text=True).split()
     flags = [f for f in flags if f.startswith(("-I", "-D")) and f != "-I/usr/include"]
+    flags += subprocess.check_output(["pkg-config", "--cflags", "cairo"], text=True).split()
     libs = subprocess.check_output(["fltk-config", "--ldflags"], text=True).split()
     with tempfile.TemporaryDirectory() as d:
         src, exe = os.path.join(d, "v.cpp"), os.path.join(d, "v")

@@ -66,6 +66,16 @@ int32_t ofltest_pixel(int32_t x, int32_t y) {
   return p[0] << 16 | p[1] << 8 | p[2];
 }
 
+// The pixel x, y of what a shown window shows, as 0xRRGGBB. Works on X11
+// and Wayland, where a capture would draw the window anew.
+int32_t ofltest_shown_pixel(intptr_t w, int32_t x, int32_t y) {
+  Fl_Window *win = widget(w)->as_window();
+  uchar p[3] = {0, 0, 0};
+  win->make_current();
+  fl_read_image(p, x, y, 1, 1);
+  return p[0] << 16 | p[1] << 8 | p[2];
+}
+
 void ofltest_release(void) {
   delete shot;
   shot = 0;
@@ -191,14 +201,11 @@ int32_t ofltest_configured(int32_t feature) {
 #if defined(FLTK_USE_SVG)
     case 0: return 1;
 #endif
-#if defined(FLTK_HAVE_CAIRO)
+#if defined(FLTK_USE_WAYLAND)
     case 1: return 1;
 #endif
-#if defined(FLTK_USE_WAYLAND)
-    case 2: return 1;
-#endif
 #if defined(FLTK_USE_X11)
-    case 3: return 1;
+    case 2: return 1;
 #endif
     default: return 0;
   }
