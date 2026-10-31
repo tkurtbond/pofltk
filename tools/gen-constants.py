@@ -335,6 +335,18 @@ section("the horizontal scrollbar (Terminal.SetHScrollbarStyle)")
 add("int", [("Scrollbar" + camel(k), "Fl_Terminal::SCROLLBAR_" + k) for k in
             "OFF AUTO ON".split()])
 
+module("FlPrint")
+section("the page: its format (Fl_Paged_Device::Page_Format)")
+add("int", [(k, "Fl_Paged_Device::" + k) for k in
+            "A0 A1 A2 A3 A4 A5 A6 A7 A8 A9 B0 B1 B2 B3 B4 B5 B6 B7 B8 B9 B10".split()])
+add("int", [("C5E", "Fl_Paged_Device::C5E"), ("DLE", "Fl_Paged_Device::DLE")])
+add("int", [(camel(k), "Fl_Paged_Device::" + k) for k in
+            "EXECUTIVE FOLIO LEDGER LEGAL LETTER TABLOID ENVELOPE".split()])
+add("int", [("PageFormats", "NO_PAGE_FORMATS")])
+section("and its layout (Fl_Paged_Device::Page_Layout)")
+add("int", [("Portrait", "Fl_Paged_Device::PORTRAIT"), ("Landscape", "Fl_Paged_Device::LANDSCAPE"),
+            ("Reversed", "Fl_Paged_Device::REVERSED")])
+
 HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_draw.H>\n"
            "#include <FL/Fl_Button.H>\n#include <FL/Fl_Chart.H>\n#include <FL/Fl_Clock.H>\n#include <FL/Fl_Counter.H>\n#include <FL/Fl_Dial.H>\n"
            "#include <FL/Fl_Input_.H>\n#include <FL/Fl_Slider.H>\n#include <FL/Fl_Valuator.H>\n"
@@ -343,7 +355,7 @@ HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_dr
            "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/Fl_Sys_Menu_Bar.H>\n#include <FL/fl_ask.H>\n"
            "#include <FL/Fl_Native_File_Chooser.H>\n#include <FL/Fl_File_Chooser.H>\n"
            "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
-           "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n#include <FL/Fl_Terminal.H>\n"
+           "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n#include <FL/Fl_Terminal.H>\n#include <FL/Fl_Paged_Device.H>\n"
            "#include <stdint.h>\n#include <stdio.h>\n")
 
 def oberon_set(v):

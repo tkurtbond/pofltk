@@ -30,6 +30,7 @@
 #include <FL/Fl_Anim_GIF_Image.H>
 #include <FL/Fl_File_Icon.H>
 #include <FL/Fl_Terminal.H>
+#include <FL/Fl_Paged_Device.H>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -549,6 +550,40 @@ const Entry entries[] = {
   {"Fl_Terminal::SCROLLBAR_OFF", (int32_t)(Fl_Terminal::SCROLLBAR_OFF)},
   {"Fl_Terminal::SCROLLBAR_AUTO", (int32_t)(Fl_Terminal::SCROLLBAR_AUTO)},
   {"Fl_Terminal::SCROLLBAR_ON", (int32_t)(Fl_Terminal::SCROLLBAR_ON)},
+  {"Fl_Paged_Device::A0", (int32_t)(Fl_Paged_Device::A0)},
+  {"Fl_Paged_Device::A1", (int32_t)(Fl_Paged_Device::A1)},
+  {"Fl_Paged_Device::A2", (int32_t)(Fl_Paged_Device::A2)},
+  {"Fl_Paged_Device::A3", (int32_t)(Fl_Paged_Device::A3)},
+  {"Fl_Paged_Device::A4", (int32_t)(Fl_Paged_Device::A4)},
+  {"Fl_Paged_Device::A5", (int32_t)(Fl_Paged_Device::A5)},
+  {"Fl_Paged_Device::A6", (int32_t)(Fl_Paged_Device::A6)},
+  {"Fl_Paged_Device::A7", (int32_t)(Fl_Paged_Device::A7)},
+  {"Fl_Paged_Device::A8", (int32_t)(Fl_Paged_Device::A8)},
+  {"Fl_Paged_Device::A9", (int32_t)(Fl_Paged_Device::A9)},
+  {"Fl_Paged_Device::B0", (int32_t)(Fl_Paged_Device::B0)},
+  {"Fl_Paged_Device::B1", (int32_t)(Fl_Paged_Device::B1)},
+  {"Fl_Paged_Device::B2", (int32_t)(Fl_Paged_Device::B2)},
+  {"Fl_Paged_Device::B3", (int32_t)(Fl_Paged_Device::B3)},
+  {"Fl_Paged_Device::B4", (int32_t)(Fl_Paged_Device::B4)},
+  {"Fl_Paged_Device::B5", (int32_t)(Fl_Paged_Device::B5)},
+  {"Fl_Paged_Device::B6", (int32_t)(Fl_Paged_Device::B6)},
+  {"Fl_Paged_Device::B7", (int32_t)(Fl_Paged_Device::B7)},
+  {"Fl_Paged_Device::B8", (int32_t)(Fl_Paged_Device::B8)},
+  {"Fl_Paged_Device::B9", (int32_t)(Fl_Paged_Device::B9)},
+  {"Fl_Paged_Device::B10", (int32_t)(Fl_Paged_Device::B10)},
+  {"Fl_Paged_Device::C5E", (int32_t)(Fl_Paged_Device::C5E)},
+  {"Fl_Paged_Device::DLE", (int32_t)(Fl_Paged_Device::DLE)},
+  {"Fl_Paged_Device::EXECUTIVE", (int32_t)(Fl_Paged_Device::EXECUTIVE)},
+  {"Fl_Paged_Device::FOLIO", (int32_t)(Fl_Paged_Device::FOLIO)},
+  {"Fl_Paged_Device::LEDGER", (int32_t)(Fl_Paged_Device::LEDGER)},
+  {"Fl_Paged_Device::LEGAL", (int32_t)(Fl_Paged_Device::LEGAL)},
+  {"Fl_Paged_Device::LETTER", (int32_t)(Fl_Paged_Device::LETTER)},
+  {"Fl_Paged_Device::TABLOID", (int32_t)(Fl_Paged_Device::TABLOID)},
+  {"Fl_Paged_Device::ENVELOPE", (int32_t)(Fl_Paged_Device::ENVELOPE)},
+  {"NO_PAGE_FORMATS", (int32_t)(NO_PAGE_FORMATS)},
+  {"Fl_Paged_Device::PORTRAIT", (int32_t)(Fl_Paged_Device::PORTRAIT)},
+  {"Fl_Paged_Device::LANDSCAPE", (int32_t)(Fl_Paged_Device::LANDSCAPE)},
+  {"Fl_Paged_Device::REVERSED", (int32_t)(Fl_Paged_Device::REVERSED)},
   {"fl_gray_ramp(0)", (int32_t)(fl_gray_ramp(0))},
   {"fl_gray_ramp(23)", (int32_t)(fl_gray_ramp(23))},
   {"fl_color_cube(0, 0, 0)", (int32_t)(fl_color_cube(0, 0, 0))},

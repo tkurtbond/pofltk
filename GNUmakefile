@@ -50,7 +50,7 @@ ifeq ($(shell case "$(POC_VERSION)" in (0.[0-3].*|0.4.0) echo old;; esac),old)
   $(error pofltk needs poc 0.4.1 or later (C++ parts, libraries' link flags, ORD of a SET); $(POC) is $(POC_VERSION))
 endif
 
-MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs FlText FlBrowsers FlImages FlPreferences FlTable FlHelp FlTerminal
+MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs FlText FlBrowsers FlImages FlPreferences FlTable FlHelp FlTerminal FlPrint
 HEADERS := src/pofltk.h
 LIBSRC  := $(MODULES:%=src/%.Mod) $(MODULES:%=src/%.cpp) $(HEADERS)
 # Test modules with a C++ part (test/<Module>.cpp).
@@ -71,19 +71,19 @@ LIBDIR   = $(POC_OBERON_LIBRARIES)/$(LIBRARY)
 TRIPLE   = $(shell $(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p')
 
 # Test programs (test/<name>.Mod, each a main module).
-TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal
+TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint
 # TestArgs's command line: options of its own and FLTK's, and words that
 # aren't options.
 TESTARGS := -o hello --help -g 120x80 -ti Title -s plastic -nokbd rest more
 # Programs that must halt (test/<name>.Mod), as name:ASSERT-code. poc's
 # ASSERT(x, n) prints "assertion failed (n)" on standard error and exits
 # with status 10, so `make test` requires both.
-HALTTESTS := HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74
+HALTTESTS := HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74
 ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
@@ -120,6 +120,7 @@ display:
 	fi
 
 # Run every test from test/; report all, fail at the end if any failed.
+# A halt test that can't run here says so with HALT(99).
 # Each halt test must exit with poc's ASSERT status and name its code on
 # standard error. Each example waits for the user, so it must still be
 # running after EXAMPLETIME seconds, when timeout ends it (status 124):
@@ -134,6 +135,7 @@ test: tests display
 	  (cd test && timeout $(TIMEOUT) ../$(BUILD)/$$t) 2> $(BUILD)/$$t.err; got=$$?; \
 	  if [ $$got -eq $(ASSERTSTATUS) ] && grep -q "assertion failed ($$code)" $(BUILD)/$$t.err; then \
 	    echo "ok   - $$t: $$(cat $(BUILD)/$$t.err)"; \
+	  elif [ $$got -eq 99 ]; then echo "skip - $$t: this FLTK lacks what it tests"; skips=$$((skips + 1)); \
 	  else echo "FAIL - $$t exited with $$got: $$(cat $(BUILD)/$$t.err)"; status=1; fi; \
 	done; \
 	for e in $(EXAMPLES); do \

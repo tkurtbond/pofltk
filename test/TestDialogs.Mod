@@ -20,7 +20,7 @@ VAR
   fc: FlDialogs.NativeFileChooser;
   names: FlDialogs.Names;
   title: ARRAY 16 OF CHAR;
-  s: ARRAY 256 OF CHAR;
+  s, picked: ARRAY 256 OF CHAR;
   cut: ARRAY 4 OF CHAR;
   i, r, g, b, font, size, c, calls: INTEGER;
   x, y, z: LONGREAL;
@@ -43,6 +43,10 @@ BEGIN
     a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
   END
 END Fire;
+
+PROCEDURE Picked(name-: ARRAY OF CHAR);
+BEGIN COPY(name, picked)
+END Picked;
 
 PROCEDURE Count(w: Fl.Widget);
 BEGIN INC(calls)
@@ -141,10 +145,16 @@ BEGIN
   Check.Check(~ok & (r = 1) & (g = 2) & (b = 3), "cancelled, unchanged");
 
   s := "TestDialogs.Mod";
+  picked := "";
+  FlDialogs.SetFilePicked(Picked);
   Enter; ok := FlDialogs.ChooseFile("Open", "*.Mod", s, TRUE);
   Check.Check(ok & (answer.title = "Open") & (s = "TestDialogs.Mod"), "ChooseFile, relative");
+  Check.Check(Ends(picked, "/TestDialogs.Mod"), "SetFilePicked");
+  FlDialogs.SetFilePicked(NIL);
+  picked := "";
   Enter; ok := FlDialogs.ChooseFile("Open", "*.Mod", s, FALSE);
   Check.Check(ok & (s[0] = "/") & Ends(s, "/test/TestDialogs.Mod"), "and absolute");
+  Check.Check(picked = "", "SetFilePicked(NIL) stops it");
   s := "New.txt";
   Enter; ok := FlDialogs.ChooseFile("Save", "", s, TRUE);
   Check.Check(ok & (s = "New.txt"), "a file that doesn't exist");

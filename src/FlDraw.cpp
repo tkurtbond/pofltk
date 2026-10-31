@@ -10,9 +10,10 @@ namespace {
 
 // Text drawn or measured before any fl_font crashes under Wayland/Cairo
 // (doc/design.md, "Problems found"), so each text call sets FLTK's
-// normal font first if none is set.
+// normal font first if none is set. An SVG surface has no descriptor,
+// so a size says that a font is set there.
 void ensure_font() {
-  if (fl_graphics_driver->font_descriptor() == 0) {
+  if (fl_graphics_driver->font_descriptor() == 0 && fl_size() <= 0) {
     fl_font(FL_HELVETICA, FL_NORMAL_SIZE);
   }
 }

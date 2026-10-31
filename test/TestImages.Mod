@@ -111,6 +111,34 @@ BEGIN
   RETURN n
 END Read;
 
+(* A window never shown isn't visible, so FLTK draws nothing. Once shown,
+   its frame's size depends on the window system: look at its far corner. *)
+PROCEDURE CheckDecorated;
+  VAR w: Fl.Window; s: FlImages.Surface; j: FlImages.Image; dw, dh: INTEGER;
+BEGIN
+  NEW(w); Fl.OpenWindow(w, 40, 30, "");
+  w.SetColor(Fl.Red); w.SetBoxType(Fl.FlatBox);
+  w.End;
+  NEW(s); FlImages.OpenSurface(s, 8, 8);
+  s.Begin;
+  FlDraw.SetColor(Fl.Blue); FlDraw.RectF(0, 0, 8, 8);
+  s.DrawDecoratedWindow(w, 0, 0);
+  s.End;
+  NEW(j); s.GetImage(j);
+  Check.Check(j.Pixel(4, 4) = blue, "DrawDecoratedWindow: nothing of a window never shown");
+  j.Close; s.Close;
+  w.Show; w.WaitForExpose;
+  dw := w.DecoratedW(); dh := w.DecoratedH();
+  NEW(s); FlImages.OpenSurface(s, dw, dh);
+  s.Begin;
+  FlDraw.SetColor(Fl.Blue); FlDraw.RectF(0, 0, dw, dh);
+  s.DrawDecoratedWindow(w, 0, 0);
+  s.End;
+  NEW(j); s.GetImage(j);
+  Check.Check(j.Pixel(dw - 20, dh - 15) = red, "and a window shown");
+  j.Close; s.Close; w.Delete
+END CheckDecorated;
+
 BEGIN
   NEW(win); Fl.OpenWindow(win, 100, 100, "TestImages");
   RedBlue; white := Fl.RGB(255, 255, 255); red := Fl.RGB(255, 0, 0); blue := Fl.RGB(0, 0, 255);
@@ -397,6 +425,7 @@ BEGIN
   FlDraw.SetColor(Fl.Black); FlDraw.RectF(0, 0, 1, 1); s.End;
   NEW(j); t.GetImage(j);
   Check.Check(j.Pixel(1, 1) = red, "surfaces nest");
+  CheckDecorated;
   j.Close; NEW(j); s.GetImage(j);
   Check.Check(j.Pixel(0, 0) = Fl.RGB(0, 0, 0), "drawing goes to the one before after End");
   j.Close;

@@ -124,6 +124,14 @@ void close_later(void *p) {
 // program: a chooser may be showing the last one.
 std::deque<std::string> chooser_labels;
 
+// Oberon's procedure for each file the user picks in fl_file_chooser.
+void (*on_file_chosen)(const char *);
+
+void file_chosen(const char *name) {
+  ofl::Dispatch d;
+  on_file_chosen(name);
+}
+
 }  // namespace
 
 extern "C" {
@@ -242,6 +250,11 @@ void ofl_rgb_to_hsv(double r, double g, double b, double *h, double *s,
 
 int32_t ofl_show_colormap(int32_t old) {
   return static_cast<int32_t>(fl_show_colormap(static_cast<Fl_Color>(old)));
+}
+
+void ofl_file_chosen_register(void (*f)(const char *)) {
+  on_file_chosen = f;
+  fl_file_chooser_callback(file_chosen);
 }
 
 // 1 and the path chosen in buf, which also holds the one to start with; 0

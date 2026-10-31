@@ -1668,3 +1668,131 @@ one printable UTF-8 character of 1 to 4 bytes: `SetErrorChar` halts 78.
   with 8 arguments drops its history size; it isn't bound.
 
 **Confirmed:** scratch programs on Xvfb, and `TestTerminal` (2026-10-30).
+
+## 100. Text with no font set crashes on a PostScript, PDF or EPS surface
+
+**What happens:** `fl_draw` of text on a PostScript, PDF or EPS surface
+before any `fl_font` on it is a SIGSEGV in `pango_font_description`. An
+SVG surface doesn't crash.
+
+**Cause:** `Fl_Cairo_Graphics_Driver.H:180`: these surfaces have a
+graphics driver of their own, with no Pango font description until
+`font()` makes one, and drawing text uses it unchecked.
+
+**Effect on pofltk:** a font set on the screen doesn't carry over, so
+any program could reach this. The shim sets FLTK's normal font at each
+begin of a surface (`set_font`, `FlPrint.cpp`).
+
+**A related bug of pofltk's:** `FlDraw`'s `ensure_font` decided
+whether a font was set by `font_descriptor()`, and the SVG driver never
+has one, so every text call on an SVG surface put the font back to
+Helvetica 14. It now also asks `fl_size()`: 0 or -1, by driver, with no
+font. `examples/SaveAs.Mod` showed this; `TestPrint` checks the font in
+the file.
+
+**Confirmed:** scratch programs on Xvfb, and `TestPrint` (2026-10-31).
+
+## 101. `Fl_PostScript_File_Device::end_job` uses its file after closing it
+
+**What happens:** under Pango, on any Cairo error, `end_job` does
+`fclose(ps->output); fputs("\n", ps->output);`, then closes it again
+through the close command or `fclose`. That is a use after free and a
+double close. With `begin_job(FILE *)`, FLTK's `fclose` and the
+caller's abort the program (status 134).
+
+**Cause:** `src/drivers/PostScript/Fl_PostScript.cxx:1956`. A Cairo error is sticky, and can
+come from a write that fails (`/dev/full`) or from the drawing: an
+`untranslate` with no `translate`, `scale(0)`, `fl_scale(0)`, a NaN
+matrix, or a negative font size.
+
+Not triggered by invalid UTF-8, huge coordinates, unbalanced clips,
+font size 0, bad dashes, a negative line width, a huge origin,
+translate, scale and rotate undone by `untranslate`, a negative scale,
+or a rotation of 1e30.
+
+**Effect on pofltk:** Cairo writes through a stream of the shim's, a
+`Sink` (`fopencookie` on Linux, `funopen` elsewhere), which records a
+failed write and lets a close be harmless. `FlPrint` halts on an
+`Untranslate` too many, and on a scale of 0.
+
+Not covered: drawing that breaks Cairo through `FlDraw` (`FlDraw.Scale`
+by 0, NaN, a negative font size) still reaches the `fputs` on a freed
+`FILE`. `FlDraw` isn't guarded, because it can't tell a surface's
+drawing from a window's, where `examples/DoubleBuffer.Mod:32` scales by
+`w DIV 2`.
+
+`Fl_Printer` under Pango takes the same path (`popen`, `pclose`).
+
+**Confirmed:** scratch programs under valgrind (2026-10-31).
+
+## 102. A PDF surface's `end_job` reports an error only by an alert
+
+**What happens:** on a Cairo error, `end_job` calls `fl_alert`, and
+returns nothing. A program can't tell, and a program with no user to
+answer the alert hangs in it.
+
+**Cause:** `Fl_PDF_Pango_File_Surface::end_job`,
+`src/drivers/PostScript/Fl_PostScript.cxx:1792`. An
+`Fl_EPS_File_Surface` does the same in its destructor (line 2054),
+unless `close()` was called, which returns the status.
+
+**Effect on pofltk:** while `end_job` runs, the shim watches for the
+alert with a timer, and closes it; `EndJob` returns FALSE and `Error`
+gives the reason. `EPSFile.Finish` calls `close()`.
+
+**Confirmed:** writing a large PDF to `/dev/full` hung without the watch
+(2026-10-31). `TestPrint` checks it; `/dev/full` isn't on OpenBSD, so
+the check is skipped there.
+
+## 103. Smaller pitfalls of FLTK's printing
+
+- **`perr_message` is allocated two ways**: `new char[]` by Pango's PDF
+  and GTK's code, `strdup` without Pango. FLTK built without print
+  support returns 2 with no message.
+- **`Fl_PostScript_File_Device`'s `scale`, `rotate` and `origin` outside
+  a page break Cairo**: `FlPrint` halts 77 there.
+- **`scale(sx, 0)` means `sy = sx`**, not 0.
+- **`begin_page` pushes the current surface, `end_page` pops it.**
+- **The `MEDIA` format overruns `page_formats`**: `FlPrint` halts 78 on it.
+- **`close_command`** stores a function pointer, and nothing else.
+- **`Fl_Widget_Surface::draw` skips what isn't visible**, silently, and
+  a window never shown isn't: `draw_decorated_window` draws nothing of
+  one either. `print_window_part` needs a shown window, and runs
+  `Fl::check`.
+- **`Fl_Printer::begin_job`** returns 1 for cancel, 2 and above for
+  errors. Cancelling GTK's dialog with Escape prints `Gtk-CRITICAL`
+  assertions on `gtk_widget_hide` and `gtk_widget_destroy`; FLTK's own
+  `test/device` does the same.
+- **The PDF chooser** reads the printers' preferences; cancelling it
+  writes no file.
+- **An unended job** deleted is clean, and leaves an empty file. Zero
+  pages are fine, and a second job on one object worked.
+
+**Confirmed:** scratch programs on Xvfb, `TestPrint`, and the examples
+(2026-10-31).
+
+## 104. FLTK built with `--disable-print` hides that from programs
+
+**What happens:** `FL_NO_PRINT_SUPPORT` is set in `config.h`, which isn't
+installed, so a program compiles against the usual headers.
+`Fl_Printer.cxx` then gives stubs: `begin_job` returns 1 or 2, and
+`Fl_EPS_File_Surface`'s constructor succeeds with a null driver. The four
+`Fl_PDF_File_Surface::format_dialog_*` strings don't exist, so a program
+naming one doesn't link.
+
+**Cause:** `src/Fl_Printer.cxx:21`, and `src/Fl_Device.cxx:169`, which
+guards the strings. `fl_config.h` doesn't carry the setting.
+
+**Effect on pofltk:** `FlPrint.cpp` refers to the strings weakly, and a
+null address says this FLTK can't print. `FlPrint.Available` reports
+that; PostScript, PDF and EPS then fail to open, with a reason, and
+`BeginJob` gives `JobFailed`. SVG doesn't depend on it. The symbols are
+named by their mangled names, as a class's static can't be declared weak
+without defining it.
+
+`Fl_Printer::dialog_title` is null in the stubs too, but
+`SetPrinterText` sets it, so it can't be the test.
+
+**Confirmed:** `make test-headless` on an FLTK configured with
+`--disable-print` and without SVG, where the link failed before
+(2026-10-31).

@@ -21,12 +21,12 @@ anything:
 
 ## Status
 
-As of 2026-10-30, Phases 0 to 18 of PLAN.md are done, and `README.md`
+As of 2026-10-31, Phases 0 to 19 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
-`FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp` and
-`FlTerminal` modules, and the
+`FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`,
+`FlTerminal` and `FlPrint` modules, and the
 tests pass. Also kept:
 
 - `doc/design.md`: the feasibility analysis.
@@ -115,6 +115,14 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 - `src/FlTerminal.Mod`, `src/FlTerminal.cpp`: `Fl_Terminal`. `Term::fit`
   keeps the cursor on the screen after anything that can shrink it
   (`doc/fltk-issues.md`, 96).
+- `src/FlPrint.Mod`, `src/FlPrint.cpp`: `Fl_Printer` and the file
+  surfaces. Cairo writes through the shim's `Sink`, not a file FLTK can
+  close twice (`doc/fltk-issues.md`, 101); a timer closes the alert a
+  failed PDF raises (102); each begin sets a font (100). `/dev/full`
+  isn't on OpenBSD, so `TestPrint` skips those checks there. FLTK can
+  be built with no printing, which only a weak symbol shows
+  (`FlPrint.Available`, 104); a `HaltPrint` test then ends with
+  `HALT(99)`, which `make test` counts as a skip.
 - **What a widget's C++ part keeps beside FLTK's object** goes in a base
   class listed before `ofl::W<B>`, so it is destroyed after FLTK's
   object, and is reached by `dynamic_cast`: `Holds` (`FlText`: the
@@ -682,6 +690,14 @@ held only in C++ memory**.
   recurses without end. `textsize` below 1 divides by zero. `print_char`,
   `plot_char`, the cursor's moves and the clears don't redraw. A byte
   like `FF` waits for a long form's rest, and shows nothing.
+- **Printing** (`doc/fltk-issues.md`, 100 to 103): text with no font
+  set crashes on PostScript, PDF and EPS. A Cairo error makes
+  `Fl_PostScript_File_Device::end_job` write to a closed file and close
+  it twice; `FlPrint`'s `Sink` covers files and its own calls, but
+  drawing through `FlDraw` that breaks Cairo still reaches it. PDF's
+  `end_job` reports only by an alert. An SVG surface has no font
+  descriptor, so test `fl_size()` too. A window never shown isn't
+  visible, so no surface draws it.
 - **Tables** (`doc/fltk-issues.md`, 52): `Fl_Table` hides `Fl_Group`'s
   `begin`, `end`, `children`, `child`, `add` and the rest, which reach
   the inner group holding the cells' widgets: Fl.cpp calls a table as

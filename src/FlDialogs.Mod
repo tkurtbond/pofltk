@@ -92,6 +92,9 @@ TYPE
     h: SYSTEM.ADDRESS
   END;
 
+  (* What SetFilePicked calls. *)
+  FilePicked* = PROCEDURE (name-: ARRAY OF CHAR);
+
   (* FLTK's color chooser as a widget: a hue box, a value slider and three
      inputs, for a panel of the program's own. Its Callback runs when the
      user changes the color. FLTK's is a group, but its parts are its own,
@@ -120,6 +123,7 @@ TYPE
 VAR
   openChoosers-: INTEGER;  (* choosers opened and not yet closed or finalized *)
   choosers: FileChooser;   (* every open FileChooser: FLTK calls back into them *)
+  filePicked: FilePicked;  (* SetFilePicked's *)
 
 PROCEDURE ["C", "ofl_dialog_message"] CMessage(alert: SYSTEM.INT32; text: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_dialog_choice"] CChoice(text, b0, b1, b2: ARRAY OF CHAR): SYSTEM.INT32;
@@ -164,6 +168,7 @@ PROCEDURE ["C", "ofl_fc_position"] CFcPosition(c: SYSTEM.ADDRESS; x, y: SYSTEM.I
 PROCEDURE ["C", "ofl_fc_resize"] CFcResize(c: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_fc_set_extra"] CFcSetExtra(c, extra: SYSTEM.ADDRESS; gone: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_fc_set_label"] CFcSetLabel(which: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_file_chosen_register"] CChosenRegister(f: PROCEDURE (name: SYSTEM.ADDRESS));
 PROCEDURE ["C", "ofl_filename_relative"] CFilenameRelative(from, base: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_filename_list"] CFilenameList(dir: ARRAY OF CHAR; sort: SYSTEM.INT32; VAR n: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_filename_length"] CFilenameLength(l: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
@@ -350,7 +355,20 @@ PROCEDURE ChooseFile*(title-, pattern-: ARRAY OF CHAR; VAR path: ARRAY OF CHAR; 
 BEGIN RETURN CFileChooser(0, title, pattern, path, SHORT(LEN(path)), Int(relative)) # 0
 END ChooseFile;
 
-(* The same, for a directory. *)
+PROCEDURE ChosenD(name: SYSTEM.ADDRESS);
+  VAR s: ARRAY 4096 OF CHAR;
+BEGIN
+  IF filePicked # NIL THEN FromC(name, s); filePicked(s) END
+END ChosenD;
+
+(* Calls p with each file the user picks while ChooseFile or
+   ChooseDirectory is up, before OK is pushed, as for a preview; NIL for
+   none. *)
+PROCEDURE SetFilePicked*(p: FilePicked);
+BEGIN filePicked := p
+END SetFilePicked;
+
+(* The same as ChooseFile, for a directory. *)
 PROCEDURE ChooseDirectory*(title-: ARRAY OF CHAR; VAR path: ARRAY OF CHAR; relative: BOOLEAN): BOOLEAN;
 BEGIN RETURN CFileChooser(1, title, "", path, SHORT(LEN(path)), Int(relative)) # 0
 END ChooseDirectory;
@@ -803,5 +821,6 @@ BEGIN
 END ListDirectory;
 
 BEGIN
-  CFcRegister(CallbackD)
+  CFcRegister(CallbackD);
+  CChosenRegister(ChosenD)
 END FlDialogs.

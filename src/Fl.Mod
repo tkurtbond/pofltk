@@ -562,6 +562,8 @@ PROCEDURE ["C", "ofl_widget_visible_focus"] CVisibleFocus(w: SYSTEM.ADDRESS): SY
 PROCEDURE ["C", "ofl_widget_set_visible_focus"] CSetVisibleFocus(w: SYSTEM.ADDRESS; v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_event_inside"] CWidgetEventInside(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_cursor"] CCursor(w: SYSTEM.ADDRESS; c: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_window_decorated_w"] CDecoratedW(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_window_decorated_h"] CDecoratedH(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_event"] CEvent(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_event_x"] CEventX(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_event_y"] CEventY(): SYSTEM.INT32;
@@ -1268,6 +1270,16 @@ END XClass;
 PROCEDURE (w: Window) SetCursor*(c: INTEGER);
 BEGIN CCursor(Live(w), c)
 END SetCursor;
+
+(* The window's size with its frame and title bar, as the window system
+   says; its own, if not shown. *)
+PROCEDURE (w: Window) DecoratedW*(): INTEGER;
+BEGIN RETURN CDecoratedW(Live(w))
+END DecoratedW;
+
+PROCEDURE (w: Window) DecoratedH*(): INTEGER;
+BEGIN RETURN CDecoratedH(Live(w))
+END DecoratedH;
 
 (* Colors. A color is an index into FLTK's colormap (the color constants,
    GrayRamp, ColorCube), or an RGB color, which is never one. *)

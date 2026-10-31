@@ -535,6 +535,14 @@ int32_t ofl_window_fullscreen_active(intptr_t w) {
   return ofl::as<Fl_Window>(w)->fullscreen_active() ? 1 : 0;
 }
 
+int32_t ofl_window_decorated_w(intptr_t w) {
+  return ofl::as<Fl_Window>(w)->decorated_w();
+}
+
+int32_t ofl_window_decorated_h(intptr_t w) {
+  return ofl::as<Fl_Window>(w)->decorated_h();
+}
+
 void ofl_window_cursor(intptr_t w, int32_t c) {
   ofl::as<Fl_Window>(w)->cursor(static_cast<Fl_Cursor>(c));
 }

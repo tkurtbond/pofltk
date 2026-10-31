@@ -172,6 +172,7 @@ END Hello.
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
 | `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
 | `FlTerminal` | `Terminal`: a screen of text for a program's output, with a history and ANSI colors |
+| `FlPrint` | `Printer`, and files: `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile`; what `FlDraw` draws goes to the one begun |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which
 flattens FLTK to C functions; `src/pofltk.h` is what they share.

@@ -194,7 +194,9 @@ PROCEDURE ["C", "ofl_surface_new"] CSurfaceNew(w, h: SYSTEM.INT32): SYSTEM.ADDRE
 PROCEDURE ["C", "ofl_surface_close"] CSurfaceClose(s: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_surface_begin"] CSurfaceBegin(s: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_surface_end"] CSurfaceEnd;
+PROCEDURE ["C", "ofl_surface_current"] CSurfaceCurrent(s: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_surface_draw"] CSurfaceDraw(s, w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_surface_decorated"] CSurfaceDecorated(s, w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_surface_image"] CSurfaceImage(s: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_read_image"] CReadImage(x, y, w, h, alpha: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_shared_get"] CSharedGet(name: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -912,7 +914,7 @@ END Begin;
 PROCEDURE (s: Surface) End*;
   VAR h: SYSTEM.ADDRESS;
 BEGIN
-  h := S(s); ASSERT(s.begun & (current = s), Fl.OutOfOrder);
+  h := S(s); ASSERT(s.begun & (current = s) & (CSurfaceCurrent(h) # 0), Fl.OutOfOrder);
   CSurfaceEnd; s.begun := FALSE; current := s.below; s.below := NIL
 END End;
 
@@ -929,6 +931,13 @@ PROCEDURE (s: Surface) DrawWidget*(w: Fl.Widget; x, y: INTEGER);
   VAR h: SYSTEM.ADDRESS;
 BEGIN h := S(s); ASSERT(s.begun, Fl.OutOfOrder); CSurfaceDraw(h, Fl.Live(w), x, y)
 END DrawWidget;
+
+(* Draws w, with its title bar where the window system lets FLTK get at
+   it, with its top left at x, y; between Begin and End. *)
+PROCEDURE (s: Surface) DrawDecoratedWindow*(w: Fl.Window; x, y: INTEGER);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN h := S(s); ASSERT(s.begun, Fl.OutOfOrder); CSurfaceDecorated(h, Fl.Live(w), x, y)
+END DrawDecoratedWindow;
 
 (* Makes i an image of what has been drawn on s. *)
 PROCEDURE (s: Surface) GetImage*(i: Image);

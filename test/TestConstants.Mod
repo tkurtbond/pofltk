@@ -4,7 +4,7 @@ MODULE TestConstants; (* pofltk's constants are FLTK's *)
    value the installed FLTK's headers give (CConstants). A failure means
    FLTK's headers changed: run the script again, and see what moved. *)
 
-IMPORT SYSTEM, Out, Fl, FlDraw, FlButtons, FlValuators, FlLayout, FlMenus, FlDialogs, FlText, FlBrowsers, FlImages, FlTable, FlTerminal, Check, CConstants;
+IMPORT SYSTEM, Out, Fl, FlDraw, FlButtons, FlValuators, FlLayout, FlMenus, FlDialogs, FlText, FlBrowsers, FlImages, FlTable, FlTerminal, FlPrint, Check, CConstants;
 
 VAR checked, wrong: INTEGER;
 
@@ -526,6 +526,40 @@ BEGIN
   Same(FlTerminal.ScrollbarOff, "Fl_Terminal::SCROLLBAR_OFF");
   Same(FlTerminal.ScrollbarAuto, "Fl_Terminal::SCROLLBAR_AUTO");
   Same(FlTerminal.ScrollbarOn, "Fl_Terminal::SCROLLBAR_ON");
+  Same(FlPrint.A0, "Fl_Paged_Device::A0");
+  Same(FlPrint.A1, "Fl_Paged_Device::A1");
+  Same(FlPrint.A2, "Fl_Paged_Device::A2");
+  Same(FlPrint.A3, "Fl_Paged_Device::A3");
+  Same(FlPrint.A4, "Fl_Paged_Device::A4");
+  Same(FlPrint.A5, "Fl_Paged_Device::A5");
+  Same(FlPrint.A6, "Fl_Paged_Device::A6");
+  Same(FlPrint.A7, "Fl_Paged_Device::A7");
+  Same(FlPrint.A8, "Fl_Paged_Device::A8");
+  Same(FlPrint.A9, "Fl_Paged_Device::A9");
+  Same(FlPrint.B0, "Fl_Paged_Device::B0");
+  Same(FlPrint.B1, "Fl_Paged_Device::B1");
+  Same(FlPrint.B2, "Fl_Paged_Device::B2");
+  Same(FlPrint.B3, "Fl_Paged_Device::B3");
+  Same(FlPrint.B4, "Fl_Paged_Device::B4");
+  Same(FlPrint.B5, "Fl_Paged_Device::B5");
+  Same(FlPrint.B6, "Fl_Paged_Device::B6");
+  Same(FlPrint.B7, "Fl_Paged_Device::B7");
+  Same(FlPrint.B8, "Fl_Paged_Device::B8");
+  Same(FlPrint.B9, "Fl_Paged_Device::B9");
+  Same(FlPrint.B10, "Fl_Paged_Device::B10");
+  Same(FlPrint.C5E, "Fl_Paged_Device::C5E");
+  Same(FlPrint.DLE, "Fl_Paged_Device::DLE");
+  Same(FlPrint.Executive, "Fl_Paged_Device::EXECUTIVE");
+  Same(FlPrint.Folio, "Fl_Paged_Device::FOLIO");
+  Same(FlPrint.Ledger, "Fl_Paged_Device::LEDGER");
+  Same(FlPrint.Legal, "Fl_Paged_Device::LEGAL");
+  Same(FlPrint.Letter, "Fl_Paged_Device::LETTER");
+  Same(FlPrint.Tabloid, "Fl_Paged_Device::TABLOID");
+  Same(FlPrint.Envelope, "Fl_Paged_Device::ENVELOPE");
+  Same(FlPrint.PageFormats, "NO_PAGE_FORMATS");
+  Same(FlPrint.Portrait, "Fl_Paged_Device::PORTRAIT");
+  Same(FlPrint.Landscape, "Fl_Paged_Device::LANDSCAPE");
+  Same(FlPrint.Reversed, "Fl_Paged_Device::REVERSED");
   Same(Fl.GrayRamp(0), "fl_gray_ramp(0)");
   Same(Fl.GrayRamp(23), "fl_gray_ramp(23)");
   Same(Fl.ColorCube(0, 0, 0), "fl_color_cube(0, 0, 0)");
@@ -534,6 +568,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 515), "each of 515 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 549), "each of 549 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

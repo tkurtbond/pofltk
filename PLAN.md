@@ -1906,7 +1906,7 @@ Done 2026-10-30:
   `make test` on all six BSDs 1449; on an FLTK with neither Cairo nor
   Pango 1449, and on one without SVG 1447, with 4 skipped.
 
-### Phase 19: Printing and the file surfaces
+### Phase 19: Printing and the file surfaces `[done]`
 
 **`FlPrint`**, a new module.
 
@@ -1942,6 +1942,52 @@ cancelling its dialog with `Probe.Modal`: no test prints.
 - Ports: `Device`, a subset of `test/device.cxx` (786 lines);
   `PixmapBrowser` (`test/pixmap_browser.cxx`).
 - New example: `SaveAs`, a drawing saved as PostScript, EPS, PDF or SVG.
+
+Done 2026-10-31:
+
+- `FlPrint`, as above, with these changes. `PrintWidget` and `PrintWindow`
+  are dropped: they would be `DrawWidget` and `DrawDecoratedWindow` under
+  other names. A file surface ends with `Finish`, which says if it was
+  written, and is separate from `End`, which only stops it being current.
+  `FlImages.Surface` gained `DrawDecoratedWindow`, for `Device`.
+- Answers to the questions above: `Fl_Printer`'s dialog cancelled returns
+  1, errors 2 or more, `Printer.BeginJob` gives `JobCancelled` and
+  `JobFailed`; `close_command` keeps only a function pointer, and isn't
+  bound.
+- `Fl_PostScript_File_Device`'s `begin_job` with its own file dialog is
+  not bound: `FlDialogs.NativeFileChooser` and `OpenPostScript` do it.
+- An SVG file starts `<?xml`, not `<svg`, so `TestPrint` searches for
+  `<svg` rather than reading the first bytes.
+- Found (`doc/fltk-issues.md`, 100 to 103): the worst is `end_job` on a
+  closed file (101), covered by the shim's `Sink`. Drawing through
+  `FlDraw` that breaks Cairo isn't covered: `FlDraw` can't tell a surface
+  from a window, and scaling by 0 is legal on a window.
+- An FLTK configured with `--disable-print` wouldn't link, and nothing a
+  compiler sees says so (`doc/fltk-issues.md`, 104): `FlPrint.Available`
+  finds out from a weak symbol. `make test` gained a skip for halt tests,
+  `HALT(99)`.
+- Tests, as `ok` lines (with the examples and halt tests): 1563 on
+  `test-headless`, 1559 on `test-sway`, 1431 and 1427 on the valgrind runs,
+  every error summary 0; `make test` passes on all six BSDs (1563, or 1555
+  and a skip on OpenBSD, which has no `/dev/full`), so `funopen` works there.
+  An FLTK with neither Cairo nor Pango has 1553 and 3 skips; one with no
+  SVG and no printing has 1461.
+- `SaveAs` found a bug of pofltk's: `FlDraw`'s `ensure_font` put every SVG
+  text back to Helvetica 14. Fixed, and tested.
+- `fl_file_chooser_callback`, listed in Phase 23, is done here:
+  `FlDialogs.SetFilePicked`, for `PixmapBrowser`.
+- `Device` leaves out what isn't bound: `Fl_Copy_Surface`,
+  `fl_capture_window`, `Fl_Image_Surface::mask`, custom dash patterns and
+  `fl_mult_matrix`'s shear. `PixmapBrowser` shows a directory as a
+  document until `fl_filename_isdir` is bound.
+- Checked against FLTK's builds under Xvfb: `PixmapBrowser` 0 pixels differ,
+  with an image and with a missing file. `Device` differs only in the
+  choices and drawings left out, and the clock's hands. Its image surface,
+  PDF of the window, sub-window and group, and the print dialog (Escape
+  cancels it) were driven with `xdotool`; `SaveAs`'s
+  `Write` wrote all four formats, read back with `pdftoppm` and
+  Ghostscript. Its file choosers weren't driven: GTK's opened behind the
+  window, with no window manager, so a scratch copy called `Write`.
 
 ### Phase 20: Optional libraries and forms
 
@@ -2115,7 +2161,8 @@ README.md).
   `fl_message_icon_label`, `fl_message_position` (the three forms), and
   whether `fl_input_str`, `fl_password_str` and the plain `fl_choice`
   add anything to what is bound. `Fl_File_Chooser.H`:
-  `fl_file_chooser_callback`, `fl_file_chooser_ok_label`.
+  `fl_file_chooser_ok_label` (`fl_file_chooser_callback` came with
+  Phase 19).
 - **`FlDraw`, the rest of `fl_draw.H`**:
   - images: `fl_draw_image`, `fl_draw_image_mono` (from memory, and
     their callback forms, one more dispatcher), `fl_draw_pixmap`,

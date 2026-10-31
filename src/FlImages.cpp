@@ -1462,9 +1462,19 @@ void ofl_surface_begin(intptr_t s) {
 
 void ofl_surface_end() { Fl_Surface_Device::pop_current(); }
 
+// Whether drawing goes to it now: FlPrint's surfaces nest with these.
+int32_t ofl_surface_current(intptr_t s) {
+  return reinterpret_cast<Fl_Image_Surface *>(s)->is_current() ? 1 : 0;
+}
+
 // Draws widget w with its top left at x, y.
 void ofl_surface_draw(intptr_t s, intptr_t w, int32_t x, int32_t y) {
   reinterpret_cast<Fl_Image_Surface *>(s)->draw(ofl::widget(w), x, y);
+}
+
+void ofl_surface_decorated(intptr_t s, intptr_t w, int32_t x, int32_t y) {
+  reinterpret_cast<Fl_Image_Surface *>(s)->draw_decorated_window(
+      ofl::widget(w)->as_window(), x, y);
 }
 
 // What has been drawn, as a new image.
