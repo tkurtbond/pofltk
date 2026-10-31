@@ -35,6 +35,12 @@ CONST
   NewFolder* = {1};
   Preview* = {2};
   UseFilterExt* = {3};
+
+  (* what a file chooser asks for (OpenFileChooser) *)
+  ChooserSingle* = {};
+  ChooserMulti* = {0};
+  ChooserCreate* = {1};
+  ChooserDirectory* = {2};
 (* END generated constants *)
 
   (* Choice when no button was pushed *)
@@ -52,6 +58,22 @@ CONST
   Chosen* = 0;
   Cancelled* = 1;
   Failed* = -1;  (* ErrorMessage says why *)
+
+  (* which of FLTK's chooser's own texts SetChooserLabel sets *)
+  LabelAddFavorites* = 0;       (* Add to Favorites *)
+  LabelAllFiles* = 1;           (* All Files, with its pattern *)
+  LabelCustomFilter* = 2;       (* Custom Filter *)
+  LabelExistingFile* = 3;       (* the alert for a file that isn't there *)
+  LabelFavorites* = 4;          (* Favorites *)
+  LabelFilename* = 5;           (* Filename: *)
+  LabelFilesystems* = 6;        (* File Systems, or My Computer *)
+  LabelHidden* = 7;             (* Show hidden files *)
+  LabelManageFavorites* = 8;    (* Manage Favorites *)
+  LabelNewDirectory* = 9;       (* the new directory dialog's question *)
+  LabelNewDirectoryTip* = 10;   (* the new directory button's tooltip *)
+  LabelPreview* = 11;           (* Preview *)
+  LabelSave* = 12;              (* the favorites window's Save button *)
+  LabelShow* = 13;              (* Show: *)
 
   (* the order of a directory's names (ListDirectory): by their bytes, or
      ignoring case; with runs of digits as numbers, or not *)
@@ -77,12 +99,27 @@ TYPE
   ColorChooser* = POINTER TO ColorChooserDesc;
   ColorChooserDesc* = RECORD (Fl.WidgetDesc) END;
 
+  (* FLTK's own file chooser, in a window of its own, which stays open
+     while the program does something else: not modal to the program's
+     code, as ChooseFile is, though the window is modal to the user. A
+     resource the program owns, open until Close, so a chooser nothing
+     else points to still calls back; the program ends with it closed,
+     or it is closed then. Its previews go through FLTK's decoders, with
+     none of FlImages' checks. *)
+  FileChooser* = POINTER TO FileChooserDesc;
+  FileChooserDesc* = RECORD
+    h: SYSTEM.ADDRESS;
+    next: FileChooser;   (* in choosers, while open *)
+    extra: Fl.Widget     (* what SetExtra gave *)
+  END;
+
   (* A directory's names (ListDirectory) *)
   Name* = POINTER TO ARRAY OF CHAR;
   Names* = POINTER TO ARRAY OF Name;
 
 VAR
   openChoosers-: INTEGER;  (* choosers opened and not yet closed or finalized *)
+  choosers: FileChooser;   (* every open FileChooser: FLTK calls back into them *)
 
 PROCEDURE ["C", "ofl_dialog_message"] CMessage(alert: SYSTEM.INT32; text: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_dialog_choice"] CChoice(text, b0, b1, b2: ARRAY OF CHAR): SYSTEM.INT32;
@@ -113,6 +150,20 @@ PROCEDURE ["C", "ofl_fnfc_get_int"] CFnfcGetInt(c: SYSTEM.ADDRESS; what: SYSTEM.
 PROCEDURE ["C", "ofl_fnfc_show"] CFnfcShow(c: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_fnfc_filename"] CFnfcFilename(c: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_fnfc_errmsg"] CFnfcErrmsg(c: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_fc_register"] CFcRegister(f: PROCEDURE (self: SYSTEM.ADDRESS));
+PROCEDURE ["C", "ofl_fc_new"] CFcNew(dir, pattern: ARRAY OF CHAR; type: SYSTEM.INT32; title: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_fc_close"] CFcClose(c: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_fc_show"] CFcShow(c: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_fc_hide"] CFcHide(c: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_fc_get"] CFcGet(c: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_fc_set"] CFcSet(c: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_fc_text"] CFcText(c: SYSTEM.ADDRESS; what, i: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_fc_set_text"] CFcSetText(c: SYSTEM.ADDRESS; what: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_fc_rescan"] CFcRescan(c: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_fc_position"] CFcPosition(c: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_fc_resize"] CFcResize(c: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_fc_set_extra"] CFcSetExtra(c, extra: SYSTEM.ADDRESS; gone: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_fc_set_label"] CFcSetLabel(which: SYSTEM.INT32; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_filename_list"] CFilenameList(dir: ARRAY OF CHAR; sort: SYSTEM.INT32; VAR n: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_filename_length"] CFilenameLength(l: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_filename_get"] CFilenameGet(l: SYSTEM.ADDRESS; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
@@ -426,6 +477,295 @@ PROCEDURE (c: NativeFileChooser) ErrorMessage*(VAR msg: ARRAY OF CHAR);
 BEGIN FromC(CFnfcErrmsg(Hd(c)), msg)
 END ErrorMessage;
 
+(* File choosers *)
+
+(* Runs when the chooser's selection or file name changes, and when the
+   user takes its OK button. The first of these isn't an answer: the
+   program knows that one by the chooser being no longer Visible. The
+   default does nothing. c may be Closed here. *)
+PROCEDURE (c: FileChooser) Callback*;
+BEGIN
+END Callback;
+
+PROCEDURE CallbackD(self: SYSTEM.ADDRESS);
+  VAR c: FileChooser;
+BEGIN c := SYSTEM.VAL(FileChooser, self); c.Callback
+END CallbackD;
+
+PROCEDURE CloseFileChooser(c: FileChooser);
+  VAR p: FileChooser;
+BEGIN
+  IF c.h # 0 THEN
+    IF choosers = c THEN
+      choosers := c.next
+    ELSE
+      p := choosers;
+      WHILE p.next # c DO p := p.next END;
+      p.next := c.next
+    END;
+    c.next := NIL; c.extra := NIL;
+    CFcClose(c.h); c.h := 0; DEC(openChoosers)
+  END
+END CloseFileChooser;
+
+(* GC finalizer: runs as the program ends, since choosers holds c. *)
+PROCEDURE FinalizeFileChooser(obj: SYSTEM.PTR);
+BEGIN CloseFileChooser(SYSTEM.VAL(FileChooser, obj))
+END FinalizeFileChooser;
+
+(* c's handle, halting if c is closed. *)
+PROCEDURE FcH(c: FileChooser): SYSTEM.ADDRESS;
+BEGIN
+  ASSERT(c # NIL, Fl.NilArgument); ASSERT(c.h # 0, Fl.ClosedResource);
+  RETURN c.h
+END FcH;
+
+(* Opens c, hidden: listing dir, or the current directory for "", showing
+   the files that match filter, as SetFilter's. type is ChooserSingle, or
+   a union of ChooserMulti, ChooserCreate and ChooserDirectory. *)
+PROCEDURE OpenFileChooser*(c: FileChooser; dir-, filter-: ARRAY OF CHAR; type: SET; title-: ARRAY OF CHAR);
+BEGIN
+  ASSERT(c # NIL, Fl.NilArgument); ASSERT(c.h = 0, Fl.OpenedTwice);
+  c.h := CFcNew(dir, filter, ORD(type), title, SYSTEM.VAL(SYSTEM.ADDRESS, c));
+  ASSERT(c.h # 0);  (* out of memory *)
+  c.next := choosers; choosers := c; c.extra := NIL;
+  INC(openChoosers);
+  GarbageCollectedHeap.RegisterFinalizer(c, FinalizeFileChooser)
+END OpenFileChooser;
+
+(* Frees c; idempotent. The window hides at once. Closed in a callback,
+   its own or a widget's, the rest waits for the event loop. *)
+PROCEDURE (c: FileChooser) Close*;
+BEGIN CloseFileChooser(c)
+END Close;
+
+PROCEDURE (c: FileChooser) IsOpen*(): BOOLEAN;
+BEGIN RETURN c.h # 0
+END IsOpen;
+
+(* Lists the directory and shows the window, and returns: wait for the
+   user with Fl.Wait while Visible. *)
+PROCEDURE (c: FileChooser) Show*;
+BEGIN CFcShow(FcH(c))
+END Show;
+
+PROCEDURE (c: FileChooser) Hide*;
+BEGIN CFcHide(FcH(c))
+END Hide;
+
+PROCEDURE (c: FileChooser) Shown*(): BOOLEAN;
+BEGIN RETURN CFcGet(FcH(c), 0) # 0
+END Shown;
+
+PROCEDURE (c: FileChooser) Visible*(): BOOLEAN;
+BEGIN RETURN CFcGet(FcH(c), 1) # 0
+END Visible;
+
+(* The number of files chosen. A name in the chooser's field counts, and
+   before any is chosen that is its directory. *)
+PROCEDURE (c: FileChooser) Count*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 2)
+END Count;
+
+(* File i chosen, from 1, in s; FALSE, and "", if there is none. Only a
+   ChooserMulti chooser has more than one; for the rest, and for a
+   ChooserMulti chooser with nothing selected, it is the chooser's field,
+   whatever i is (see Count). *)
+PROCEDURE (c: FileChooser) ValueAt*(i: INTEGER; VAR s: ARRAY OF CHAR): BOOLEAN;
+  VAR a: SYSTEM.ADDRESS;
+BEGIN
+  ASSERT(i >= 1, Fl.IndexOutOfRange);
+  a := CFcText(FcH(c), 4, i); FromC(a, s);
+  RETURN a # 0
+END ValueAt;
+
+(* The file chosen, the first if there are several. *)
+PROCEDURE (c: FileChooser) Value*(VAR s: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN c.ValueAt(1, s)
+END Value;
+
+(* Chooses the file named s, moving to its directory. *)
+PROCEDURE (c: FileChooser) SetValue*(s-: ARRAY OF CHAR);
+BEGIN CFcSetText(FcH(c), 4, s)
+END SetValue;
+
+PROCEDURE (c: FileChooser) Directory*(VAR s: ARRAY OF CHAR);
+BEGIN FromC(CFcText(FcH(c), 0, 0), s)
+END Directory;
+
+PROCEDURE (c: FileChooser) SetDirectory*(dir-: ARRAY OF CHAR);
+BEGIN CFcSetText(FcH(c), 0, dir)
+END SetDirectory;
+
+(* The pattern in use, without its name. *)
+PROCEDURE (c: FileChooser) Filter*(VAR s: ARRAY OF CHAR);
+BEGIN FromC(CFcText(FcH(c), 1, 0), s)
+END Filter;
+
+(* The filters offered, separated by tabs: each a pattern, or a name with
+   the pattern after it in round brackets. All Files and Custom Filter
+   are added to them. *)
+PROCEDURE (c: FileChooser) SetFilter*(filter-: ARRAY OF CHAR);
+BEGIN CFcSetText(FcH(c), 1, filter)
+END SetFilter;
+
+(* The number of filters offered, All Files and Custom Filter with them. *)
+PROCEDURE (c: FileChooser) FilterCount*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 4)
+END FilterCount;
+
+(* The filter in use, from 0. *)
+PROCEDURE (c: FileChooser) FilterValue*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 3)
+END FilterValue;
+
+(* Uses filter i, which asks the user for a pattern if it is the last,
+   Custom Filter. *)
+PROCEDURE (c: FileChooser) SetFilterValue*(i: INTEGER);
+BEGIN
+  ASSERT((i >= 0) & (i < c.FilterCount()), Fl.IndexOutOfRange);
+  CFcSet(FcH(c), 3, i)
+END SetFilterValue;
+
+(* Reads the directory again, keeping the file name. *)
+PROCEDURE (c: FileChooser) Rescan*;
+BEGIN CFcRescan(FcH(c))
+END Rescan;
+
+PROCEDURE (c: FileChooser) Preview*(): BOOLEAN;
+BEGIN RETURN CFcGet(FcH(c), 5) # 0
+END Preview;
+
+(* Whether the chooser previews the file chosen. FLTK saves this among
+   the user's preferences, as every chooser's starting value. *)
+PROCEDURE (c: FileChooser) SetPreview*(on: BOOLEAN);
+BEGIN CFcSet(FcH(c), 5, Int(on))
+END SetPreview;
+
+PROCEDURE (c: FileChooser) ShowHidden*(): BOOLEAN;
+BEGIN RETURN CFcGet(FcH(c), 6) # 0
+END ShowHidden;
+
+(* Whether names beginning with "." are listed. *)
+PROCEDURE (c: FileChooser) SetShowHidden*(on: BOOLEAN);
+BEGIN CFcSet(FcH(c), 6, Int(on))
+END SetShowHidden;
+
+PROCEDURE (c: FileChooser) Type*(): SET;
+BEGIN RETURN SYSTEM.VAL(SET, CFcGet(FcH(c), 7))
+END Type;
+
+PROCEDURE (c: FileChooser) SetType*(type: SET);
+BEGIN CFcSet(FcH(c), 7, ORD(type))
+END SetType;
+
+PROCEDURE (c: FileChooser) GetLabel*(VAR s: ARRAY OF CHAR);
+BEGIN FromC(CFcText(FcH(c), 2, 0), s)
+END GetLabel;
+
+(* The window's title. *)
+PROCEDURE (c: FileChooser) SetLabel*(s-: ARRAY OF CHAR);
+BEGIN CFcSetText(FcH(c), 2, s)
+END SetLabel;
+
+PROCEDURE (c: FileChooser) GetOkLabel*(VAR s: ARRAY OF CHAR);
+BEGIN FromC(CFcText(FcH(c), 3, 0), s)
+END GetOkLabel;
+
+PROCEDURE (c: FileChooser) SetOkLabel*(s-: ARRAY OF CHAR);
+BEGIN CFcSetText(FcH(c), 3, s)
+END SetOkLabel;
+
+(* The file list's background. *)
+PROCEDURE (c: FileChooser) Color*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 8)
+END Color;
+
+PROCEDURE (c: FileChooser) SetColor*(color: INTEGER);
+BEGIN CFcSet(FcH(c), 8, color)
+END SetColor;
+
+PROCEDURE (c: FileChooser) IconSize*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 9)
+END IconSize;
+
+PROCEDURE (c: FileChooser) SetIconSize*(s: INTEGER);
+BEGIN CFcSet(FcH(c), 9, s)
+END SetIconSize;
+
+PROCEDURE (c: FileChooser) TextColor*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 10)
+END TextColor;
+
+PROCEDURE (c: FileChooser) SetTextColor*(color: INTEGER);
+BEGIN CFcSet(FcH(c), 10, color)
+END SetTextColor;
+
+PROCEDURE (c: FileChooser) TextFont*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 11)
+END TextFont;
+
+PROCEDURE (c: FileChooser) SetTextFont*(font: INTEGER);
+BEGIN CFcSet(FcH(c), 11, font)
+END SetTextFont;
+
+PROCEDURE (c: FileChooser) TextSize*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 12)
+END TextSize;
+
+PROCEDURE (c: FileChooser) SetTextSize*(s: INTEGER);
+BEGIN CFcSet(FcH(c), 12, s)
+END SetTextSize;
+
+PROCEDURE (c: FileChooser) X*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 13)
+END X;
+
+PROCEDURE (c: FileChooser) Y*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 14)
+END Y;
+
+PROCEDURE (c: FileChooser) W*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 15)
+END W;
+
+PROCEDURE (c: FileChooser) H*(): INTEGER;
+BEGIN RETURN CFcGet(FcH(c), 16)
+END H;
+
+PROCEDURE (c: FileChooser) SetPosition*(x, y: INTEGER);
+BEGIN CFcPosition(FcH(c), x, y)
+END SetPosition;
+
+PROCEDURE (c: FileChooser) Resize*(x, y, w, h: INTEGER);
+BEGIN CFcResize(FcH(c), x, y, w, h)
+END Resize;
+
+(* Puts w, which no group need hold, under the chooser's own widgets,
+   the window growing to fit, in place of the extra widget there, which
+   leaves the window and is returned: NIL for none, or for one since
+   deleted. NIL as w leaves none. The program opened it, and deletes it,
+   before or after Close: the chooser doesn't. *)
+PROCEDURE (c: FileChooser) SetExtra*(w: Fl.Widget): Fl.Widget;
+  VAR old: Fl.Widget; e: SYSTEM.ADDRESS; gone: SYSTEM.INT32;
+BEGIN
+  gone := 0; e := 0; old := c.extra;
+  IF (old # NIL) & ~old.IsOpen() THEN gone := 1; old := NIL END;
+  IF w # NIL THEN e := Fl.Live(w) END;
+  CFcSetExtra(FcH(c), e, gone);
+  c.extra := w;
+  RETURN old
+END SetExtra;
+
+(* Sets one of the texts of every chooser opened from now on, which
+   the Label constants name: for translations. Some apply as the texts are
+   next used, so a chooser already open may show either. *)
+PROCEDURE SetChooserLabel*(which: INTEGER; s-: ARRAY OF CHAR);
+BEGIN
+  ASSERT((which >= LabelAddFavorites) & (which <= LabelShow), Fl.IndexOutOfRange);
+  CFcSetLabel(which, s)
+END SetChooserLabel;
+
 (* Directories *)
 
 (* Lists directory dir's names in names, in the order sort says, with "."
@@ -447,4 +787,6 @@ BEGIN
   RETURN TRUE
 END ListDirectory;
 
+BEGIN
+  CFcRegister(CallbackD)
 END FlDialogs.

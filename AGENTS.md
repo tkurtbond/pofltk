@@ -21,11 +21,11 @@ anything:
 
 ## Status
 
-As of 2026-10-30, Phases 0 to 16 of PLAN.md are done, and `README.md`
+As of 2026-10-30, Phases 0 to 17 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
-`FlBrowsers`, `FlImages`, `FlPreferences` and `FlTable` modules, and the
+`FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable` and `FlHelp` modules, and the
 tests pass. Also kept:
 
 - `doc/design.md`: the feasibility analysis.
@@ -79,7 +79,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   each Oberon `Open<Type>` passes it `Fl.BeginOpen(w)` and gives the
   result to `Fl.EndOpen`. Methods get the handle with `Fl.Live(w)`.
 - `src/FlDialogs.Mod`, `src/FlDialogs.cpp`: FLTK's common dialogs,
-  procedures with no widget of their own, and `NativeFileChooser`. A
+  procedures with no widget of their own, `NativeFileChooser` and
+  `FileChooser` (`Fl_File_Chooser`, whose `Close` deletes it later if
+  its callback is running; `doc/fltk-issues.md`, 91, 92). A
   test turns zenity, kdialog and GTK off (`Fl.SetOption`), so the
   chooser is FLTK's and keys can answer it.
 - `src/FlImages.Mod`, `src/FlImages.cpp`: images (loaded by their
@@ -98,6 +100,10 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   whose destructor drops the Oberon object from FlBrowsers' `made`
   list. A private member is reached, where nothing else will do, by an
   explicit instantiation (`Reach`, for `Fl_Tree::_lastselect`).
+- `src/FlHelp.Mod`, `src/FlHelp.cpp`: `Fl_Help_View` and
+  `Fl_Help_Dialog`. `View` asks Oberon's `Link` about links and images
+  (`help_link`), remembers each image's answer, and counts layout
+  changes between a push and its release (`doc/fltk-issues.md`, 89, 90).
 - `src/FlPreferences.Mod`, `src/FlPreferences.cpp`: `Fl_Preferences`. A
   group is its database and a path, not an `Fl_Preferences` kept.
 - `src/FlTable.Mod`, `src/FlTable.cpp`: `Fl_Table` and `Fl_Table_Row`.
@@ -132,6 +138,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     fail to load: `not-xbm.h`, `short.xbm`, `huge.xbm`, `bad.fti`,
     `colors.bmp`, `size.bmp`, `depth.bmp`, `colors.ico`, `loop.gif`,
     `zero.gif`, `code.gif` and `beyond.gif`;
+  - `help.html`, `help2.html`: pages for `TestHelp` and `HelpDialog`;
   - `names/`: empty files whose names each directory sort orders
     differently (`TestDialogs`, `TestBrowsers`).
 - `tools/gen-constants.py`: writes each module's constants and their
@@ -641,6 +648,19 @@ held only in C++ memory**.
   the stack and heap with a file's bytes. The shim refuses such files;
   what FLTK loads by itself (the chooser's previews) stays exposed.
   An animation's frames must fit its screen; such a GIF still `Load`s.
+- **File choosers** (`doc/fltk-issues.md`, 91 to 93): deleted in its
+  own callback it is used after, and an extra widget deleted first is
+  read at the next `add_extra`. `filter()` is the pattern in use.
+  `count()` and `value()` with nothing chosen give its field, its first
+  directory. `preview(e)` writes the user's preferences, so a test puts
+  it back.
+- **Help views** (`doc/fltk-issues.md`, 89, 90, 93): a link held down
+  while the page changes reads freed memory, and a link function
+  returning NULL for an image crashes: `FlHelp.cpp` covers both. `load`
+  opens web and mail addresses in the user's browser before asking the
+  link function, so no test may load one. Each page laid out calls
+  back. A `<title>` counts only in `<head>`. `Fl_Help_Dialog`'s
+  constructor leaves no current group.
 - **Tables** (`doc/fltk-issues.md`, 52): `Fl_Table` hides `Fl_Group`'s
   `begin`, `end`, `children`, `child`, `add` and the rest, which reach
   the inner group holding the cells' widgets: Fl.cpp calls a table as

@@ -116,6 +116,12 @@ END Hello.
   a shared image on several buttons.
 - `Bitmap`: FLTK's `test/bitmap.cxx`, a bitmap on a button, placed by its
   label's alignment.
+- `FileChooser`: FLTK's `test/file_chooser.cxx`, every way of asking
+  FLTK's file chooser for files, with extra widgets in it.
+- `HelpDialog`: FLTK's `test/help_dialog.cxx`, a help file in FLTK's help
+  window.
+- `HelpPages`: a help view whose pages are in the program, followed by
+  its `Link` method.
 - Ports of FLTK's own `examples/` programs, each named for FLTK's file
   in CamelCase, without `howto-`:
   - each module's simplest use: `TableSimple`, `TreeSimple`,
@@ -158,12 +164,13 @@ END Hello.
 | `FlValuators` | sliders, `Counter`, `Dial`, `Roller`, `Spinner`, `Adjuster`, `ValueInput`, `ValueOutput`, `Scrollbar`, `Progress`, `Chart`, `Positioner`, `ClockOutput`, `Clock`, and the presets of each kind |
 | `FlLayout` | `Flex`, `Grid`, `Pack`, `Scroll`, `Tabs`, `Tile`, `Wizard` |
 | `FlMenus` | `MenuBar`, `MenuButton`, `Choice`, `SchemeChoice`, menu items |
-| `FlDialogs` | messages, questions, input, colors, file choosers, `NativeFileChooser`; directories listed |
+| `FlDialogs` | messages, questions, input, colors, file choosers, `NativeFileChooser`, `FileChooser`; directories listed |
 | `FlText` | `TextBuffer`, `TextDisplay`, `TextEditor`, styles |
 | `FlBrowsers` | `Browser` and its kinds, `CheckBrowser`, `FileBrowser`, `Tree`, `TreeItem` (FLTK's, or the program's own, which draw themselves; widgets in items) |
 | `FlImages` | `Image` (loaded, decoded, from pixels or bits, or tiled), `AnimGIF` (animated GIFs), `Shared` (FLTK's pool), `FileIcon`, `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing) |
 | `FlPreferences` | `Preferences`: FLTK's settings databases |
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
+| `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which
 flattens FLTK to C functions; `src/pofltk.h` is what they share.

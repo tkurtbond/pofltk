@@ -22,6 +22,7 @@
 #include <FL/Fl_Sys_Menu_Bar.H>
 #include <FL/fl_ask.H>
 #include <FL/Fl_Native_File_Chooser.H>
+#include <FL/Fl_File_Chooser.H>
 #include <FL/Fl_Text_Display.H>
 #include <FL/Fl_File_Browser.H>
 #include <FL/Fl_Tree.H>
@@ -447,6 +448,10 @@ const Entry entries[] = {
   {"Fl_Native_File_Chooser::NEW_FOLDER", (int32_t)(Fl_Native_File_Chooser::NEW_FOLDER)},
   {"Fl_Native_File_Chooser::PREVIEW", (int32_t)(Fl_Native_File_Chooser::PREVIEW)},
   {"Fl_Native_File_Chooser::USE_FILTER_EXT", (int32_t)(Fl_Native_File_Chooser::USE_FILTER_EXT)},
+  {"Fl_File_Chooser::SINGLE", (int32_t)(Fl_File_Chooser::SINGLE)},
+  {"Fl_File_Chooser::MULTI", (int32_t)(Fl_File_Chooser::MULTI)},
+  {"Fl_File_Chooser::CREATE", (int32_t)(Fl_File_Chooser::CREATE)},
+  {"Fl_File_Chooser::DIRECTORY", (int32_t)(Fl_File_Chooser::DIRECTORY)},
   {"Fl_Text_Display::WRAP_NONE", (int32_t)(Fl_Text_Display::WRAP_NONE)},
   {"Fl_Text_Display::WRAP_AT_COLUMN", (int32_t)(Fl_Text_Display::WRAP_AT_COLUMN)},
   {"Fl_Text_Display::WRAP_AT_PIXEL", (int32_t)(Fl_Text_Display::WRAP_AT_PIXEL)},

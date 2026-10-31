@@ -250,11 +250,11 @@ Programmer errors halt, as in polibfyaml. poc's `ASSERT(x, n)` prints
 | 70 | a method of a widget that isn't open: never opened, or deleted (`Fl.NotOpen`) |
 | 71 | a widget opened twice, or a tree item added twice (`Fl.OpenedTwice`) |
 | 72 | a NIL argument where a widget or timer is required (`Fl.NilArgument`) |
-| 73 | a closed resource used, or one missing where it is needed: a closed `TextBuffer`, a display with no buffer, a removed `TreeItem`, a closed `Image` or `Surface`, a closed or deleted `Preferences` (`Fl.ClosedResource`) |
-| 74 | an index out of range: group child, grid row or column, browser line, menu item, chart entry (`Fl.IndexOutOfRange`) |
+| 73 | a closed resource used, or one missing where it is needed: a closed `TextBuffer`, a display with no buffer, a removed `TreeItem`, a closed `Image` or `Surface`, a closed or deleted `Preferences`, a closed `FileChooser` or `HelpDialog` (`Fl.ClosedResource`) |
+| 74 | an index out of range: group child, grid row or column, browser line, menu item, chart entry, a file chooser's filter (`Fl.IndexOutOfRange`) |
 | 75 | `RepeatTimeout` outside its own timer's `Fire`, `HandleDefault` outside the event dispatch (`Fl.NotFiring`) |
 | 76 | a widget that must be a group's child isn't: a grid's cell, a flex's fixed size, a tab or wizard page, a tile's size range (`Fl.NotAChild`) |
-| 77 | a `Begin` and `End` out of order: an image surface's `End` that doesn't match the last `Begin` (`Fl.OutOfOrder`) |
+| 77 | a `Begin` and `End` out of order: an image surface's `End` that doesn't match the last `Begin`; a help view's page set in `Link` about an image (`Fl.OutOfOrder`) |
 | 78 | an argument a call can't take: a multi-label for a window, a multi-label put in itself, a label type that needs an image, a file descriptor's conditions empty or unknown; a tree's root replaced; a window shaped by an image with no pixels to read (a tiled one); an `AnimGIF` opened as another image, or another image as one; an animation's frame set while it plays (`Fl.Unsupported`) |
 
 Bad data from outside the program is never a halt: an image that fails
@@ -1769,7 +1769,7 @@ Findings and decisions, 2026-10-30:
   `make test` on all six BSDs 1158; on an FLTK with neither Cairo nor
   Pango 1158, and on one without SVG 1156, with 4 skipped.
 
-### Phase 17: Choosers and help
+### Phase 17: Choosers and help `[done]`
 
 - **`FlDialogs.FileChooser`** (`Fl_File_Chooser`), not a widget, owning
   its windows, handled as `NativeFileChooser` is: `Open`, `Close`,
@@ -1800,6 +1800,28 @@ Findings and decisions, 2026-10-30:
   (`test/help_dialog.cxx`).
 - New example: `HelpPages`, a help view with its pages in the program,
   from its link method. `test/` gains a small HTML page.
+- Done as planned, but: `FileChooser` has a `Callback` method, as a
+  widget has, not `SetCallback`; `SetChooserLabel(which, s)` sets one
+  text, not all; and `HelpView.Copy`, `Preview`, `SetExtra` and the rest
+  of FLTK's public API came with them. `SetExtra` returns the old widget,
+  NIL if it has been deleted. `Link` is one method, for links and
+  images: a link's FALSE stays on the page, an image's shows FLTK's
+  broken image; `SetValue` in `Link` makes `Load` a success, so pages
+  can live in the program (`HelpPages`), but halts for an image.
+- New issues: `doc/fltk-issues.md`, 89 to 93.
+- `FileChooser`'s port uses a browser for its log until Phase 18 binds
+  `Fl_Terminal`. It leaves out the PDF and PostScript previews
+  (`Fl_Shared_Image::add_handler`, which runs Ghostscript), and each
+  file's icon and relative name (`Fl_File_Browser::add`,
+  `fl_filename_relative`), none of them bound.
+- Checked against FLTK's builds under Xvfb: `HelpDialog` on FLTK's
+  `help_dialog.html`, 0 pixels differ; `FileChooser`, with the same
+  clicks (extra group, MULTI, a directory, Enter), 0 outside the log and
+  file list.
+- Tested 2026-10-30: `test-headless` 1281 `ok` lines, `test-sway` 1277,
+  `valgrind-headless` 1175, `valgrind-sway` 1171 (every error summary 0);
+  `make test` on all six BSDs 1281; on an FLTK with neither Cairo nor
+  Pango 1281, and on one without SVG 1279, with 4 skipped.
 
 ### Phase 18: The terminal
 

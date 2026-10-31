@@ -234,6 +234,9 @@ section("a native file chooser's options (NativeFileChooser.SetOptions)")
 WORDS.update({"SAVEAS": "SaveAs"})
 add("set", [(camel(k), "Fl_Native_File_Chooser::" + k) for k in
             "SAVEAS_CONFIRM NEW_FOLDER PREVIEW USE_FILTER_EXT".split()])
+section("what a file chooser asks for (OpenFileChooser)")
+add("set", [("Chooser" + camel(k), "Fl_File_Chooser::" + k) for k in
+            "SINGLE MULTI CREATE DIRECTORY".split()])
 
 module("FlText")
 section("how a display wraps lines (TextDisplay.SetWrapMode)")
@@ -323,7 +326,7 @@ HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_dr
            "#include <FL/Fl_Flex.H>\n#include <FL/Fl_Grid.H>\n#include <FL/Fl_Pack.H>\n"
            "#include <FL/Fl_Scroll.H>\n#include <FL/Fl_Tabs.H>\n"
            "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/Fl_Sys_Menu_Bar.H>\n#include <FL/fl_ask.H>\n"
-           "#include <FL/Fl_Native_File_Chooser.H>\n"
+           "#include <FL/Fl_Native_File_Chooser.H>\n#include <FL/Fl_File_Chooser.H>\n"
            "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
            "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n"
            "#include <stdint.h>\n#include <stdio.h>\n")

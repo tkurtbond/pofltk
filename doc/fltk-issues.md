@@ -1441,3 +1441,99 @@ bounded. And as in 87, what FLTK loads by itself remains exposed.
 `beyond.gif` before and after the fix; a fuzz of 694 corrupted files
 through every loader, under valgrind, with no invalid read or write
 (2026-10-30). A fuzz is not a proof.
+
+## 89. A link held down while the page changes reads freed memory
+
+**What happens:** press the mouse on a link in an `Fl_Help_View`, change
+the document with `value()` (from a timer or another widget), and
+release: `Fl_Help_View::handle` follows the link pointer it saved at the
+push, which has been freed.
+
+**Cause:** `handle` keeps `linkp` from `FL_PUSH` to `FL_RELEASE`
+(`find_link`), and `format()` frees `links_` without clearing it;
+`follow_link` then reads it (`Fl_Help_View.cxx`, line 2860). Any
+reformat does this, and a resize is a reformat too.
+
+**Effect on pofltk:** the shim's view counts layout changes (`value`,
+`load`, a resize). If any happened since the push, the release is no
+longer a click (`Fl::event_is_click(0)`), and FLTK drops the link.
+
+**Confirmed:** a scratch program under valgrind (invalid read); and
+`TestHelp`, under valgrind, with the fix (2026-10-30).
+
+## 90. A help view's link function can't refuse an image
+
+**What happens:** `Fl_Help_View`'s link function returning NULL refuses
+a link. Returning NULL for an image crashes the view.
+
+**Cause:** `get_image` passes the result on, and `format()`
+(`Fl_Help_View.cxx`, line 1869) and `free_data` use it unchecked.
+
+**Effect on pofltk:** FLTK asks the same function about links and
+images, and only the view's own state tells them apart. The shim sets
+`in_image` around `get_image`, answers "" for a refused image (no such
+file: FLTK's broken image), and remembers each answer, so `Link` is
+asked once about each image. Setting the view's page there is a
+programmer's error and halts (`Fl.OutOfOrder`), since FLTK is in the
+middle of `format()`.
+
+**Confirmed:** a scratch program (SIGSEGV); `TestHelp`, under valgrind,
+with the fix (2026-10-30).
+
+## 91. A file chooser deleted in its own callback is used afterwards
+
+**What happens:** deleting an `Fl_File_Chooser` in its callback gives
+invalid reads, when the callback came from pressing Enter in the file
+name.
+
+**Cause:** `fileNameCB` calls `window->hide()` after `do_callback`
+(`Fl_File_Chooser2.cxx`, line 823), and other callers go on using
+members.
+
+**Effect on pofltk:** `Close` hides the chooser and marks it closed at
+once; if the chooser's callback or any dispatch is running, the shim
+deletes it from a timeout, after them (`close_later`).
+
+**Confirmed:** a scratch program under valgrind; `TestFileChooser`'s
+Close in the callback, and in a callback of its extra widget, under
+valgrind (2026-10-30).
+
+## 92. A file chooser's extra widget deleted first is read afterwards
+
+**What happens:** delete the widget given to `add_extra`, then call
+`add_extra` again: invalid read.
+
+**Cause:** the chooser keeps `ext_group` and reads its `h()` to shrink
+the window (`Fl_File_Chooser.cxx`, line 488), and has no way to hear it
+go. The destructor only compares the pointer, so it is safe.
+
+**Effect on pofltk:** the shim keeps the height, and when the extra
+widget has been deleted clears the private `ext_group` (`Reach`) and
+shrinks the window by the height kept plus 4. `SetExtra` returns NIL
+for it.
+
+**Confirmed:** a scratch program under valgrind; `TestFileChooser`
+under valgrind (2026-10-30).
+
+## 93. Smaller pitfalls of the chooser and the help classes
+
+- `Fl_Help_Dialog`'s constructor leaves no current group
+  (`Fl_File_Chooser`'s restores it): the shim restores it.
+- `Fl_File_Chooser::filter()` returns the pattern in use, not what
+  `filter(p)` was given. `count()` and `value()` of a chooser with no
+  file chosen give what is in its field, its first directory, so 1 and
+  a directory; `count()` is 0 only with the field empty.
+- `Fl_File_Chooser::preview(e)` writes the user's preferences
+  (`~/.fltk/fltk.org/filechooser.prefs`): a test puts it back.
+- `Fl_File_Chooser::save_label` is the favorites window's Save button,
+  and `hide()` releases a previewed image where the destructor doesn't.
+- `Fl_Help_View::load` opens ftp, http, https, ipp, mailto and news
+  addresses in the user's browser (`fl_open_uri`) before asking the
+  link function. So `Load` of one does, and a test must not use one.
+- `Fl_Help_View::format()` ends in `topline()`, which calls back, so
+  every page laid out calls `Callback`. A `<title>` is read only inside
+  `<head>`; a page with none is "Untitled", as is a view with no page,
+  once laid out. `topline(int)` does nothing with no page. `find`
+  ignores case, and returns the match's start or -1.
+- `Fl_Help_View::copy` needs the display open, as `Fl::copy` does (49).
+

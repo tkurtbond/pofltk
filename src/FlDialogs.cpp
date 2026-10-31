@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <deque>
 #include <new>
+#include <string>
 
 namespace {
 
@@ -56,6 +58,71 @@ struct Listing {
 };
 
 Listing *listing(intptr_t l) { return reinterpret_cast<Listing *>(l); }
+
+// What is private in Fl_File_Chooser, reached as FlBrowsers.cpp reaches
+// Fl_Tree's: an explicit instantiation may name it.
+template <class Tag, typename Tag::type M> struct Reach {
+  friend typename Tag::type member(Tag) { return M; }
+};
+struct ExtGroup {
+  typedef Fl_Widget *Fl_File_Chooser::*type;
+  friend type member(ExtGroup);
+};
+template struct Reach<ExtGroup, &Fl_File_Chooser::ext_group>;
+struct ShowChoice {
+  typedef Fl_Choice *Fl_File_Chooser::*type;
+  friend type member(ShowChoice);
+};
+template struct Reach<ShowChoice, &Fl_File_Chooser::showChoice>;
+
+typedef void (*FileChooserFn)(intptr_t self);
+
+// The Oberon dispatcher, which FlDialogs' body registers.
+FileChooserFn on_file_chooser;
+
+// Fl_File_Chooser, with the strings FLTK keeps pointers to beside it, and
+// listed first, as its constructor is given the title. A chooser can be
+// closed in its callback, where FLTK goes on using it
+// (doc/fltk-issues.md, 91), or in the callback of its extra widget,
+// inside its window's event: it then goes when no callback is left
+// (close_later).
+struct FileCh {
+  std::string title, ok;
+  Fl_File_Chooser chooser;
+  intptr_t self;
+  int calling;
+  bool closing;
+  int extra_h;  // the extra widget's height, as FLTK added it to the window
+  FileCh(const char *dir, const char *pattern, int type, const char *t,
+         intptr_t s)
+      : title(t), chooser(dir, pattern, type, title.c_str()), self(s),
+        calling(0), closing(false), extra_h(0) {}
+};
+
+FileCh *file_ch(intptr_t c) { return reinterpret_cast<FileCh *>(c); }
+
+void file_ch_callback(Fl_File_Chooser *, void *p) {
+  FileCh *c = static_cast<FileCh *>(p);
+  ++c->calling;
+  if (!c->closing) {
+    ofl::Dispatch d;
+    on_file_chooser(c->self);
+  }
+  --c->calling;
+}
+
+void close_later(void *p) {
+  FileCh *c = static_cast<FileCh *>(p);
+  if (c->calling > 0) {  // a dialog shown in the callback
+    Fl::add_timeout(0.05, close_later, p);
+  } else {
+    delete c;
+  }
+}
+
+// FLTK's chooser's labels, which it keeps. Each copy lasts as long as the
+// program: a chooser may be showing the last one.
+std::deque<std::string> chooser_labels;
 
 }  // namespace
 
@@ -256,6 +323,167 @@ intptr_t ofl_fnfc_filename(intptr_t c, int32_t i) {
 
 intptr_t ofl_fnfc_errmsg(intptr_t c) {
   return reinterpret_cast<intptr_t>(chooser(c)->chooser.errmsg());
+}
+
+// File choosers
+
+void ofl_fc_register(FileChooserFn f) { on_file_chooser = f; }
+
+// FLTK's window stays open until ofl_fc_close, its sort corrected
+// (doc/fltk-issues.md, 63).
+intptr_t ofl_fc_new(const char *dir, const char *pattern, int32_t type,
+                    const char *title, intptr_t self) {
+  Fl_File_Chooser::sort = ofl::numericsort;
+  FileCh *c = new FileCh(dir, pattern, type, title, self);
+  c->chooser.callback(file_ch_callback, c);
+  return reinterpret_cast<intptr_t>(c);
+}
+
+// hide() lets go of the preview's image, which the destructor doesn't.
+void ofl_fc_close(intptr_t h) {
+  FileCh *c = file_ch(h);
+  c->chooser.hide();
+  if (c->calling > 0 || ofl::depth > 0) {
+    c->closing = true;
+    Fl::add_timeout(0, close_later, c);
+  } else {
+    delete c;
+  }
+}
+
+void ofl_fc_show(intptr_t c) { file_ch(c)->chooser.show(); }
+void ofl_fc_hide(intptr_t c) { file_ch(c)->chooser.hide(); }
+
+// The chooser's numbers, by what: 0 shown, 1 visible, 2 count, 3 filter
+// value, 4 filters, 5 preview, 6 hidden files shown, 7 type, 8 color, 9
+// icon size, 10 text color, 11 text font, 12 text size, 13 x, 14 y, 15
+// w, 16 h.
+int32_t ofl_fc_get(intptr_t h, int32_t what) {
+  Fl_File_Chooser &f = file_ch(h)->chooser;
+  switch (what) {
+    case 0: return f.shown();
+    case 1: return f.visible();
+    case 2: return f.count();
+    case 3: return f.filter_value();
+    case 4: return (f.*member(ShowChoice()))->size() - 1;
+    case 5: return f.preview();
+    case 6: return f.showHiddenButton->value();
+    case 7: return f.type();
+    case 8: return static_cast<int32_t>(f.color());
+    case 9: return f.iconsize();
+    case 10: return static_cast<int32_t>(f.textcolor());
+    case 11: return f.textfont();
+    case 12: return f.textsize();
+    case 13: return f.x();
+    case 14: return f.y();
+    case 15: return f.w();
+    default: return f.h();
+  }
+}
+
+// By what, as ofl_fc_get. A filter's and hidden files' effect shows in
+// the list at once.
+void ofl_fc_set(intptr_t h, int32_t what, int32_t v) {
+  Fl_File_Chooser &f = file_ch(h)->chooser;
+  switch (what) {
+    case 3: f.filter_value(v); break;
+    case 5: f.preview(v); break;
+    case 6:
+      f.showHiddenButton->value(v);
+      f.rescan_keep_filename();
+      break;
+    case 7: f.type(v); break;
+    case 8: f.color(static_cast<Fl_Color>(v)); break;
+    case 9: f.iconsize(static_cast<uchar>(v)); break;
+    case 10: f.textcolor(static_cast<Fl_Color>(v)); break;
+    case 11: f.textfont(v); break;
+    default: f.textsize(v); break;
+  }
+}
+
+// The text, by what: 0 directory, 1 filter, 2 label, 3 OK button's
+// label, or i from 1 the chosen file (NULL for none, which is not one
+// file a chooser has).
+intptr_t ofl_fc_text(intptr_t h, int32_t what, int32_t i) {
+  Fl_File_Chooser &f = file_ch(h)->chooser;
+  const char *s;
+  switch (what) {
+    case 0: s = f.directory(); break;
+    case 1: s = f.filter(); break;
+    case 2: s = f.label(); break;
+    case 3: s = f.ok_label(); break;
+    default: s = f.value(i); break;
+  }
+  return reinterpret_cast<intptr_t>(s);
+}
+
+// By what: 0 directory, 1 filter, 2 label, 3 OK button's label, 4 the
+// chosen file. FLTK keeps the two labels, so they are kept here.
+void ofl_fc_set_text(intptr_t h, int32_t what, const char *s) {
+  FileCh *c = file_ch(h);
+  switch (what) {
+    case 0: c->chooser.directory(s); break;
+    case 1: c->chooser.filter(s); break;
+    case 2:
+      c->title = s;
+      c->chooser.label(c->title.c_str());
+      break;
+    case 3:
+      c->ok = s;
+      c->chooser.ok_label(c->ok.c_str());
+      break;
+    default: c->chooser.value(s); break;
+  }
+}
+
+void ofl_fc_rescan(intptr_t c) { file_ch(c)->chooser.rescan_keep_filename(); }
+
+void ofl_fc_position(intptr_t c, int32_t x, int32_t y) {
+  file_ch(c)->chooser.position(x, y);
+}
+
+void ofl_fc_resize(intptr_t c, int32_t x, int32_t y, int32_t w, int32_t h) {
+  file_ch(c)->chooser.resize(x, y, w, h);
+}
+
+// Sets extra (0 for none) under the chooser's own widgets. With gone, the
+// last one was deleted, which FLTK can't see: add_extra would read it
+// (doc/fltk-issues.md, 92), so it is forgotten here, and the window takes
+// back the room it was given.
+void ofl_fc_set_extra(intptr_t h, intptr_t extra, int32_t gone) {
+  FileCh *c = file_ch(h);
+  Fl_File_Chooser &f = c->chooser;
+  if (gone) {
+    f.*member(ExtGroup()) = 0;
+    f.size(f.w(), f.h() - c->extra_h);
+    c->extra_h = 0;
+  }
+  Fl_Widget *w = extra ? ofl::widget(extra) : 0;
+  f.add_extra(w);
+  c->extra_h = w ? w->h() + 4 : 0;
+}
+
+// which is the Oberon constant: FLTK's static labels, in its header's
+// order.
+void ofl_fc_set_label(int32_t which, const char *s) {
+  chooser_labels.push_back(s);
+  const char *t = chooser_labels.back().c_str();
+  switch (which) {
+    case 0: Fl_File_Chooser::add_favorites_label = t; break;
+    case 1: Fl_File_Chooser::all_files_label = t; break;
+    case 2: Fl_File_Chooser::custom_filter_label = t; break;
+    case 3: Fl_File_Chooser::existing_file_label = t; break;
+    case 4: Fl_File_Chooser::favorites_label = t; break;
+    case 5: Fl_File_Chooser::filename_label = t; break;
+    case 6: Fl_File_Chooser::filesystems_label = t; break;
+    case 7: Fl_File_Chooser::hidden_label = t; break;
+    case 8: Fl_File_Chooser::manage_favorites_label = t; break;
+    case 9: Fl_File_Chooser::new_directory_label = t; break;
+    case 10: Fl_File_Chooser::new_directory_tooltip = t; break;
+    case 11: Fl_File_Chooser::preview_label = t; break;
+    case 12: Fl_File_Chooser::save_label = t; break;
+    default: Fl_File_Chooser::show_label = t; break;
+  }
 }
 
 // Directories

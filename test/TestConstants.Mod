@@ -426,6 +426,10 @@ BEGIN
   Same(ORD(FlDialogs.NewFolder), "Fl_Native_File_Chooser::NEW_FOLDER");
   Same(ORD(FlDialogs.Preview), "Fl_Native_File_Chooser::PREVIEW");
   Same(ORD(FlDialogs.UseFilterExt), "Fl_Native_File_Chooser::USE_FILTER_EXT");
+  Same(ORD(FlDialogs.ChooserSingle), "Fl_File_Chooser::SINGLE");
+  Same(ORD(FlDialogs.ChooserMulti), "Fl_File_Chooser::MULTI");
+  Same(ORD(FlDialogs.ChooserCreate), "Fl_File_Chooser::CREATE");
+  Same(ORD(FlDialogs.ChooserDirectory), "Fl_File_Chooser::DIRECTORY");
   Same(FlText.WrapNone, "Fl_Text_Display::WRAP_NONE");
   Same(FlText.WrapAtColumn, "Fl_Text_Display::WRAP_AT_COLUMN");
   Same(FlText.WrapAtPixel, "Fl_Text_Display::WRAP_AT_PIXEL");
@@ -513,6 +517,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 494), "each of 494 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 498), "each of 498 constants and values is FLTK's");
   Check.Summary
 END TestConstants.
