@@ -1537,3 +1537,46 @@ under valgrind (2026-10-30).
   ignores case, and returns the match's start or -1.
 - `Fl_Help_View::copy` needs the display open, as `Fl::copy` does (49).
 
+## 94. `fl_filename_relative` says "no change" of what it changed
+
+**What happens:** `fl_filename_relative(to, n, "/a/b", "/a/b")` sets
+`to` to `.` and returns 0, which its documentation says means no
+change. Its text is all it looks at: `/a//b` against `/a/b` is `..//b`,
+and `/a/./b` is `.././b`. A `to` too short is cut with no sign. `to` may
+not be `from`.
+
+**Cause:** `Fl_System_Driver::filename_relative`
+(`src/filename_absolute.cxx`) returns 0 from its test for the same
+directory, and sets `to[0]` before it reads the rest of `from`. "Well
+formed" paths are a comment there, not checked.
+
+**Effect on pofltk:** `FlDialogs.FilenameRelative` and
+`FilenameRelativeTo` copy their arguments first, and say whether the
+result differs from `from`, so TRUE for `.`. Their comments say `from`
+must have no `.` or `..` in it.
+
+**Confirmed:** a scratch program of 14 cases; `TestDialogs` (2026-10-30).
+
+## 95. `Fl_Shared_Image`'s handlers: no way to remove one, and FLTK owns the answer
+
+**What happens:** `Fl_Shared_Image::add_handler` takes a plain function
+with no user data, and FLTK deletes the image it returns with the pool's
+entry. `remove_handler` exists but is of no use to a list kept
+elsewhere. FLTK asks handlers about every file but XBM and XPM, whether
+it can read them or not, so the first handler to know a file wins, and
+they see only its first 64 bytes.
+
+**Cause:** `Fl_Shared_Image::reload` (`src/Fl_Shared_Image.cxx`).
+
+**Effect on pofltk:** FLTK has one handler, `ask_handlers` in
+`FlImages.cpp`, for good, which asks the Oberon list, and gives FLTK a
+copy of the `Image` the handler returns, so that stays the program's.
+pofltk's own `GetShared` and `Reload` don't go through FLTK's loading
+(it would run FLTK's decoders on files the shim refuses), so `load_shared`
+asks the same handlers after `load_file` fails, with the same header.
+A handler is therefore not asked about a file FlImages reads itself,
+unless FLTK's own loading is what wanted it.
+
+**Confirmed:** `TestImageHandlers`, through both ways in (2026-10-30);
+`FileChooser`'s PDF and PostScript previews, 0 pixels different from
+FLTK's own program.

@@ -164,6 +164,7 @@ PROCEDURE ["C", "ofl_fc_position"] CFcPosition(c: SYSTEM.ADDRESS; x, y: SYSTEM.I
 PROCEDURE ["C", "ofl_fc_resize"] CFcResize(c: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_fc_set_extra"] CFcSetExtra(c, extra: SYSTEM.ADDRESS; gone: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_fc_set_label"] CFcSetLabel(which: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_filename_relative"] CFilenameRelative(from, base: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_filename_list"] CFilenameList(dir: ARRAY OF CHAR; sort: SYSTEM.INT32; VAR n: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_filename_length"] CFilenameLength(l: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_filename_get"] CFilenameGet(l: SYSTEM.ADDRESS; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
@@ -767,6 +768,20 @@ BEGIN
 END SetChooserLabel;
 
 (* Directories *)
+
+(* Sets to, cut to fit, to from as a name relative to the current
+   directory: "foo.txt", "../foo.txt", or "." for the directory itself.
+   Only the text is looked at, so from must have no "." or ".." in it, and
+   a from that isn't absolute comes back as it is. FALSE if to is the same
+   as from. *)
+PROCEDURE FilenameRelative*(from-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameRelative(SYSTEM.ADR(from), 0, to, SHORT(LEN(to))) # 0
+END FilenameRelative;
+
+(* The same, relative to directory base, which must be absolute too. *)
+PROCEDURE FilenameRelativeTo*(from-, base-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameRelative(SYSTEM.ADR(from), SYSTEM.ADR(base), to, SHORT(LEN(to))) # 0
+END FilenameRelativeTo;
 
 (* Lists directory dir's names in names, in the order sort says, with "."
    and ".."; FLTK adds a "/" to each directory's name. FALSE, and names

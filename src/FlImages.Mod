@@ -71,6 +71,8 @@ CONST
   Animation* = 3;  (* an animated GIF (AnimGIF) *)
   Bitmap* = 4;  (* bits drawn in the current color, the rest not drawn: XBM, OpenBitmap *)
 
+  MaxHeader* = 64;  (* the most of a file an ImageHandler is shown *)
+
 TYPE
   Image* = POINTER TO ImageDesc;
   ImageDesc* = RECORD
@@ -100,6 +102,16 @@ TYPE
      units a side, with 0, 0 at its bottom left, for files of a pattern.
      FLTK's list of them, First and Next, holds them in the order last
      made first; those FLTK made appear with no Open. *)
+  (* Makes an image of a file that Load can't read, or returns NIL for
+     the next handler to try (AddHandler). header is the file's first n
+     bytes, at most MaxHeader, followed by a 0X, which may also come
+     among them. *)
+  ImageHandler* = PROCEDURE (name-, header-: ARRAY OF CHAR; n: INTEGER): Image;
+  HandlerLink = POINTER TO RECORD
+    handler: ImageHandler;
+    next: HandlerLink
+  END;
+
   FileIcon* = POINTER TO FileIconDesc;
   FileIconDesc* = RECORD
     h: SYSTEM.ADDRESS;
@@ -130,6 +142,7 @@ VAR
   openMultiLabels-: INTEGER;  (* the same, for multi-labels *)
   current: Surface;        (* the surface last begun and not ended *)
   icons: FileIcon;         (* the objects of file icons *)
+  handlers: HandlerLink;   (* in the order they were added *)
 
 PROCEDURE ["C", "ofl_image_load"] CLoad(name: ARRAY OF CHAR): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_load_data"] CLoadData(data: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -193,6 +206,7 @@ PROCEDURE ["C", "ofl_shared_original"] CSharedOriginal(s: SYSTEM.ADDRESS): SYSTE
 PROCEDURE ["C", "ofl_shared_name"] CSharedName(s: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_shared_reload"] CSharedReload(s: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_register_images"] CRegisterImages;
+PROCEDURE ["C", "ofl_add_image_handler"] CAddHandler(f: PROCEDURE (name, header: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_file_icon_new"] CIconNew(pattern: ARRAY OF CHAR; type: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_file_icon_free"] CIconFree(i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_file_icon_add"] CIconAdd(i: SYSTEM.ADDRESS; what, a, b: SYSTEM.INT32);
@@ -207,6 +221,7 @@ PROCEDURE ["C", "ofl_file_icon_label"] CIconLabel(i, w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_file_icon_size"] CIconSize(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_file_icon_type"] CIconType(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_file_icon_pattern"] CIconPattern(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_file_browser_add"] CFileBrowserAdd(b: SYSTEM.ADDRESS; s: ARRAY OF CHAR; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_file_browser_icon"] CFileBrowserIcon(b: SYSTEM.ADDRESS; line: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 
 PROCEDURE Int(b: BOOLEAN): SYSTEM.INT32;
@@ -996,6 +1011,61 @@ PROCEDURE RegisterImages*;
 BEGIN CRegisterImages
 END RegisterImages;
 
+(* FLTK's call: asks the handlers about a file. *)
+PROCEDURE AskHandlers(name, header: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.ADDRESS;
+  VAR
+    l, next: HandlerLink; r: Image; s: POINTER TO ARRAY OF CHAR;
+    head: ARRAY MaxHeader + 1 OF CHAR; c: CHAR; i: LONGINT;
+BEGIN
+  i := 0;
+  REPEAT SYSTEM.GET(name + i, c); INC(i) UNTIL c = 0X;
+  NEW(s, i);
+  i := 0;
+  REPEAT SYSTEM.GET(name + i, c); s[i] := c; INC(i) UNTIL c = 0X;
+  FOR i := 0 TO n - 1 DO SYSTEM.GET(header + i, head[i]) END;
+  head[n] := 0X;
+  l := handlers;
+  WHILE l # NIL DO
+    next := l.next;   (* a handler may remove itself *)
+    r := l.handler(s^, head, n);
+    IF r # NIL THEN RETURN Hd(r) END;
+    l := next
+  END;
+  RETURN 0
+END AskHandlers;
+
+(* Adds handler h, after those added before, unless it is there already.
+   GetShared and Reload ask the handlers about a file Load can't read,
+   and FLTK's own loading (a file chooser's preview, a help view's image)
+   about any file but XBM and XPM, after the handlers RegisterImages
+   adds, if it ran first. The pool gets a copy of the image h returns,
+   which stays h's to Close. h must not ask the pool for the same name:
+   that asks h. *)
+PROCEDURE AddHandler*(h: ImageHandler);
+  VAR l, last: HandlerLink;
+BEGIN
+  ASSERT(h # NIL, Fl.NilArgument);
+  last := NIL; l := handlers;
+  WHILE l # NIL DO
+    IF l.handler = h THEN RETURN END;
+    last := l; l := l.next
+  END;
+  NEW(l); l.handler := h;
+  IF last = NIL THEN handlers := l ELSE last.next := l END;
+  CAddHandler(AskHandlers)
+END AddHandler;
+
+(* Removes handler h, if it was added. *)
+PROCEDURE RemoveHandler*(h: ImageHandler);
+  VAR l, last: HandlerLink;
+BEGIN
+  last := NIL; l := handlers;
+  WHILE (l # NIL) & (l.handler # h) DO last := l; l := l.next END;
+  IF l # NIL THEN
+    IF last = NIL THEN handlers := l.next ELSE last.next := l.next END
+  END
+END RemoveHandler;
+
 (* File icons *)
 
 (* The object of icon h, 0 for NIL, made if FLTK made the icon. *)
@@ -1132,6 +1202,17 @@ END Type;
 PROCEDURE (i: FileIcon) GetPattern*(VAR pattern: ARRAY OF CHAR);
 BEGIN CIconPattern(IconHd(i), pattern, SHORT(LEN(pattern)))
 END GetPattern;
+
+(* Adds a line of text to file browser b, showing icon i, or none if i is
+   NIL. *)
+PROCEDURE AddFile*(b: FlBrowsers.FileBrowser; text-: ARRAY OF CHAR; i: FileIcon);
+  VAR h, ih: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(b);
+  ih := 0;
+  IF i # NIL THEN ih := IconHd(i) END;
+  CFileBrowserAdd(h, text, ih)
+END AddFile;
 
 (* Line of file browser b shows icon i, or none if i is NIL, in place of
    the icon the browser found for it. *)

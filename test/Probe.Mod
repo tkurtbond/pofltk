@@ -15,6 +15,7 @@ PROCEDURE ["C", "ofltest_release"] CRelease;
 PROCEDURE ["C", "ofltest_mouse"] CMouse(win: SYSTEM.ADDRESS; event, x, y, button, state, clicks: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_wheel"] CWheel(win: SYSTEM.ADDRESS; x, y, dx, dy: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_shortcut"] CShortcut(win: SYSTEM.ADDRESS; key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_shared_width"] CSharedWidth(name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_handle_key"] CHandleKey(win: SYSTEM.ADDRESS; event, key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_configured"] CConfigured(feature: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_modal_key"] CModalKey(key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
@@ -95,6 +96,12 @@ END ModalKey;
 PROCEDURE Configured*(feature: INTEGER): BOOLEAN;
 BEGIN RETURN CConfigured(feature) # 0
 END Configured;
+
+(* The width of what FLTK's own Fl_Shared_Image::get makes of file name,
+   as FLTK's widgets load one, or 0. *)
+PROCEDURE SharedWidth*(name-: ARRAY OF CHAR): INTEGER;
+BEGIN RETURN CSharedWidth(name)
+END SharedWidth;
 
 (* A pipe, for Fl.FdWatch: its read end r and write end w; TRUE if it
    was made. *)

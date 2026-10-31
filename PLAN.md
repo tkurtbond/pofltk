@@ -98,6 +98,7 @@ together with their methods and their part of the shim:
 | `FlPreferences` | `Preferences`: `Fl_Preferences` databases and their groups |
 | `FlTable` | `Table`, `TableRow`: `Fl_Table` and `Fl_Table_Row`, their cells drawn by the program |
 | `FlHelp` (Phase 17) | `HelpView`, `HelpDialog` |
+| `FlUtf8` (Phase 23) | `fl_utf8.h`'s text functions |
 | `FlTerminal` (Phase 18) | `Terminal`: `Fl_Terminal` |
 | `FlPrint` (Phase 19) | `Printer`, `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile` and their bases |
 | `FlForms` (Phase 20) | `Timer`, `Free`, `FormsBitmap`, `FormsPixmap`, `FormsText` (`-lfltk_forms`), its own library |
@@ -1750,7 +1751,8 @@ Findings and decisions, 2026-10-30:
 - `Reload`, `Find` and the rest stayed as planned, as `GetShared`,
   `FindShared` and `ShareImage`, and the pool's `add_handler` as
   `RegisterImages`, for FLTK's own loading alone: nothing here needed
-  more.
+  more. `FileBrowser`'s `SetIcon` is `SetFileIcon`. (2026-10-30: the
+  program's handlers came after all, below Phase 17.)
 - `FileIcon`: an icon lasts the program, as on FLTK's list, so there is
   no `Close`, and a widget showing one is safe. `Clear` empties it.
   `Label` sets a label type, so text set on the widget replaces it, and
@@ -1810,10 +1812,25 @@ Findings and decisions, 2026-10-30:
   can live in the program (`HelpPages`), but halts for an image.
 - New issues: `doc/fltk-issues.md`, 89 to 93.
 - `FileChooser`'s port uses a browser for its log until Phase 18 binds
-  `Fl_Terminal`. It leaves out the PDF and PostScript previews
+  `Fl_Terminal`. It left out the PDF and PostScript previews
   (`Fl_Shared_Image::add_handler`, which runs Ghostscript), and each
   file's icon and relative name (`Fl_File_Browser::add`,
-  `fl_filename_relative`), none of them bound.
+  `fl_filename_relative`), none of them bound then.
+- **Those three, bound 2026-10-30**, and the port finished:
+  - `FlImages.AddHandler` and `RemoveHandler`: an Oberon list behind one
+    C++ handler; an `ImageHandler` gets the file's name, first
+    `MaxHeader` bytes and their number, and returns an `Image` or NIL.
+    FLTK owns what it is given, so it gets a copy. `GetShared` and
+    `Reload` read through the shim, not FLTK, so they ask the list
+    themselves, for what `Load` can't read: going through FLTK's `get`
+    would run its decoders on files the shim refuses (issue 95).
+  - `FlImages.AddFile`, `Fl_Browser::add` with an icon, in `FlImages`
+    with `SetFileIcon`, since `FlBrowsers` doesn't know `FileIcon`.
+  - `FlDialogs.FilenameRelative` and `FilenameRelativeTo`. The `BOOLEAN`
+    is whether the result differs from `from`, not FLTK's return (94).
+  - Previews in `FileChooser`: 0 pixels differ from FLTK's on a PDF and
+    a PostScript file; on `it's.pdf` FLTK's Ghostscript command breaks
+    on the quote, and this port's shows it, its quoting being the shell's.
 - Checked against FLTK's builds under Xvfb: `HelpDialog` on FLTK's
   `help_dialog.html`, 0 pixels differ; `FileChooser`, with the same
   clicks (extra group, MULTI, a directory, Enter), 0 outside the log and
@@ -2034,6 +2051,133 @@ widgets must not be linked with them.
   - `make install` of each library into a scratch directory, and a
     program built against each, following the README as Phase 8 did;
   - `doc/design.md` is history, and isn't changed.
+
+### Phase 23: Free functions
+
+The classes are bound by Phase 22; this phase is the functions outside
+them. Surveyed 2026-10-30 by listing every function in FLTK's public
+headers and looking for its name in `src/`; the `Fl::` statics are
+listed too, as they are free functions in all but spelling. Do this
+phase after Phase 22, and do its finishing again (AGENTS.md "Status",
+README.md).
+
+- **`FlUtf8`**, a new module, for `fl_utf8.h` (nothing of it is bound
+  yet), on Oberon's `ARRAY OF CHAR`, so lengths and offsets are bytes:
+  - decoding and walking: `fl_utf8len`, `fl_utf8len1`, `fl_utf8fwd`,
+    `fl_utf8back`, `fl_utf8bytes`, `fl_utf8encode`, `fl_utf8decode`
+    if unbound, `fl_utf8strlen`, `fl_utf_nb_char`, `fl_utf8test`,
+    `fl_utf8_next_composed_char`, `fl_utf8_previous_composed_char`;
+  - characters: `fl_nonspacing`, `fl_wcwidth`, `fl_wcwidth_`,
+    `fl_toupper`, `fl_tolower` if unbound, `fl_utf_tolower`,
+    `fl_utf_toupper`, `fl_utf_strcasecmp`, `fl_utf_strncasecmp`;
+  - conversions: `fl_utf8toa`, `fl_utf8froma`, `fl_utf8to_mb`,
+    `fl_utf8from_mb`, `fl_utf8locale`, `fl_locale_to_utf8`,
+    `fl_utf8_to_locale`. Each writes to a buffer of a given size: check
+    what each does with a buffer too short. The UTF-16 and `wchar_t`
+    ones (`fl_utf8toUtf16`, `fl_utf8towc`, `fl_utf8fromwc`,
+    `fl_ucs_to_Utf16`, `fl_utf2mbcs`) take an array of integers or
+    Windows' code pages: bind them only if a port wants one.
+- **`FlDialogs`, the rest of `filename.H`**: `FilenameAbsolute`,
+  `FilenameExpand`, `FilenameIsDir`, `FilenameMatch`, `FilenameName`,
+  `FilenameExt`, `FilenameSetExt`, `DecodeURI`. Like `FilenameRelative`,
+  each copies what it reads first, and is tried on names that aren't
+  well formed, and buffers too short.
+- **`FlDialogs`, the rest of `fl_ask.H`**: `fl_message_icon`,
+  `fl_message_icon_label`, `fl_message_position` (the three forms), and
+  whether `fl_input_str`, `fl_password_str` and the plain `fl_choice`
+  add anything to what is bound. `Fl_File_Chooser.H`:
+  `fl_file_chooser_callback`, `fl_file_chooser_ok_label`.
+- **`FlDraw`, the rest of `fl_draw.H`**:
+  - images: `fl_draw_image`, `fl_draw_image_mono` (from memory, and
+    their callback forms, one more dispatcher), `fl_draw_pixmap`,
+    `fl_measure_pixmap`, `fl_capture_window`,
+    `fl_can_do_alpha_blending`;
+  - offscreens: `fl_create_offscreen`, `fl_delete_offscreen`,
+    `fl_begin_offscreen`, `fl_end_offscreen`, `fl_copy_offscreen`,
+    `fl_rescale_offscreen`: an `Offscreen` object, with its handle
+    checked and freed as a `Surface`'s is;
+  - transformations: `fl_load_identity`, `fl_load_matrix`,
+    `fl_mult_matrix`, `fl_transform_x`, `fl_transform_y`,
+    `fl_transform_dx`, `fl_transform_dy`, `fl_transformed_vertex`,
+    `fl_override_scale`, `fl_restore_scale`;
+  - shapes and marks: `fl_chord`, `fl_rounded_rect`, `fl_rounded_rectf`,
+    `fl_draw_circle`, `fl_draw_arrow`, `fl_draw_check`, `fl_draw_radio`,
+    `fl_draw_box_focus`, `fl_frame`, `fl_frame2`, `fl_overlay_rect`,
+    `fl_overlay_clear`, `fl_scroll` (with its callback), `fl_antialias`,
+    `fl_cursor`;
+  - text: `fl_text_extents`, `fl_expand_text`, `fl_rtl_draw`,
+    `fl_add_symbol` (a drawing procedure kept for the program's life,
+    one more dispatcher), `fl_set_spot`, `fl_reset_spot`,
+    `fl_set_status`;
+  - clipping: `fl_clip_region`, `fl_restore_clip`;
+  - encodings: `fl_latin1_to_local`, `fl_local_to_latin1`,
+    `fl_mac_roman_to_local`, `fl_local_to_mac_roman`: their static
+    buffers are read at once into the caller's.
+- **`Fl`, colors and boxes**: `fl_contrast_function`,
+  `fl_contrast_level`, `fl_contrast_mode`, `fl_lightness`,
+  `fl_luminance`, `fl_box`, `fl_down`, `fl_frame` of a box type (unless
+  Oberon has them already, as `Fl.Darker` has `fl_darker`), and from
+  `platform.H` `fl_parse_color`, `fl_command_modifier` and
+  `fl_control_modifier`.
+- **`Fl`, the statics no shim reaches**. Check each against what `Fl`
+  has first (`EventState` covers `event_alt` and its fellows, so they
+  are small wrappers or not needed):
+  - events: `event_alt`, `event_ctrl`, `event_shift`, `event_command`,
+    `event_buttons`, `event_button1` to `event_button5`,
+    `callback_reason`, `compose`, `compose_reset`, `test_shortcut`,
+    `get_mouse`, `grab`, `handle`, `add_system_handler`,
+    `remove_system_handler`, `last_handler`;
+  - loop: `flush`, `ready`, `add_check`, `remove_check`, `has_check`,
+    `run_checks`, `has_idle`, `run_idle`, `has_timeout`,
+    `remove_next_timeout`, `program_should_quit`, `hide_all_windows`,
+    `next_window`, `damage`, `set_atclose`, `set_abort`, `default_atclose`;
+  - time: `now`, `seconds_since`, `seconds_between`, `ticks_since`,
+    `ticks_between`, whose `Fl_Timestamp` is a struct, so the shim keeps
+    it behind a handle or two numbers;
+  - fonts: `get_font`, `get_font_name`, `get_font_sizes`, `set_font`,
+    `set_fonts`;
+  - boxes and colors: `set_boxtype`, `get_boxtype`, `box_color`,
+    `set_box_color`, `box_border_radius_max`, `box_shadow_width`,
+    `draw_box_active`, `free_color`, `get_system_colors`,
+    `own_colormap`, `visual`, `visible_focus`, `is_scheme`,
+    `reload_scheme`;
+  - the clipboard: `selection`, `selection_owner`,
+    `selection_to_clipboard`, `add_clipboard_notify`,
+    `remove_clipboard_notify`;
+  - screens and input: `screen_dpi`, `screen_scale`,
+    `screen_scaling_supported`, `keyboard_screen_scaling`,
+    `insertion_point_location`, `reset_marked_text`, `enable_im`,
+    `disable_im`;
+  - version: `abi_version`, `api_version`, `version`, `abi_check`;
+  - widget pointers: `watch_widget_pointer`, `release_widget_pointer`,
+    `clear_widget_pointer`: Oberon has `Fl.Widget`'s dead handles, so
+    probably not needed; say why if so.
+- **Left out, and why**:
+  - `forms.H`, `gl.h`, `gl_draw.H`, `glut.H` and the Cairo functions:
+    Phases 20 to 22;
+  - `Fl::lock`, `unlock`, `awake` and `thread_message`: poc has no
+    threads, and FLTK's other thread would need to be Oberon's;
+  - what a platform alone has: `mac.H`, `win32.H`, `x11.H`, `wayland.H`,
+    `fl_xid`, `fl_find`, `fl_open_callback` and `fl_close_display`,
+    unless a port shows a need; `gl_visual`, `use_high_res_GL` and
+    `draw_GL_text_with_textures` go with Phase 21;
+  - `fl_utf8.h`'s system calls (`fl_fopen`, `fl_open`, `fl_stat`,
+    `fl_access`, `fl_chmod`, `fl_mkdir`, `fl_rmdir`, `fl_rename`,
+    `fl_unlink`, `fl_getcwd`, `fl_getenv`, `fl_putenv`, `fl_system`,
+    `fl_execvp`, `fl_chdir`, `fl_close_fd`, `fl_make_path`,
+    `fl_make_path_for_file`): on POSIX, the systems poc has, they are
+    the C calls, for which poc has `Files` and `Platform`;
+  - `fl_strdup`, `fl_strlcpy`, `fl_old_shortcut`, `fl_casts.H`: for C
+    programs, or deprecated;
+  - FLTK's internals, spelled with a trailing `_` or in `*_driver`.
+- **Tests**: a module per family, as before, with every buffer-writing
+  function tried with a buffer too short, and under valgrind; a test of
+  a function with a Wayland or X11 difference tests each.
+- **Ports**, checked against FLTK's builds: `Utf8Test`
+  (`test/utf8.cxx`, in part), `Fonts` (`test/fonts.cxx`), `Boxtype`
+  (`test/boxtype.cxx`), `CursorTest` (`test/cursor.cxx`), `Offscreen`
+  (`test/offscreen.cxx`), `Mandelbrot` (`test/mandelbrot.cxx`),
+  `Symbols` (`test/symbols.cxx`).
 
 ### poc 0.4.0 `[done]`
 

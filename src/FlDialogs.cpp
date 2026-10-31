@@ -492,6 +492,27 @@ void ofl_fc_set_label(int32_t which, const char *s) {
 // fl_casealphasort, 2 fl_numericsort, 3 fl_casenumericsort, the last two
 // corrected: doc/fltk-issues.md, 63), their number in *n; 0 if it can't
 // be read.
+// from relative to base, or to the current directory if base is 0. FLTK
+// clears to before it reads from and base, and says "no change" of ".",
+// so they are copied and 1 is whether the result differs from from
+// (doc/fltk-issues.md, 94).
+int32_t ofl_filename_relative(const char *from, const char *base, char *buf,
+                              int32_t n) {
+  try {
+    std::string f(from);
+    if (base) {
+      std::string b(base);
+      fl_filename_relative(buf, n, f.c_str(), b.c_str());
+    } else {
+      fl_filename_relative(buf, n, f.c_str());
+    }
+    return f != buf;
+  } catch (const std::bad_alloc &) {
+    ofl::copy_out(from, buf, n);
+    return 0;
+  }
+}
+
 intptr_t ofl_filename_list(const char *dir, int32_t sort, int32_t *n) {
   Fl_File_Sort_F *f = sort == 1   ? fl_casealphasort
                       : sort == 2 ? ofl::numericsort

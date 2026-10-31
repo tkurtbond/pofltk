@@ -8,6 +8,7 @@
 #include <FL/platform.H>
 #include <FL/Fl_Image_Surface.H>
 #include <FL/Fl_RGB_Image.H>
+#include <FL/Fl_Shared_Image.H>
 #include <FL/Fl_Widget.H>
 #include <FL/Fl_Window.H>
 #include <FL/fl_draw.H>
@@ -227,5 +228,15 @@ int32_t ofltest_read(int32_t fd, char *buf, int32_t n) {
 }
 
 void ofltest_close(int32_t fd) { close(fd); }
+
+// The width of the image FLTK's own Fl_Shared_Image::get makes of file
+// name, or 0.
+int32_t ofltest_shared_width(const char *name) {
+  Fl_Shared_Image *s = Fl_Shared_Image::get(name);
+  if (s == 0) return 0;
+  int32_t w = s->w();
+  s->release();
+  return w;
+}
 
 }  // extern "C"

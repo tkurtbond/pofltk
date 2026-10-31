@@ -88,7 +88,8 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   contents, not their names, or from RGB pixels, which are copied),
   widgets' images, image surfaces, images on the clipboard, FLTK's
   pool of shared images (`Shared`, the shim's `Pool`) and file icons
-  (`FileIcon`). It links `-lfltk_images`. Outside data goes through the
+  (`FileIcon`), and the program's image handlers (`AddHandler`,
+  `ask_handlers`, `load_shared`). It links `-lfltk_images`. Outside data goes through the
   shim's checks before FLTK's decoders: `parse_xbm`, `dib_ok`, `gif_ok`
   and `lzw_ok`, since FLTK's overrun on crafted files
   (`doc/fltk-issues.md`, 81, 87, 88).
@@ -137,7 +138,8 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     `rb.ico` (two sizes), `rbpng.ico`, `box.fti`, and files that must
     fail to load: `not-xbm.h`, `short.xbm`, `huge.xbm`, `bad.fti`,
     `colors.bmp`, `size.bmp`, `depth.bmp`, `colors.ico`, `loop.gif`,
-    `zero.gif`, `code.gif` and `beyond.gif`;
+    `zero.gif`, `code.gif` and `beyond.gif`; `rb.rbx` and `long.rbx`,
+    a format of `TestImageHandlers`' own;
   - `help.html`, `help2.html`: pages for `TestHelp` and `HelpDialog`;
   - `names/`: empty files whose names each directory sort orders
     differently (`TestDialogs`, `TestBrowsers`).
@@ -654,6 +656,13 @@ held only in C++ memory**.
   `count()` and `value()` with nothing chosen give its field, its first
   directory. `preview(e)` writes the user's preferences, so a test puts
   it back.
+- **`fl_filename_relative`** (`doc/fltk-issues.md`, 94) returns 0, "no
+  change", for `.`, clears `to` before reading `from`, and goes by the
+  text alone: `/a//b` against `/a/b` is `..//b`.
+- **Image handlers** (`doc/fltk-issues.md`, 95): FLTK owns what a
+  handler returns, so `FlImages` gives it a copy; `GetShared` and
+  `Reload` don't reach FLTK's handlers, so `load_shared` asks the
+  Oberon ones itself.
 - **Help views** (`doc/fltk-issues.md`, 89, 90, 93): a link held down
   while the page changes reads freed memory, and a link function
   returning NULL for an image crashes: `FlHelp.cpp` covers both. `load`

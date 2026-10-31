@@ -734,6 +734,39 @@ Fl_Image *load_file(const char *name) {
   }
 }
 
+// The program's handlers (FlImages.AddHandler) are one handler to FLTK,
+// which goes to Oberon. It answers with an Image, or 0.
+intptr_t (*ask_oberon)(const char *, const char *, int32_t) = 0;
+
+// A copy of the image the program's handlers make of file name, whose
+// first n bytes are header, for FLTK to own: the Image stays the
+// program's. 0 if none of them knows it.
+Fl_Image *ask_handlers(const char *name, uchar *header, int n) {
+  if (ask_oberon == 0) return 0;
+  intptr_t h = ask_oberon(name, reinterpret_cast<const char *>(header), n);
+  if (h == 0) return 0;
+  try {
+    Fl_Image *c = img(h)->inner()->copy();
+    c->scale(img(h)->image->w(), img(h)->image->h(), 0, 1);
+    return c;
+  } catch (const std::bad_alloc &) {
+    return 0;
+  }
+}
+
+// File name's image, for the pool: what load_file can't read goes to the
+// program's handlers, with the header Fl_Shared_Image::reload reads.
+Fl_Image *load_shared(const char *name) {
+  Fl_Image *i = load_file(name);
+  if (i != 0 || ask_oberon == 0) return i;
+  uchar header[64];
+  FILE *f = fl_fopen(name, "rb");
+  if (f == 0) return 0;
+  int n = static_cast<int>(fread(header, 1, sizeof header, f));
+  fclose(f);
+  return n > 0 ? ask_handlers(name, header, n) : 0;
+}
+
 // The way to Fl_Shared_Image's pool for an image pofltk loaded itself:
 // FLTK's get() loads files with handlers of its own, which don't correct
 // what load_file corrects (doc/fltk-issues.md, 45, 81). Its protected
@@ -771,7 +804,7 @@ Fl_Shared_Image *original(const char *name) {
     o->release();
     return 0;
   }
-  Fl_Image *i = load_file(name);
+  Fl_Image *i = load_shared(name);
   return i ? Pool::put(name, i) : 0;
 }
 
@@ -1493,7 +1526,7 @@ void ofl_shared_name(intptr_t s, char *buf, int32_t n) {
 // is as it was.
 int32_t ofl_shared_reload(intptr_t s) {
   Fl_Shared_Image *m = shared(s);
-  Fl_Image *i = load_file(m->name());
+  Fl_Image *i = load_shared(m->name());
   if (i == 0) return 0;
   if (!m->original()) {
     Fl_Image *c = i->copy(m->data_w(), m->data_h());
@@ -1506,6 +1539,12 @@ int32_t ofl_shared_reload(intptr_t s) {
 }
 
 void ofl_register_images() { fl_register_images(); }
+
+// FLTK ignores a handler it has, so this can be called for each one.
+void ofl_add_image_handler(intptr_t (*f)(const char *, const char *, int32_t)) {
+  ask_oberon = f;
+  Fl_Shared_Image::add_handler(ask_handlers);
+}
 
 // File icons
 
@@ -1604,6 +1643,11 @@ int32_t ofl_file_icon_type(intptr_t i) { return file_icon(i)->type(); }
 
 void ofl_file_icon_pattern(intptr_t i, char *buf, int32_t n) {
   ofl::copy_out(file_icon(i)->pattern(), buf, n);
+}
+
+// Adds a line to file browser b, showing icon i, or none if i is 0.
+void ofl_file_browser_add(intptr_t b, const char *s, intptr_t i) {
+  ofl::as<Fl_Browser>(b)->add(s, reinterpret_cast<void *>(i));
 }
 
 // Line of file browser b shows icon i, or none if i is 0.

@@ -17,8 +17,24 @@ VAR
   i, j, k, found: FlImages.FileIcon;
   ml: FlImages.MultiLabel;
   s: ARRAY 64 OF CHAR;
-  n, red, blue: INTEGER;
+  n, red, blue, shade: INTEGER;
   ok: BOOLEAN;
+
+(* Whether br's line n is text. *)
+PROCEDURE Line(n: INTEGER; text: ARRAY OF CHAR): BOOLEAN;
+BEGIN br.GetText(n, s); RETURN s = text
+END Line;
+
+(* The pixels captured of br, added up: what its lines show. *)
+PROCEDURE Shade(): INTEGER;
+  VAR x, y, sum: INTEGER;
+BEGIN
+  sum := 0;
+  FOR y := 0 TO 99 DO
+    FOR x := 0 TO 99 DO sum := (sum * 31 + Probe.Pixel(x, y)) MOD 1000003 END
+  END;
+  RETURN sum
+END Shade;
 
 PROCEDURE (p: Picture) Draw*;
 BEGIN
@@ -129,6 +145,18 @@ BEGIN
   FlImages.SetFileIcon(br, 1, i); FlImages.SetFileIcon(br, 2, NIL);
   ok := Probe.Capture(br); Probe.Release;
   Check.Check(ok, "a file browser draws a line's icon");
+
+  (* a line added with its icon *)
+  br.Clear;
+  FlImages.AddFile(br, "one", i); FlImages.AddFile(br, "two", NIL);
+  Check.Check((br.Count() = 2) & Line(1, "one"), "AddFile adds a line");
+  ok := Probe.Capture(br); shade := Shade(); Probe.Release;
+  FlImages.SetFileIcon(br, 1, NIL);
+  ok := Probe.Capture(br) & (Shade() # shade); Probe.Release;
+  Check.Check(ok, "showing its icon");
+  FlImages.SetFileIcon(br, 1, i);
+  ok := Probe.Capture(br) & (Shade() = shade); Probe.Release;
+  Check.Check(ok, "as SetFileIcon does");
 
   (* FLTK's own icons *)
   FlImages.LoadSystemIcons;

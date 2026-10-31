@@ -21,6 +21,7 @@ VAR
   names: FlDialogs.Names;
   title: ARRAY 16 OF CHAR;
   s: ARRAY 256 OF CHAR;
+  cut: ARRAY 4 OF CHAR;
   i, r, g, b, font, size, c, calls: INTEGER;
   x, y, z: LONGREAL;
   ok: BOOLEAN;
@@ -233,6 +234,18 @@ BEGIN
   Check.Check((x = 0.0D0) & (y = 0.0D0) & (z = 1.0D0), "HSVToRGB");
   FlDialogs.RGBToHSV(0.0D0, 0.0D0, 1.0D0, x, y, z);
   Check.Check((x = 4.0D0) & (y = 1.0D0) & (z = 1.0D0), "RGBToHSV");
+
+  (* relative names *)
+  Check.Check(FlDialogs.FilenameRelativeTo("/a/c", "/a/b", s) & (s = "../c"), "FilenameRelativeTo: a sibling");
+  Check.Check(FlDialogs.FilenameRelativeTo("/a/b/c", "/a/b", s) & (s = "c"), "a child");
+  Check.Check(FlDialogs.FilenameRelativeTo("/a/b", "/a/b", s) & (s = "."), "the directory itself");
+  Check.Check(FlDialogs.FilenameRelativeTo("/a/bc", "/a/b", s) & (s = "../bc"), "a name that starts the same");
+  Check.Check(~FlDialogs.FilenameRelativeTo("x/y", "/a/b", s) & (s = "x/y"), "a relative name is left, and FALSE");
+  s := "/a/c";
+  Check.Check(FlDialogs.FilenameRelativeTo(s, "/a/b", s) & (s = "../c"), "from and to the same variable");
+  Check.Check(FlDialogs.FilenameRelativeTo("/a/cdef", "/a/b", cut) & (cut = "../"), "cut to fit");
+  Check.Check(~FlDialogs.FilenameRelative("x/y", s) & (s = "x/y"), "FilenameRelative: a relative name");
+  Check.Check(FlDialogs.FilenameRelative("/no/such", s) & (s[0] = ".") & (s[1] = "."), "against the current directory");
 
   Check.Check(Fl.OpenWidgets() = 0, "no widget left open");
   Check.Summary

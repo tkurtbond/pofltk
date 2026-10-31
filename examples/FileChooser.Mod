@@ -6,14 +6,14 @@ MODULE FileChooser; (* FLTK's test/file_chooser.cxx: every way of asking a file 
    it was left with, are listed. The filter is patterns, or names with
    a pattern in round brackets, separated by tabs.
 
-   FLTK's program writes its log to an Fl_Terminal, which isn't bound
-   yet (PLAN.md, Phase 18): this one's is a browser. It also previews
-   PDF and PostScript with Ghostscript, through Fl_Shared_Image's
-   handlers, which aren't bound. Its Files list shows each file's icon
-   and its name relative to here: Fl_File_Browser's own add and
-   fl_filename_relative aren't bound either. *)
+   The chooser previews PDF and PostScript with Ghostscript, if it is
+   installed, through image handlers; they leave .preview.ppm and
+   .preview.ps in the home directory, as FLTK's program does.
 
-IMPORT Args, Strings, Fl, FlBrowsers, FlButtons, FlDialogs, FlImages, FlInputs, FlMenus;
+   FLTK's program writes its log to an Fl_Terminal, which isn't bound
+   yet (PLAN.md, Phase 18): this one's is a browser. *)
+
+IMPORT Args, Strings, Fl, FlBrowsers, FlButtons, FlDialogs, FlImages, FlInputs, FlMenus, Pipe;
 
 CONST
   height = 120;  (* of the log *)
@@ -33,6 +33,7 @@ VAR
   files: FlBrowsers.FileBrowser;
   encodings: Fl.Group;        (* the extra widgets, kept once made *)
   version: FlButtons.CheckButton;
+  preview: FlImages.Image;    (* the last the handlers made *)
 
 PROCEDURE Log(prefix-, s-: ARRAY OF CHAR);
   VAR line: ARRAY 2200 OF CHAR;
@@ -41,6 +42,89 @@ BEGIN
   tty.Add(line);
   tty.SetBottomLine(tty.Count())
 END Log;
+
+(* Appends s to cmd, in quotes the shell keeps it in. *)
+PROCEDURE Quote(s-: ARRAY OF CHAR; VAR cmd: ARRAY OF CHAR);
+  VAR i: INTEGER; c: ARRAY 2 OF CHAR;
+BEGIN
+  Strings.Append("'", cmd);
+  i := 0; c[1] := 0X;
+  WHILE s[i] # 0X DO
+    IF s[i] = "'" THEN Strings.Append("'\''", cmd)
+    ELSE c[0] := s[i]; Strings.Append(c, cmd)
+    END;
+    INC(i)
+  END;
+  Strings.Append("'", cmd)
+END Quote;
+
+(* Runs cmd; whether it succeeded. *)
+PROCEDURE Run(cmd-: ARRAY OF CHAR): BOOLEAN;
+  VAR p: Pipe.Pipe;
+BEGIN
+  NEW(p);
+  RETURN Pipe.Open(p, cmd) & (p.Close() = 0)
+END Run;
+
+(* Sets s to the file name in the home directory. *)
+PROCEDURE HomeFile(name-: ARRAY OF CHAR; VAR s: ARRAY OF CHAR);
+BEGIN
+  Args.GetEnv("HOME", s);
+  Strings.Append(name, s)
+END HomeFile;
+
+(* The image of file name that Ghostscript draws, with options before the
+   name on its command line. *)
+PROCEDURE Ghostscript(name-, options-: ARRAY OF CHAR): FlImages.Image;
+  VAR ppm: ARRAY 2048 OF CHAR; cmd: ARRAY 8192 OF CHAR;
+BEGIN
+  HomeFile("/.preview.ppm", ppm);
+  cmd := "gs -r100 -dFIXED -sDEVICE=ppmraw -dQUIET -dNOPAUSE -dBATCH -sstdout=%stderr -sOUTPUTFILE=";
+  Quote(ppm, cmd);
+  Strings.Append(options, cmd); Strings.Append(" ", cmd);
+  Quote(name, cmd);
+  Strings.Append(" 2>/dev/null", cmd);
+  IF ~Run(cmd) THEN RETURN NIL END;
+  IF preview # NIL THEN preview.Close END;
+  NEW(preview);
+  IF FlImages.Load(preview, ppm) THEN RETURN preview END;
+  preview := NIL;
+  RETURN NIL
+END Ghostscript;
+
+PROCEDURE PDFCheck(name-, header-: ARRAY OF CHAR; n: INTEGER): FlImages.Image;
+BEGIN
+  IF (n < 4) OR (header[0] # "%") OR (header[1] # "P") OR (header[2] # "D") OR (header[3] # "F") THEN
+    RETURN NIL
+  END;
+  RETURN Ghostscript(name, " -dFirstPage=1 -dLastPage=1")
+END PDFCheck;
+
+(* PostScript has no page numbers for Ghostscript to go by, so structured
+   PostScript is cut before its second page. *)
+PROCEDURE PSCheck(name-, header-: ARRAY OF CHAR; n: INTEGER): FlImages.Image;
+  VAR ps: ARRAY 2048 OF CHAR; cmd: ARRAY 8192 OF CHAR;
+BEGIN
+  IF (n < 2) OR (header[0] # "%") OR (header[1] # "!") THEN RETURN NIL END;
+  HomeFile("/.preview.ps", ps);
+  IF (n >= 4) & (header[2] = "P") & (header[3] = "S") & (name # ps) THEN
+    cmd := "awk '/^%%Page:/ { if (++p > 1) exit } { print }' ";
+    Quote(name, cmd);
+    Strings.Append(" > ", cmd);
+    Quote(ps, cmd);
+    IF Run(cmd) THEN RETURN Ghostscript(ps, "") END
+  END;
+  RETURN Ghostscript(name, "")
+END PSCheck;
+
+(* Sets s to n's digits. *)
+PROCEDURE Digits(n: INTEGER; VAR s: ARRAY OF CHAR);
+  VAR r: ARRAY 2 OF CHAR;
+BEGIN
+  IF n < 10 THEN s[0] := 0X ELSE Digits(n DIV 10, s) END;
+  r[0] := CHR(ORD("0") + n MOD 10); r[1] := 0X;
+  Strings.Append(r, s)
+END Digits;
 
 PROCEDURE (c: Chooser) Callback*;
   VAR s: ARRAY 2048 OF CHAR;
@@ -51,7 +135,9 @@ BEGIN
 END Callback;
 
 PROCEDURE (b: Show) Callback*;
-  VAR s: ARRAY 2048 OF CHAR; i, count: INTEGER;
+  VAR
+    s, relative: ARRAY 2048 OF CHAR; line: ARRAY 2100 OF CHAR;
+    number: ARRAY 16 OF CHAR; i, count: INTEGER; ok: BOOLEAN;
 BEGIN
   filter.Value(s);
   IF s # "" THEN fc.SetFilter(s) END;
@@ -62,8 +148,13 @@ BEGIN
     files.Clear;
     i := 1;
     WHILE (i <= count) & fc.ValueAt(i, s) DO
-      Log("Picked: ", s);
-      files.Add(s);
+      ok := FlDialogs.FilenameRelative(s, relative);
+      Digits(i, line); Strings.Append("/", line);
+      Digits(count, number); Strings.Append(number, line);
+      Strings.Append(") Picked: '", line);
+      Log(line, s);
+      Log("     Relative: ", relative);
+      FlImages.AddFile(files, relative, FlImages.FindFileIcon(s, FlImages.IconPlain));
       INC(i)
     END;
     files.Redraw
@@ -115,6 +206,8 @@ PROCEDURE Build;
 BEGIN
   FlImages.LoadSystemIcons;
   NEW(fc); FlDialogs.OpenFileChooser(fc, ".", "*", FlDialogs.ChooserSingle, "Fl_File_Chooser Test");
+  FlImages.AddHandler(PDFCheck);
+  FlImages.AddHandler(PSCheck);
 
   NEW(win); Fl.OpenDoubleWindow(win, 400, 215 + height, "File Chooser Test");
   NEW(tty); FlBrowsers.OpenBrowser(tty, 0, 215, 400, height, "");
