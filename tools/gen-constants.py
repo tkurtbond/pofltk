@@ -26,7 +26,15 @@ MODULES = []  # in the order SPEC first names them
 # The modules of the optional libraries (PLAN.md, Phase 20): the source of
 # each, and the test that checks its constants, which pofltk's own mustn't
 # import, since it would link the library. Each test has its own headers.
-OPTIONAL = {"FlForms": ("src/forms/FlForms.Mod", "Forms", "#include <FL/forms.H>\n")}
+OPTIONAL = {"FlForms": ("src/forms/FlForms.Mod", "Forms", "#include <FL/forms.H>\n"),
+            "FlGl": ("src/gl/FlGl.Mod", "Gl",
+                     "#include <FL/gl.h>\n#include <FL/Fl_Gl_Window.H>\n"),
+            "FlGlut": ("src/gl/FlGlut.Mod", "Glut",
+                       "#pragma clang diagnostic push\n"
+                       "#pragma clang diagnostic ignored \"-Wunknown-warning-option\"\n"
+                       "#pragma clang diagnostic ignored \"-Wcast-function-type-mismatch\"\n"
+                       "#include <FL/glut.H>\n"
+                       "#pragma clang diagnostic pop\n")}
 current = None
 
 def module(name):
@@ -348,6 +356,79 @@ add("int", [(camel(k) + "Free", "FL_%s_FREE" % k) for k in
             "NORMAL SLEEPING INPUT CONTINUOUS ALL".split()])
 section("the events a Free gets beside FLTK's own (Free.HandleFree)")
 add("int", [("FreeDraw", "FL_DRAW"), ("FreeStep", "FL_STEP")])
+
+module("FlGl")
+section("a GlWindow's modes (SetMode), added together")
+add("int", [("Rgb", "FL_RGB"), ("Index", "FL_INDEX"), ("Single", "FL_SINGLE"),
+            ("Double", "FL_DOUBLE"), ("Accum", "FL_ACCUM"), ("Alpha", "FL_ALPHA"),
+            ("Depth", "FL_DEPTH"), ("Stencil", "FL_STENCIL"), ("Rgb8", "FL_RGB8"),
+            ("Multisample", "FL_MULTISAMPLE"), ("Stereo", "FL_STEREO"),
+            ("FakeSingle", "FL_FAKE_SINGLE"), ("OpenGL3", "FL_OPENGL3")])
+section("what Clear clears, added together")
+add("int", [("ColorBufferBit", "GL_COLOR_BUFFER_BIT"),
+            ("DepthBufferBit", "GL_DEPTH_BUFFER_BIT"),
+            ("StencilBufferBit", "GL_STENCIL_BUFFER_BIT")])
+section("what Begin draws")
+add("int", [("Points", "GL_POINTS"), ("Lines", "GL_LINES"), ("LineLoop", "GL_LINE_LOOP"),
+            ("LineStrip", "GL_LINE_STRIP"), ("Triangles", "GL_TRIANGLES"),
+            ("TriangleStrip", "GL_TRIANGLE_STRIP"), ("TriangleFan", "GL_TRIANGLE_FAN"),
+            ("Quads", "GL_QUADS"), ("QuadStrip", "GL_QUAD_STRIP"), ("Polygon", "GL_POLYGON")])
+section("what Enable and Disable take")
+add("int", [("DepthTest", "GL_DEPTH_TEST"), ("Blend", "GL_BLEND"), ("CullFace", "GL_CULL_FACE"),
+            ("ScissorTest", "GL_SCISSOR_TEST"), ("Lighting", "GL_LIGHTING")])
+section("ShadeModel's modes")
+add("int", [("Flat", "GL_FLAT"), ("Smooth", "GL_SMOOTH")])
+section("BlendFunc's factors")
+add("int", [("Zero", "GL_ZERO"), ("One", "GL_ONE"), ("SrcAlpha", "GL_SRC_ALPHA"),
+            ("OneMinusSrcAlpha", "GL_ONE_MINUS_SRC_ALPHA")])
+section("GetError's result when there is none")
+add("int", [("NoError", "GL_NO_ERROR")])
+
+module("FlGlut")
+section("display modes (InitDisplayMode), added together")
+add("int", [(camel(k), "GLUT_%s" % k) for k in
+            "RGB RGBA INDEX SINGLE DOUBLE ACCUM ALPHA DEPTH STENCIL MULTISAMPLE STEREO".split()])
+section("mouse buttons, attached menus (AttachMenu) and MouseProc's button")
+add("int", [("LeftButton", "GLUT_LEFT_BUTTON"), ("MiddleButton", "GLUT_MIDDLE_BUTTON"),
+            ("RightButton", "GLUT_RIGHT_BUTTON")])
+section("MouseProc's state")
+add("int", [("Down", "GLUT_DOWN"), ("Up", "GLUT_UP")])
+section("EntryProc's state")
+add("int", [("Left", "GLUT_LEFT"), ("Entered", "GLUT_ENTERED")])
+section("VisibilityProc's state")
+add("int", [("NotVisible", "GLUT_NOT_VISIBLE"), ("Visible", "GLUT_VISIBLE")])
+section("MenuStateProc's state")
+add("int", [("MenuNotInUse", "GLUT_MENU_NOT_IN_USE"), ("MenuInUse", "GLUT_MENU_IN_USE")])
+section("layers (UseLayer)")
+add("int", [("Normal", "GLUT_NORMAL"), ("Overlay", "GLUT_OVERLAY")])
+section("SpecialProc's keys")
+add("int", [("Key" + k, "GLUT_KEY_F%s" % k[1:]) for k in
+            "F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12".split()])
+add("int", [("Key" + camel(k), "GLUT_KEY_%s" % k) for k in
+            "LEFT UP RIGHT DOWN HOME END INSERT".split()])
+add("int", [("KeyPageUp", "GLUT_KEY_PAGE_UP"), ("KeyPageDown", "GLUT_KEY_PAGE_DOWN")])
+section("cursors (SetCursor)")
+add("int", [("Cursor" + camel(k), "GLUT_CURSOR_%s" % k) for k in
+            ("RIGHT_ARROW LEFT_ARROW INFO DESTROY HELP CYCLE SPRAY WAIT TEXT CROSSHAIR "
+             "UP_DOWN LEFT_RIGHT TOP_SIDE BOTTOM_SIDE LEFT_SIDE RIGHT_SIDE TOP_LEFT_CORNER "
+             "TOP_RIGHT_CORNER BOTTOM_RIGHT_CORNER BOTTOM_LEFT_CORNER INHERIT NONE "
+             "FULL_CROSSHAIR").split()])
+section("what Get gives")
+add("int", [("Get" + camel(k), "GLUT_%s" % k) for k in
+            ("WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT WINDOW_PARENT SCREEN_WIDTH "
+             "SCREEN_HEIGHT MENU_NUM_ITEMS DISPLAY_MODE_POSSIBLE INIT_WINDOW_X INIT_WINDOW_Y "
+             "INIT_WINDOW_WIDTH INIT_WINDOW_HEIGHT INIT_DISPLAY_MODE WINDOW_BUFFER_SIZE "
+             "VERSION ELAPSED_TIME WINDOW_STENCIL_SIZE WINDOW_DEPTH_SIZE WINDOW_RED_SIZE "
+             "WINDOW_GREEN_SIZE WINDOW_BLUE_SIZE WINDOW_ALPHA_SIZE WINDOW_DOUBLEBUFFER").split()])
+section("what DeviceGet gives")
+add("int", [(camel(k), "GLUT_%s" % k) for k in
+            "HAS_KEYBOARD HAS_MOUSE NUM_MOUSE_BUTTONS".split()])
+section("what LayerGet gives")
+add("int", [(camel(k), "GLUT_%s" % k) for k in
+            "OVERLAY_POSSIBLE NORMAL_DAMAGED OVERLAY_DAMAGED".split()])
+section("what GetModifiers gives, added together")
+add("int", [("ActiveShift", "GLUT_ACTIVE_SHIFT"), ("ActiveCtrl", "GLUT_ACTIVE_CTRL"),
+            ("ActiveAlt", "GLUT_ACTIVE_ALT")])
 
 module("FlPrint")
 section("the page: its format (Fl_Paged_Device::Page_Format)")

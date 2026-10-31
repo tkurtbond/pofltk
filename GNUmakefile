@@ -39,10 +39,14 @@ FLTK_LIBS_ALL := $(shell $(FLTK_CONFIG) --use-images --ldflags)
 # fltk-config names both, and pkgsrc installs only libpng16
 # (doc/fltk-issues.md, 71).
 FLTK_LIBS     := $(if $(filter -lpng1%,$(FLTK_LIBS_ALL)),$(filter-out -lpng,$(FLTK_LIBS_ALL)),$(FLTK_LIBS_ALL))
-# What FLTK has that needs a library of its own (fl_config.h says) makes
-# an optional part, with sources in src/<part>/.
+# What FLTK has that needs a library of its own makes an optional part,
+# with sources in src/<part>/. fl_config.h says so for Forms. For OpenGL
+# it says nothing, and FLTK installs GL's headers without GL, and
+# fltk-config names libfltk_gl, so that library's being there decides.
 FLTK_CONFIG_H := $(shell $(FLTK_CONFIG) --includedir)/FL/fl_config.h
 HAVE_FORMS    := $(shell grep -q 'define FLTK_HAVE_FORMS 1' $(FLTK_CONFIG_H) && echo yes)
+FLTK_LIBDIR   := $(dir $(firstword $(shell $(FLTK_CONFIG) --libs)))
+HAVE_GL       := $(if $(wildcard $(FLTK_LIBDIR)libfltk_gl.*),yes)
 # X11's own directories, which fltk-config leaves out: needed where X11
 # is outside the compiler's search path (OpenBSD's /usr/X11R6), empty
 # where it is not or pkg-config isn't there.
@@ -61,7 +65,7 @@ MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs F
 HEADERS := src/pofltk.h
 LIBSRC  := $(MODULES:%=src/%.Mod) $(MODULES:%=src/%.cpp) $(HEADERS)
 # Test modules with a C++ part (test/<Module>.cpp).
-TESTCXX := CConstants CFormsConstants Probe
+TESTCXX := CConstants CFormsConstants CGlConstants CGlutConstants Probe
 TESTSRC := $(TESTCXX:%=test/%.Mod) $(TESTCXX:%=test/%.cpp)
 # Example modules, not programs, with a C++ part (examples/<Module>.cpp).
 EXAMPLECXX := Pipe
@@ -77,6 +81,8 @@ LIBRARY := pofltk
 LIBDIR   = $(POC_OBERON_LIBRARIES)/$(LIBRARY)
 FORMSLIBRARY := pofltk-forms
 FORMSLIBDIR   = $(POC_OBERON_LIBRARIES)/$(FORMSLIBRARY)
+GLLIBRARY := pofltk-gl
+GLLIBDIR   = $(POC_OBERON_LIBRARIES)/$(GLLIBRARY)
 TRIPLE   = $(shell $(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p')
 
 # Test programs (test/<name>.Mod, each a main module).
@@ -96,6 +102,8 @@ EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple 
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
+# Examples that wait for no one, and end by themselves.
+EXAMPLEONCE := GlutTest
 
 # FlForms needs libfltk_forms: these programs are linked with it, and are
 # left out without it (PLAN.md, Phase 20). A program can't adapt to the
@@ -111,6 +119,32 @@ ifeq ($(HAVE_FORMS),yes)
   EXAMPLES += $(FORMSEXAMPLES)
 else
   MISSING += Forms
+endif
+
+# FlGl and FlGlut need libfltk_gl and GL, likewise (PLAN.md, Phase 21).
+GLTESTS := TestGl TestGlConstants TestGlut TestGlutConstants
+GLHALTS := HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72
+GLEXAMPLES := Cube GlOverlay GlutTest GlutCube
+GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
+# fltk-config says which GL libraries, on some systems.
+GL_LIBS := $(or $(filter -lGL%,$(shell $(FLTK_CONFIG) --use-gl --ldflags)),-lGL)
+GLLINK := -import-path src/gl -link -lfltk_gl $(GL_LIBS:%=-link %)
+# FLTK's OpenGL 3 examples load GL's functions with GLEW, which isn't FLTK's.
+GL3EXAMPLES := OpenGL3Test OpenGL3GlutTest
+HAVE_GLEW := $(shell pkg-config --exists glew 2>/dev/null && echo yes)
+GLEW_FLAGS := $(addprefix -c-flag ,$(shell pkg-config --cflags glew 2>/dev/null)) $(addprefix -link ,$(shell pkg-config --libs glew 2>/dev/null))
+ifeq ($(HAVE_GL),yes)
+  ifeq ($(HAVE_GLEW),yes)
+    EXAMPLES += $(GL3EXAMPLES)
+    EXAMPLESRC += examples/GlThree.Mod examples/GlThree.cpp
+  else
+    MISSING += GLEW
+  endif
+  TESTS += $(GLTESTS)
+  HALTTESTS += $(GLHALTS)
+  EXAMPLES += $(GLEXAMPLES)
+else
+  MISSING += OpenGL
 endif
 
 TESTBINS := $(TESTS:%=$(BUILD)/%)
@@ -139,6 +173,11 @@ $(BUILD)/plugins/%.so: test/CPlugin.cpp | $(BUILD)/plugins
 FORMSPROGRAMS := $(FORMSTESTS:%=$(BUILD)/%) $(FORMSEXAMPLES:%=$(BUILD)/%) $(foreach h,$(FORMSHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
 $(FORMSPROGRAMS): MORE := $(FORMSLINK)
 $(FORMSPROGRAMS): $(FORMSSRC)
+GLPROGRAMS := $(GLTESTS:%=$(BUILD)/%) $(GLEXAMPLES:%=$(BUILD)/%) $(foreach h,$(GLHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
+$(GLPROGRAMS): MORE := $(GLLINK)
+$(GLPROGRAMS): $(GLSRC)
+$(GL3EXAMPLES:%=$(BUILD)/%): MORE := $(GLLINK) $(GLEW_FLAGS)
+$(GL3EXAMPLES:%=$(BUILD)/%): $(GLSRC)
 
 $(BUILD)/Test%: test/Test%.Mod test/Check.Mod $(LIBSRC) $(TESTSRC) | $(BUILD)
 	$(POC) $(POCFLAGS) -import-path src -import-path test -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
@@ -162,7 +201,8 @@ display:
 # Each halt test must exit with poc's ASSERT status and name its code on
 # standard error. Each example waits for the user, so it must still be
 # running after EXAMPLETIME seconds, when timeout ends it (status 124):
-# it started, drew, and didn't crash.
+# it started, drew, and didn't crash. One of EXAMPLEONCE waits for no one,
+# and must end by itself, with status 0.
 test: tests display
 	@status=0; skips=0; for t in $(TESTS); do \
 	  echo "== $$t"; (cd test && timeout $(TIMEOUT) ../$(BUILD)/$$t $$(test $$t = TestArgs && echo $(TESTARGS))) > $(BUILD)/$$t.out 2>&1 || status=1; \
@@ -176,7 +216,13 @@ test: tests display
 	  elif [ $$got -eq 99 ]; then echo "skip - $$t: this FLTK lacks what it tests"; skips=$$((skips + 1)); \
 	  else echo "FAIL - $$t exited with $$got: $$(cat $(BUILD)/$$t.err)"; status=1; fi; \
 	done; \
-	for e in $(EXAMPLES); do \
+	for e in $(filter $(EXAMPLEONCE),$(EXAMPLES)); do \
+	  echo "== $$e (example: must end by itself)"; \
+	  (cd examples && timeout $(TIMEOUT) ../$(BUILD)/$$e) > $(BUILD)/$$e.out 2>&1; got=$$?; \
+	  if [ $$got -eq 0 ]; then echo "ok   - $$e"; \
+	  else echo "FAIL - $$e exited with $$got: $$(cat $(BUILD)/$$e.out)"; status=1; fi; \
+	done; \
+	for e in $(filter-out $(EXAMPLEONCE),$(EXAMPLES)); do \
 	  echo "== $$e (example: must still be running after $(EXAMPLETIME) s)"; \
 	  args=$$(for a in $(EXAMPLEARGS); do test "$${a%%=*}" = $$e && echo "$${a#*=}"; done); \
 	  (cd examples && timeout $(EXAMPLETIME) ../$(BUILD)/$$e $$args) > $(BUILD)/$$e.out 2>&1; got=$$?; \
@@ -184,7 +230,7 @@ test: tests display
 	  else echo "FAIL - $$e exited with $$got: $$(cat $(BUILD)/$$e.out)"; status=1; fi; \
 	done; \
 	if [ $$skips -gt 0 ]; then echo "$$skips check(s) skipped: this FLTK lacks what they test."; fi; \
-	$(if $(MISSING),echo "Not built (this FLTK lacks them): $(MISSING)."; )\
+	$(if $(MISSING),echo "Not built (this system lacks them): $(MISSING)."; )\
 	exit $$status
 
 # Memory errors fail a test (--error-exitcode); leaks don't count as
@@ -235,6 +281,12 @@ ifeq ($(HAVE_FORMS),yes)
 	install -d $(FORMSLIBDIR)
 	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-forms -output-dir $(FORMSLIBDIR) -install-library $(FORMSLIBRARY)
 endif
+ifeq ($(HAVE_GL),yes)
+	cd src/gl && $(POC) $(POCFLAGS) -library-path $(abspath $(BUILD))/lib -output-dir $(abspath $(BUILD))/lib-gl \
+	  $(CFLAGS) $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)) -lfltk_gl $(GL_LIBS),-link $(f)) -library $(GLLIBRARY) FlGl.Mod FlGlut.Mod
+	install -d $(GLLIBDIR)
+	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-gl -output-dir $(GLLIBDIR) -install-library $(GLLIBRARY)
+endif
 
 # Remove what make install wrote, and only that.
 uninstall:
@@ -245,6 +297,10 @@ uninstall:
 	d=$(FORMSLIBDIR)/$(TRIPLE)/OC; \
 	rm -f $$d/lib$(FORMSLIBRARY).a $$d/lib$(FORMSLIBRARY).so $$d/$(FORMSLIBRARY).library \
 	  $$d/FlForms.sym $$d/FlForms.owner; \
+	rmdir $$d 2>/dev/null; \
+	d=$(GLLIBDIR)/$(TRIPLE)/OC; \
+	rm -f $$d/lib$(GLLIBRARY).a $$d/lib$(GLLIBRARY).so $$d/$(GLLIBRARY).library \
+	  $$d/FlGl.sym $$d/FlGl.owner $$d/FlGlut.sym $$d/FlGlut.owner; \
 	rmdir $$d 2>/dev/null; true
 
 clean:

@@ -164,9 +164,10 @@ BEGIN
   SetFilter(files); Clobber;
   files.Filter(s);
   Check.Check(s = "*.cpp", "SetFilter, copied");
-  Check.Check(files.LoadDirectory(".") & (files.Count() = 7) & Is(files, 1, "../")
+  Check.Check(files.LoadDirectory(".") & (files.Count() = 9) & Is(files, 1, "../")
     & Is(files, 2, "images/") & Is(files, 3, "names/") & Is(files, 4, "CConstants.cpp")
-    & Is(files, 5, "CFormsConstants.cpp") & Is(files, 6, "CPlugin.cpp") & Is(files, 7, "Probe.cpp"),
+    & Is(files, 5, "CFormsConstants.cpp") & Is(files, 6, "CGlConstants.cpp")
+    & Is(files, 7, "CGlutConstants.cpp") & Is(files, 8, "CPlugin.cpp") & Is(files, 9, "Probe.cpp"),
     "LoadDirectory: the directories, then the files matching");
   files.SetFileType(FlBrowsers.Directories);
   Check.Check(files.LoadDirectory(".") & (files.Count() = 3), "or the directories alone");

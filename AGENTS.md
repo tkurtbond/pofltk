@@ -21,13 +21,13 @@ anything:
 
 ## Status
 
-As of 2026-10-31, Phases 0 to 20 of PLAN.md are done, and `README.md`
+As of 2026-10-31, Phases 0 to 21 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
 `FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`,
-`FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, and the
-tests pass. Also kept:
+`FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, `src/gl/`
+has `FlGl` and `FlGlut`, and the tests pass. Also kept:
 
 - `doc/design.md`: the feasibility analysis.
 - `doc/fltk-issues.md`: every FLTK bug and pitfall found, with its
@@ -132,6 +132,15 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   says FLTK has it (`HAVE_FORMS`), and is skipped otherwise, with its
   tests and examples: `make test` names it in its "Not built" line
   (`MISSING`). Its programs are built with `FORMSLINK`.
+- `src/gl/FlGl.Mod`, `src/gl/FlGl.cpp`: `Fl_Gl_Window`, `FL/gl.h` and the
+  part of GL FLTK's programs use, and `src/gl/FlGlut.Mod`,
+  `src/gl/FlGlut.cpp`: `glut.H`. The second optional part, library
+  `pofltk-gl`, as Forms is; `HAVE_GL` is whether `libfltk_gl` is there
+  (`doc/fltk-issues.md`, 113), and `GLLINK` links its programs.
+  `FlGlut` wraps display procedures (`run_display`), so it knows when it
+  is in `Fl::flush`, where a hide waits (112). `GLEW` is an optional
+  part of an optional part: `HAVE_GLEW`, for the OpenGL 3 ports, and
+  their `examples/GlThree.cpp`, which is outside `EXAMPLECXX`.
 - `FlPreferences`' plugins: `Plugin` and `PluginManager`, with a
   `Pin : Fl_Plugin` in the C++ part holding the Oberon object. A
   plugin library is `dlopen`ed; `test/CPlugin.cpp` is one, in C++, built
@@ -242,7 +251,8 @@ make clean      # rm -rf build
   `EXAMPLECXX`. `EXAMPLES` is one long line: edit it by matching its
   text, as `sed 's/^\(EXAMPLES := .*Last\)$/\1 New/'`, not by line
   number. An example that needs a command line under `make test` gets
-  one in `EXAMPLEARGS`, as `name=argument`.
+  one in `EXAMPLEARGS`, as `name=argument`. One that ends by itself
+  goes in `EXAMPLEONCE`, and must exit 0.
 - **Constants**: never edit the block of a module between
   `BEGIN generated constants` and `END generated constants`. Add the
   name and C expression to `SPEC` in `tools/gen-constants.py`, after
@@ -263,8 +273,8 @@ make install    # the poc library pofltk, into $(POC_OBERON_LIBRARIES)/pofltk
 make uninstall  # remove exactly what make install wrote
 ```
 
-`pofltk-forms`, where FLTK has Forms, goes beside it, and a program
-using it adds `-library-path $POC_OBERON_LIBRARIES/pofltk-forms`.
+`pofltk-forms`, where FLTK has Forms, and `pofltk-gl`, where it has GL,
+go beside it, and a program using one adds `-library-path` for it.
 
 `poc -library` always links a shared object too, so `make install` fails
 on an FLTK of static libraries built without `-fPIC`, as on cymoril,
@@ -732,6 +742,19 @@ held only in C++ memory**.
   use after free; `plugin(i)` out of range makes a group; a `/` in a
   name makes nested groups; `loadAll` sorts with `fl_numericsort` (63).
   A manager's index is oldest first.
+- **OpenGL** (`doc/fltk-issues.md`, 109 to 111, 113): `gl_start` always
+  crashes under Wayland. `can_do` with no display open crashes.
+  `make_current` of a window not shown, and `gl_font` or `gl_draw` with no
+  context, crash; `Fl_Window::current()` stays after a hide and dangles
+  after a delete. `Fl_Gl_Window::init` calls `end()`, so its widgets need
+  `Begin` and `End`, and `Draw` must call the base's to show them. Wayland
+  adds `FL_DOUBLE` to every mode. FLTK without GL still installs GL's
+  headers.
+- **GLUT** (`doc/fltk-issues.md`, 112): numbers unchecked, strings kept,
+  and hiding or destroying a window in its display function is a use after
+  free in `Fl::flush`. Any event makes its window current. Windows past
+  the 31st share number 32. `glutSwapBuffers` in a display function does
+  nothing. `glutMainLoop` is `Fl::run`, and returns.
 - **Printing** (`doc/fltk-issues.md`, 100 to 103): text with no font
   set crashes on PostScript, PDF and EPS. A Cairo error makes
   `Fl_PostScript_File_Device::end_job` write to a closed file and close
@@ -808,7 +831,11 @@ None at present.
   halt tests and examples counted; 1664 on NetBSD and FreeBSD and 1656,
   1 skipped, on OpenBSD; 1654, 3 skipped, with neither Cairo nor Pango;
   1562, 19 skipped, with no SVG or printing; and 1592, 3 skipped, and
-  Forms not built, with no Forms.
+  Forms not built, with no Forms. After Phase 21, 1780, 1770 (3 skipped),
+  1621 and 1612 (2 skipped) here; 1780 on NetBSD and FreeBSD and 1772,
+  1 skipped, on OpenBSD; 1770, 3 skipped, with neither Cairo nor Pango;
+  1562, 19 skipped, with no SVG, printing or GL; 1718 with no Forms;
+  1664 with no GL; 1778 with no GLEW.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

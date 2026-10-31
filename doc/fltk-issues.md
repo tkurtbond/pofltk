@@ -1883,3 +1883,138 @@ second copy, `Plugins()` counts it, and `PluginAt` gives NIL.
 
 **Confirmed:** `TestPlugins`, the halt tests, and scratch programs
 loading a poc library with `Load` (2026-10-31).
+
+## 109. gl_start always crashes under Wayland
+
+**What happens:** `gl_start()`, FLTK's way of drawing with GL in a plain
+window's `draw()`, is a segmentation fault on every call under Wayland.
+
+**Cause:** `src/gl_start.cxx:64` calls `set_gl_context` on
+`Fl_Gl_Window_Driver::global()`, a driver with no window, whose `pWindow`
+is NULL, and `Fl_Wayland_Gl_Window_Driver::set_gl_context` reads it. The
+driver headers aren't installed, so a binding can't step around it.
+
+**Effect on pofltk:** `FlGl.CanStart` is FALSE under Wayland, where
+`FlGl.Start` halts with `Fl.Unsupported`. `TestGl` tests `Start` on X11
+and skips it on Wayland. A `GlWindow` is the way to draw on both.
+
+**Confirmed:** a scratch program on a headless sway, and `TestGl`, on both
+back ends (2026-10-31).
+
+## 110. Asking about GL with no display open
+
+**What happens:** `Fl_Gl_Window::can_do` as a program's first call, with
+no display open, is a segmentation fault.
+
+**Cause:** `Fl_Gl_Window_Driver::global()->find` (`src/Fl_Gl_Window.cxx:66`)
+uses the display's connection and doesn't open it, as a plain window's
+`show()` does.
+
+**Effect on pofltk:** `FlGl.cpp` and `FlGlut.cpp` call `fl_open_display()`
+first, on each path to it, so `FlGl.CanDoMode` and `FlGlut.Get`'s
+answers about the display are safe as first calls.
+
+**Confirmed:** a scratch program, and `TestGl` (2026-10-31).
+
+## 111. GL calls with no context, and the current window
+
+**What happens:** `Fl_Gl_Window::make_current` on a window not shown
+crashes on X11, where there is no window for the context. `gl_font` and
+`gl_draw` with no GL context crash in the driver. `Fl_Window::current()`
+stays set after that window is hidden, and dangles after it is deleted,
+so `gl_start` then uses a freed window. `mode()` inside a draw replaces
+the context the draw is using.
+
+**Cause:** `src/Fl_Gl_Window.cxx:117` (`make_current`) checks nothing, as
+`gl_start.cxx` (109) and `gl_draw.cxx` check nothing, and hiding or
+deleting a window leaves `Fl_Window::current_`.
+
+**Effect on pofltk:** `FlGl.cpp` checks that the current window is a
+live, shown one (`is_shown`), and these halt with `Fl.OutOfOrder`:
+`HaltGlMakeCurrent`, `HaltGlFont`, `HaltGlStart`, `HaltGlSetMode`.
+
+**Confirmed:** scratch programs, and the halt tests (2026-10-31).
+
+## 112. GLUT trusts what it is given
+
+`glut_compatibility.cxx` and `FL/glut.H` are a thin layer, for C programs
+that are right. pofltk's `FlGlut` covers each of these.
+
+**What happens, and its effect on pofltk:**
+
+- **Numbers**: `glutSetWindow`, `glutDestroyWindow`, `glutSetMenu` and the
+  rest index `windows[]` and `menus[]` unchecked (`:263`, `:279`, `:283`,
+  `:287`): `FlGlut` halts with `Fl.IndexOutOfRange`. There are 31 windows;
+  the 32nd and later share number 32 (`:168`) and `FlGlut` halts with
+  `Fl.Unsupported`. Menus likewise. So that it knows these, `FlGlut` keeps
+  its own map of live windows and menus.
+- **Strings**: titles, icon titles and menu labels are kept by pointer:
+  `FlGlut` copies them.
+- **Hiding or destroying a window in its display function** frees the
+  `Fl_X` that `Fl::flush` is walking, a use after free on valgrind.
+  `DestroyWindow` always waits for the next wait, and `HideWindow` does
+  while a display function or a window's `Draw` is running. A window so
+  deferred is still shown, so
+  `glutFullScreen` on it under Wayland would wait for an expose that the
+  hiding itself, run by that wait, prevents: it does nothing then. A window
+  going can be drawn again before it has gone (seen on a headless sway):
+  its display function isn't called, since it has no number left to use.
+- **`GLUT_WINDOW_PARENT`** casts `parent()` to `Fl_Glut_Window`, which a
+  plain `Fl_Window` around an `Fl_Glut_Window` isn't. `FlGlut` looks the
+  parent up among its live windows.
+- **A submenu's items are held by pointer** (`glutAddSubMenu`), and the
+  array moves as the submenu grows or goes with it, so `FlGlut` halts with
+  `Fl.OutOfOrder` on changing a menu in use as a submenu: fill it first.
+- **An empty menu popped up crashes**, and **the array's terminator** has
+  only its text set: a pop-up reads its `flags`, which valgrind reports.
+  `FlGlut` halts on attaching an empty menu (`Fl.OutOfOrder`) and sets the
+  terminator (`seal`).
+- **`glutRemoveMenuItem`** reads past the array's end (`:382`): `FlGlut`
+  checks the index.
+- **`GLUT_WINDOW_RGBA` is `GL_RGBA`** in `glut.H`, so `glutGet` passes it
+  on to `glGetIntegerv`, which needs a GL context; `FlGlut` sends such
+  queries (`type >= 100`) through its own `gl_int`.
+- **`glutExtensionSupported`** is declared `char *` in `glut.H` and
+  defined `const char *`, so a C++ caller doesn't link: `FlGlut.cpp`
+  declares it as defined.
+- **Any event makes its window current** (`Fl_Glut_Window::handle` calls
+  `make_current`, and `draw` sets `glut_window`), which GLUT documents for
+  callbacks but is easily forgotten after a wait: `TestGlut` sets the
+  window again after waiting.
+- **`glutTimerFunc`** (`glut.H:302`, inline) casts a `void (*)(int)` to
+  `Fl_Timeout_Handler`, which clang 19 and later reject under `-Wextra
+  -Werror`, unless the header is a system one. So it builds on Fedora, in
+  `/usr/include`, and not on the BSDs or with any FLTK elsewhere: first
+  found by the BSD runs. `FlGlut.cpp` and `CGlutConstants.cpp` turn that
+  one warning off around the include.
+- **`glutSwapBuffers` in a display function does nothing** (`indraw`,
+  `:65`), since `Fl_Gl_Window::flush` swaps afterwards.
+
+**Confirmed:** `TestGlut`, the `HaltGlut` tests, valgrind, and `GlutTest`
+against FLTK's `glut_test`, whose output is the same under Xvfb
+(2026-10-31). `glut_test` with an `Fl::check()` after a `glutHideWindow`
+shows an X error, `BadDrawable` on request 130 (MIT-SHM, Mesa's software
+renderer's own), as `FlGlut` does: neither binding's.
+
+## 113. GL windows: closed groups, and one display mode under Wayland
+
+**What happens:** a widget opened after an `Fl_Gl_Window` isn't its child,
+although its window was the last one opened. A window's mode reads back
+with `FL_DOUBLE` under Wayland whatever was asked for.
+
+**Cause:** `Fl_Gl_Window::init` calls `end()` (`src/Fl_Gl_Window.cxx:343`).
+`src/drivers/Wayland/Fl_Wayland_Gl_Window_Driver.cxx:301` (`mode_`) and
+`:113` (`find`) add `FL_DOUBLE`, since Wayland's EGL has no single-buffer
+drawing (the note at `:37`).
+
+**Effect on pofltk:** a program adding widgets to a `GlWindow` calls `Begin`
+and `End` around them, and its `Draw` calls `w.Draw^` to show them
+(`Cube`). `FlGl`'s `SetMode` comment says so, and `TestGl` asks for
+`Double`.
+
+FLTK installs `FL/gl.h` and the rest with GL turned off, and `fltk-config`
+names `libfltk_gl` then too, so only the library's being there says FLTK
+has GL (`HAVE_GL` in the makefile).
+
+**Confirmed:** `Fl_Gl_Window.cxx`, `Cube`, and a build of FLTK with GL
+turned off (2026-10-31).

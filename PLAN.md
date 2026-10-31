@@ -2086,7 +2086,7 @@ Done 2026-10-31. Found, and decided:
   --disable-forms`, whose `make install` fails; CMake's
   `FLTK_BUILD_FORMS=OFF` can.
 
-### Phase 21: OpenGL and GLUT
+### Phase 21: OpenGL and GLUT `[done]`
 
 - **`FlGl`**, a new module:
   - `GlWindow` (`Fl_Gl_Window`), with `Draw` sent to Oberon as for any
@@ -2114,8 +2114,10 @@ Done 2026-10-31. Found, and decided:
   and `Fl_Glut_Window`. GLUT's callbacks are global, per window, and
   plain C: top-level Oberon procedures pass as they are, so no registry
   is needed, but check that for each. `glutInit` takes `argc`, `argv`:
-  use `Args.argv`, as `Fl.Args` does. `glutMainLoop` never returns,
-  so a test must use `Fl.Check` instead.
+  use `Args.argv`, as `Fl.Args` does. ~~`glutMainLoop` never returns,
+  so a test must use `Fl.Check` instead.~~ It is `Fl::run`, and returns
+  when the last window goes, so `MainLoop` is an ordinary call; tests
+  still use `Fl.Wait`, to check between events.
 - **OpenGL 3**: the two ports call GL's 3.0 functions, loaded by GLEW.
   Their shader code stays in a C++ part, `examples/GlThree.cpp`, in
   `EXAMPLECXX`, with `FlGl` for the window. They need `HAVE_GLEW`,
@@ -2131,6 +2133,36 @@ Done 2026-10-31. Found, and decided:
   (`examples/OpenGL3-glut-test.cxx`).
 - New example: `GlutCube`, the cube through `FlGlut` with its own
   `Fl_Glut_Window` beside FLTK widgets.
+
+Done 2026-10-31. Decided and found:
+
+- **Optional parts**: `FlGl` and `FlGlut` are one library, `pofltk-gl`,
+  in `src/gl/`, as Forms is. `HAVE_GL` is whether `libfltk_gl` is
+  there: `fl_config.h` says nothing, and FLTK installs GL's headers and
+  names the library in `fltk-config` without GL (`doc/fltk-issues.md`,
+  113). `HAVE_GLEW` decides the two OpenGL 3 ports alone, from
+  `pkg-config`; `make test` names what is missing, now "this system
+  lacks", since GLEW isn't FLTK's.
+- **`gl_start` crashes under Wayland** on every call, with nothing a
+  binding can do (109): `CanStart` says so, and `Start` halts.
+- **GLUT's numbers and strings** are checked and copied (112), so
+  `FlGlut` keeps a map of live windows and each menu's labels and
+  submenus, mirroring `additem`.
+- **Hiding a window in its display procedure** is a use after free in
+  `Fl::flush`. A first version deferred every `HideWindow` to a zero
+  timer, which hung `GlutTest` on sway (`FullScreen` waited for an
+  expose on a window the wait then hid) and made `GlutTest`'s output
+  differ from `glut_test`'s: so each display procedure now goes through a trampoline
+  (`run_display`), and only a hide inside a draw waits. Destroying
+  always waits.
+- **`EXAMPLEONCE`**: `GlutTest` ends by itself, so `make test` wants
+  status 0 from it, not a timeout.
+- **`TestBrowsers`** lists `test/*.cpp`, which Phase 21 made nine.
+- **Comparisons** with FLTK's programs under Xvfb: `OpenGL3Test`,
+  `OpenGL3GlutTest` and `GlOverlay` have no differing pixels; `Cube`
+  none but the time in its statistics; `GlutTest`'s output is identical.
+  `GlutCube`'s drag, keys and pop-up menu were tried with `xdotool`.
+  All six also ran on a headless sway.
 
 ### Phase 22: Cairo, and finishing
 
