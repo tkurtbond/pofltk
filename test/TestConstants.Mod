@@ -322,6 +322,29 @@ BEGIN
   Same(Fl.OptionPrinterUsesGtk, "Fl::OPTION_PRINTER_USES_GTK");
   Same(Fl.OptionShowScaling, "Fl::OPTION_SHOW_SCALING");
   Same(Fl.OptionSimpleZoomShortcut, "Fl::OPTION_SIMPLE_ZOOM_SHORTCUT");
+  Same(Fl.ContrastNone, "FL_CONTRAST_NONE");
+  Same(Fl.ContrastLegacy, "FL_CONTRAST_LEGACY");
+  Same(Fl.ContrastCielab, "FL_CONTRAST_CIELAB");
+  Same(Fl.ContrastCustom, "FL_CONTRAST_CUSTOM");
+  Same(Fl.ReasonUnknown, "FL_REASON_UNKNOWN");
+  Same(Fl.ReasonSelected, "FL_REASON_SELECTED");
+  Same(Fl.ReasonDeselected, "FL_REASON_DESELECTED");
+  Same(Fl.ReasonReselected, "FL_REASON_RESELECTED");
+  Same(Fl.ReasonOpened, "FL_REASON_OPENED");
+  Same(Fl.ReasonClosed, "FL_REASON_CLOSED");
+  Same(Fl.ReasonDragged, "FL_REASON_DRAGGED");
+  Same(Fl.ReasonCancelled, "FL_REASON_CANCELLED");
+  Same(Fl.ReasonChanged, "FL_REASON_CHANGED");
+  Same(Fl.ReasonGotFocus, "FL_REASON_GOT_FOCUS");
+  Same(Fl.ReasonLostFocus, "FL_REASON_LOST_FOCUS");
+  Same(Fl.ReasonReleased, "FL_REASON_RELEASED");
+  Same(Fl.ReasonEnterKey, "FL_REASON_ENTER_KEY");
+  Same(Fl.ReasonUser, "FL_REASON_USER");
+  Same(Fl.VisualRgb, "FL_RGB");
+  Same(Fl.VisualIndex, "FL_INDEX");
+  Same(Fl.VisualSingle, "FL_SINGLE");
+  Same(Fl.VisualDouble, "FL_DOUBLE");
+  Same(Fl.VisualRgb8, "FL_RGB8");
   Same(ORD(Fl.FdRead), "FL_READ");
   Same(ORD(Fl.FdWrite), "FL_WRITE");
   Same(ORD(Fl.FdExcept), "FL_EXCEPT");
@@ -336,6 +359,18 @@ BEGIN
   Same(FlDraw.JoinMiter, "FL_JOIN_MITER");
   Same(FlDraw.JoinRound, "FL_JOIN_ROUND");
   Same(FlDraw.JoinBevel, "FL_JOIN_BEVEL");
+  Same(FlDraw.ArrowSingle, "FL_ARROW_SINGLE");
+  Same(FlDraw.ArrowDouble, "FL_ARROW_DOUBLE");
+  Same(FlDraw.ArrowChoice, "FL_ARROW_CHOICE");
+  Same(FlDraw.ArrowReturn, "FL_ARROW_RETURN");
+  Same(FlDraw.OrientRight, "FL_ORIENT_RIGHT");
+  Same(FlDraw.OrientNE, "FL_ORIENT_NE");
+  Same(FlDraw.OrientUp, "FL_ORIENT_UP");
+  Same(FlDraw.OrientNW, "FL_ORIENT_NW");
+  Same(FlDraw.OrientLeft, "FL_ORIENT_LEFT");
+  Same(FlDraw.OrientSW, "FL_ORIENT_SW");
+  Same(FlDraw.OrientDown, "FL_ORIENT_DOWN");
+  Same(FlDraw.OrientSE, "FL_ORIENT_SE");
   Same(FlButtons.Normal, "FL_NORMAL_BUTTON");
   Same(FlButtons.Toggle, "FL_TOGGLE_BUTTON");
   Same(FlButtons.Radio, "FL_RADIO_BUTTON");
@@ -568,6 +603,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 549), "each of 549 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 584), "each of 584 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

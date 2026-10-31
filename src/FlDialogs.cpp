@@ -12,12 +12,15 @@
 #include <FL/fl_ask.H>
 #include <FL/fl_show_colormap.H>
 #include <FL/filename.H>
+#include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <deque>
 #include <new>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -124,6 +127,47 @@ void close_later(void *p) {
 // program: a chooser may be showing the last one.
 std::deque<std::string> chooser_labels;
 
+// fl_message_icon_label keeps its pointer until the next dialog.
+std::string icon_label;
+
+// fl_filename_expand, which can't be called: it crashes on a value that
+// doesn't fit its buffer, and rescans what it puts in, so a value naming
+// itself never ends (doc/fltk-issues.md, 120). The value goes in as it is.
+// Returns how many were put in.
+int expand(std::string &text, size_t &start) {
+  int count = 0;
+  start = 0;
+  for (size_t a = 0; a < text.size();) {
+    size_t e = text.find('/', a);
+    if (e == std::string::npos) e = text.size();
+    const char *value = 0;
+    if (text[a] == '~') {
+      if (e <= a + 1) {
+        value = getenv("HOME");
+      } else {
+        const passwd *p = getpwnam(text.substr(a + 1, e - a - 1).c_str());
+        value = p ? p->pw_dir : 0;
+      }
+    } else if (text[a] == '$') {
+      value = getenv(text.substr(a + 1, e - a - 1).c_str());
+    }
+    if (value) {
+      // As FLTK has it: a value starting with a slash ends all before it.
+      if (*value == '/') start = a;
+      size_t t = strlen(value);
+      if (t && value[t - 1] == '/') t--;
+      text.replace(a, e - a, value, t);
+      a += t;
+      count++;
+      if (a >= text.size() || text[a] != '/') continue;
+      a++;
+    } else {
+      a = e + 1;
+    }
+  }
+  return count;
+}
+
 // Oberon's procedure for each file the user picks in fl_file_chooser.
 void (*on_file_chosen)(const char *);
 
@@ -171,6 +215,57 @@ void ofl_dialog_title(int32_t dflt, const char *title) {
   } else {
     fl_message_title(title);
   }
+}
+
+// The box FLTK copies each dialog's icon from.
+void ofl_dialog_icon(int32_t *box, int32_t *font, int32_t *size, int32_t *color,
+                     int32_t *labelcolor) {
+  Fl_Widget *i = fl_message_icon();
+  *box = i->box();
+  *font = i->labelfont();
+  *size = i->labelsize();
+  *color = (int32_t)i->color();
+  *labelcolor = (int32_t)i->labelcolor();
+}
+
+void ofl_dialog_set_icon(int32_t box, int32_t font, int32_t size, int32_t color,
+                         int32_t labelcolor) {
+  Fl_Widget *i = fl_message_icon();
+  i->box((Fl_Boxtype)box);
+  i->labelfont(font);
+  i->labelsize(size);
+  i->color((Fl_Color)color);
+  i->labelcolor((Fl_Color)labelcolor);
+}
+
+// "" is the dialog's own, in both.
+void ofl_dialog_icon_label(int32_t dflt, const char *s) {
+  if (dflt) {
+    fl_message_icon()->copy_label(*s ? s : 0);
+    return;
+  }
+  try {
+    icon_label = s;
+    fl_message_icon_label(*s ? icon_label.c_str() : 0);
+  } catch (const std::bad_alloc &) {
+    fl_message_icon_label(0);
+  }
+}
+
+void ofl_dialog_set_position(int32_t x, int32_t y, int32_t center) {
+  fl_message_position(x, y, center);
+}
+
+void ofl_dialog_position_over(intptr_t w) {
+  fl_message_position(reinterpret_cast<Fl_Widget *>(w));
+}
+
+int32_t ofl_dialog_position(int32_t *x, int32_t *y) {
+  int X, Y;
+  int r = fl_message_position(&X, &Y);
+  *x = X;
+  *y = Y;
+  return r;
 }
 
 int32_t ofl_dialog_hotspot(void) { return fl_message_hotspot(); }
@@ -478,6 +573,20 @@ void ofl_fc_set_extra(intptr_t h, intptr_t extra, int32_t gone) {
 
 // which is the Oberon constant: FLTK's static labels, in its header's
 // order.
+// fl_file_chooser_ok_label and the chooser keep the pointer.
+void ofl_file_chooser_ok(const char *s) {
+  try {
+    if (*s) {
+      chooser_labels.push_back(s);
+      fl_file_chooser_ok_label(chooser_labels.back().c_str());
+    } else {
+      fl_file_chooser_ok_label(0);
+    }
+  } catch (const std::bad_alloc &) {
+    fl_file_chooser_ok_label(0);
+  }
+}
+
 void ofl_fc_set_label(int32_t which, const char *s) {
   chooser_labels.push_back(s);
   const char *t = chooser_labels.back().c_str();
@@ -525,6 +634,83 @@ int32_t ofl_filename_relative(const char *from, const char *base, char *buf,
     return 0;
   }
 }
+
+// FLTK works in a buffer of the size it is given, so a short one cuts the
+// name before its dots are taken out, and reads outside it
+// (doc/fltk-issues.md, 119): it gets one big enough for all of it. An
+// empty base has it read before the buffer too.
+int32_t ofl_filename_absolute(const char *from, const char *base, char *buf,
+                              int32_t n) {
+  try {
+    std::string f(from), b(base ? base : "");
+    if (base && b.empty()) b = "/";
+    std::vector<char> to(f.size() + b.size() + FL_PATH_MAX + 2);
+    int r = base ? fl_filename_absolute(to.data(), (int)to.size(), f.c_str(),
+                                        b.c_str())
+                 : fl_filename_absolute(to.data(), (int)to.size(), f.c_str());
+    ofl::copy_out(to.data(), buf, n);
+    return r;
+  } catch (const std::bad_alloc &) {
+    ofl::copy_out(from, buf, n);
+    return 0;
+  }
+}
+
+int32_t ofl_filename_expand(const char *from, char *buf, int32_t n) {
+  try {
+    std::string text(from);
+    size_t start;
+    int r = expand(text, start);
+    ofl::copy_out(text.c_str() + start, buf, n);
+    return r != 0;
+  } catch (const std::bad_alloc &) {
+    ofl::copy_out(from, buf, n);
+    return 0;
+  }
+}
+
+// What fl_filename_isdir does, but for its copy of a name ending in a
+// slash, which overruns the stack (doc/fltk-issues.md, 121).
+int32_t ofl_filename_isdir(const char *name) {
+  struct stat s;
+  return !stat(name, &s) && S_ISDIR(s.st_mode);
+}
+
+// A bracket or brace left open takes FLTK past the end of the pattern
+// (doc/fltk-issues.md, 122), so there are more zeros there.
+int32_t ofl_filename_match(const char *name, const char *pattern) {
+  try {
+    std::string n(name), p(pattern);
+    n.append(16, '\0');
+    p.append(16, '\0');
+    return fl_filename_match(n.c_str(), p.c_str());
+  } catch (const std::bad_alloc &) {
+    return 0;
+  }
+}
+
+void ofl_filename_part(int32_t ext, const char *name, char *buf, int32_t n) {
+  try {
+    std::string s(name);
+    ofl::copy_out(ext ? fl_filename_ext(s.c_str()) : fl_filename_name(s.c_str()),
+                  buf, n);
+  } catch (const std::bad_alloc &) {
+    ofl::copy_out("", buf, n);
+  }
+}
+
+void ofl_filename_setext(char *buf, int32_t n, const char *ext) {
+  try {
+    std::string e(ext);
+    std::vector<char> to(strlen(buf) + e.size() + 1);
+    memcpy(to.data(), buf, strlen(buf) + 1);
+    fl_filename_setext(to.data(), (int)to.size(), e.c_str());
+    ofl::copy_out(to.data(), buf, n);
+  } catch (const std::bad_alloc &) {
+  }
+}
+
+void ofl_decode_uri(char *uri) { fl_decode_uri(uri); }
 
 intptr_t ofl_filename_list(const char *dir, int32_t sort, int32_t *n) {
   Fl_File_Sort_F *f = sort == 1   ? fl_casealphasort

@@ -5,6 +5,9 @@ MODULE Probe; (* For the tests: a widget's pixels, and events sent as from the u
 IMPORT SYSTEM, Fl;
 
 PROCEDURE ["C", "ofltest_capture"] CCapture(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_fatal"] CFatal(text: ARRAY OF CHAR);
+PROCEDURE ["C", "ofltest_set_key"] CSetKey(key: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofltest_clipboard_notice"] CClipboardNotice(source: SYSTEM.INT32);
 PROCEDURE ["C", "ofltest_kept"] CKept(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_pipe"] CPipe(VAR fds: ARRAY OF SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_write"] CWrite(fd: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
@@ -21,6 +24,7 @@ PROCEDURE ["C", "ofltest_handle_key"] CHandleKey(win: SYSTEM.ADDRESS; event, key
 PROCEDURE ["C", "ofltest_configured"] CConfigured(feature: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_modal_key"] CModalKey(key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_modal"] CModal(VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_setenv"] CSetEnv(name, value: ARRAY OF CHAR);
 PROCEDURE ["C", "ofltest_key"] CKey(event, key, state: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 
 (* Draws w, as FLTK would in its window, on white, for Pixel; TRUE if
@@ -135,5 +139,25 @@ END Read;
 PROCEDURE Close*(fd: INTEGER);
 BEGIN CClose(fd)
 END Close;
+
+(* Sets an environment variable. *)
+(* Makes key and s the event's, for what asks about it. *)
+PROCEDURE SetKey*(key: INTEGER; s-: ARRAY OF CHAR);
+BEGIN CSetKey(key, s)
+END SetKey;
+
+(* FLTK's fatal error: text, and 7, by its printf format. *)
+PROCEDURE Fatal*(text: ARRAY OF CHAR);
+BEGIN CFatal(text)
+END Fatal;
+
+(* As the window system tells FLTK of another program's copy. *)
+PROCEDURE ClipboardNotice*(source: INTEGER);
+BEGIN CClipboardNotice(source)
+END ClipboardNotice;
+
+PROCEDURE SetEnv*(name-, value-: ARRAY OF CHAR);
+BEGIN CSetEnv(name, value)
+END SetEnv;
 
 END Probe.

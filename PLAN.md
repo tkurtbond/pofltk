@@ -2248,7 +2248,7 @@ Done 2026-10-31. Findings and decisions:
   and run, and `make uninstall` leaving no file, here; installed likewise
   on yishana and artos.
 
-### Phase 23: Free functions
+### Phase 23: Free functions [done]
 
 The classes are bound by Phase 22; this phase is the functions outside
 them. Surveyed 2026-10-30 by listing every function in FLTK's public
@@ -2375,6 +2375,71 @@ README.md).
   (`test/boxtype.cxx`), `CursorTest` (`test/cursor.cxx`), `Offscreen`
   (`test/offscreen.cxx`), `Mandelbrot` (`test/mandelbrot.cxx`),
   `Symbols` (`test/symbols.cxx`).
+
+Done 2026-10-31. FLTK's bugs and pitfalls are `doc/fltk-issues.md`, 115
+to 133. Decided while binding:
+
+- **Added to the plan**: `FilenameAbsoluteTo`, `TextRotated`,
+  `Window.MakeCurrent`, and `FlImages.SetCursor`
+  (`Fl_Window::cursor(image)`), which the `CursorTest` port needed.
+- **Left out, since they add nothing**:
+  - `fl_input_str`, `fl_password_str` and plain `fl_choice`;
+  - `fl_clip_region` and `fl_restore_clip`: `PushClip` and `PopClip`
+    are what programs need, and the second drops a pushed clip on Cairo
+    (128);
+  - `fl_utf8_to_locale` and `fl_locale_to_utf8`, defined only in the
+    WinAPI driver, and `fl_chord`, declared and defined nowhere;
+  - `insertion_point_location` and `reset_marked_text`, macOS's alone;
+  - `add_system_handler`, `remove_system_handler` and `last_handler`;
+  - `has_idle`, `has_timeout` and `remove_next_timeout`: `Added`,
+    `Pending` and `RemoveTimeout` cover them;
+  - `visible_focus` and `dnd_text_ops`: `Option`;
+  - the widget pointers, since Oberon has `Fl.Widget`'s dead handles.
+- **Shaped by FLTK**:
+  - `fl_message_icon` returns FLTK's own box, so `Icon`, `SetIcon` and
+    `SetDefaultIconLabel`;
+  - `AddSymbol` passes the procedure value straight to FLTK;
+  - `DrawPixmap`, `MeasurePixmap` and `CaptureWindow` are in `FlImages`,
+    with what they take;
+  - `Offscreen` is built on `Fl_Image_Surface`;
+  - `SetSpot` has no window, which FLTK ignores (AGENTS.md);
+  - `SetFonts` passes no pattern;
+  - `Fl.SetScheme` can't pass NULL, so `Boxtype` reads `GetScheme`.
+- **Names**: `RtlDraw` is `RightToLeft`; `ReleaseColor` and `AnyDamage`
+  avoid clashes.
+- **Ports**: `Boxtype`, `Symbols`, `CursorTest`, `Offscreen`, `Fonts`,
+  `Mandelbrot` and `Utf8Test`, each compared with FLTK's build, screen by
+  screen, 0 pixels differing:
+  - `Utf8Test` leaves out the font chooser (`Fonts` covers it), and
+    `box_cb` with it, and was compared with a build of FLTK's without
+    that window;
+  - `Fonts` uses `TextAligned`, as `Fl_Widget::draw_label(x, y, w, h,
+    align)` isn't bound; the output is the same;
+  - `Mandelbrot` keeps `%f` and `%g`'s output by `RealDigits`;
+  - `CursorTest` uses a plain group for the debug-only `BoxGroup`.
+- `FlDraw`'s images halt in an `ImageSource`'s `Line`: nesting worked on
+  Cairo, and failed only in the runs on Xlib, the two NetBSDs and two
+  of the FLTK builds (133).
+- `fl_draw_check` has no `FL_EXPORT`, and `Probe.ClipboardNotice` uses
+  `fl_trigger_clipboard_notify`, in no header.
+- `TestForms` waited a fixed 30 `Fl.Wait`s for a free's first step, and
+  on artos that failed 1 run in 20: a step always came, after 3 to 34
+  waits, in 120 runs. It waits for the step now (`WaitSteps`), and passed
+  100 of 100 there. Phase 20's test, not a change here. Why so many
+  waits end before a 0.01 second timer is not known.
+- Tested: `test-headless` 2274 `ok` lines, `test-sway` 2264 (3 skipped),
+  `valgrind-headless` 2078, `valgrind-sway` 2069 (2 skipped), no valgrind
+  errors. `make test`: 2274 on NetBSD and FreeBSD, 2266, 1 skipped, on
+  OpenBSD. On other FLTKs, on Xvfb: 2264, 3 skipped, with neither Cairo
+  nor Pango; 2056, 19 skipped, with no SVG, printing or GL; 2212 with no
+  Forms; 2158 with no GL; 2272 with no GLEW; 2230 with no cairo; and a
+  Wayland and X11 FLTK without `FLTK_HAVE_CAIRO`, 2274 on Xvfb and 2264,
+  3 skipped, on sway. `make install` into a scratch directory, a program
+  built on the installed library and run, and `make uninstall` leaving
+  no file, here; installed likewise on yishana and artos. These runs
+  came before `WaitSteps`, but for artos's `make test`; with it,
+  `TestForms` passes here on X11, Wayland and valgrind, and 10 of 10 on
+  each other BSD.
 
 ### poc 0.4.0 `[done]`
 

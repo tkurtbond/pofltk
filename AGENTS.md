@@ -21,11 +21,11 @@ anything:
 
 ## Status
 
-As of 2026-10-31, Phases 0 to 22 of PLAN.md are done, and `README.md`
+As of 2026-10-31, Phases 0 to 23 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
-`FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`,
+`FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`, `FlUtf8`,
 `FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, `src/gl/`
 has `FlGl` and `FlGlut`, `src/cairo/` has `FlCairo`, and the tests pass. Also kept:
 
@@ -105,6 +105,10 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   `Fl_Help_Dialog`. `View` asks Oberon's `Link` about links and images
   (`help_link`), remembers each image's answer, and counts layout
   changes between a push and its release (`doc/fltk-issues.md`, 89, 90).
+- `src/FlUtf8.Mod`, `src/FlUtf8.cpp`: `fl_utf8.h`'s text functions, in
+  bytes. Each C++ function works on a copy with zeros on both sides
+  (`Text`), keeps results within the text, and `give`s what fits
+  (`doc/fltk-issues.md`, 115 to 118).
 - `src/FlPreferences.Mod`, `src/FlPreferences.cpp`: `Fl_Preferences`. A
   group is its database and a path, not an `Fl_Preferences` kept.
 - `src/FlTable.Mod`, `src/FlTable.cpp`: `Fl_Table` and `Fl_Table_Row`.
@@ -769,6 +773,60 @@ held only in C++ memory**.
   doesn't check an enumeration, clamps a negative radius, and refuses a
   scale of 0. `make_current` and `fl_read_image` read a shown window on
   X11 and Wayland.
+- **UTF-8** (`doc/fltk-issues.md`, 115 to 118): the composed-character
+  walks and `fl_utf8strlen` go past either end of the text, on a bad or
+  cut-short lead. `fl_utf_tolower` has no size and no `0X`. `fl_utf8toa`'s
+  count past a short buffer isn't its count in a long one. In a UTF-8
+  locale `fl_utf8to_mb` writes nothing to a short buffer. There is no
+  `fl_utf8_to_locale` off Windows.
+- **Filenames** (`doc/fltk-issues.md`, 119 to 122): `fl_filename_absolute`
+  cuts the base to `tolen`, then reads before its copy. `fl_filename_expand`
+  aborts on a value too long and never ends on `SELF='$SELF'`.
+  `fl_filename_isdir` overruns on 4096 bytes and a `/`.
+  `fl_filename_match` reads past an open `[` or `{`.
+- **Drawing's free functions** (`doc/fltk-issues.md`, 123 to 128, 133): a
+  symbol name outside ASCII hashes negative on x86, and the table holds
+  105. With no current window, `fl_overlay_rect`, `fl_scroll` and
+  `fl_antialias()` crash. `fl_expand_text` loses a buffer it makes, and
+  stops at `@x`. `fl_local_to_mac_roman`'s first call writes to NULL
+  unless `n` is 0. `fl_capture_window` and Wayland's `fl_read_image`
+  don't clip. `fl_restore_clip` on Cairo drops a pushed clip.
+  `fl_chord` is declared and defined nowhere. Always pass
+  `fl_draw_image` an explicit line size. On Xlib, an image drawn in
+  `fl_draw_image`'s line callback spoils the outer one, or writes to
+  freed memory (133): `FlDraw` halts.
+- **`Fl`'s statics** (`doc/fltk-issues.md`, 129 to 132): `grab` and
+  `selection_owner` aren't cleared when their widget dies: `W<B>`'s
+  destructor does. Font numbers have no bounds: `Fl` tracks the end
+  (`font_end`), and a name is at most 126 bytes, kept. `Fl::ready`,
+  `selection`, `enable_im`, `disable_im` and `set_box_color` need the
+  display open. `FL_SELECTIONCLEAR` is never sent. `Fl.SetScheme` can't
+  pass NULL, which reads the system's scheme. `set_abort`'s handler must
+  not return: the shim exits 1 if it does.
+- **Smaller things found binding the free functions** (2026-10-31):
+  - `Fl::get_mouse` works with no display. `screen_dpi` of a bad number
+    gives 0 0, and `screen_scale` 1. `visual(FL_DOUBLE|FL_INDEX)` is 0 on
+    X11 and 1 on Wayland, and `compose` with no event likewise.
+  - `fl_parse_color` knows names on X11 alone. `fl_lightness` is L\*, 0
+    to 100; `fl_luminance` is 0 to 1.
+  - `fl_decode_uri`: a bad `%` stops it, `%00` cuts the text, `%4z` is
+    byte 4 and `%-1` is `FF`.
+  - `fl_filename_ext` is never NULL, and `.bashrc`'s extension is all of it.
+  - `fl_message_icon_label` keeps its pointer until the next dialog;
+    `fl_file_chooser_ok_label` and `ok_label` keep theirs.
+  - `fl_frame` and `fl_frame2` read four characters per loop.
+  - `fl_draw_pixmap` and `fl_measure_pixmap` trust their data.
+  - `fl_create_offscreen(0, 0)` is an X error. `fl_set_spot`'s window is
+    ignored. `fl_draw_box_focus` draws no box. `fl_draw_symbol` doesn't
+    set the color.
+  - `reload_scheme` overrides boxtypes, the scrollbar size and every
+    window's label type, align and image.
+  - `Fl::handle(FL_CLOSE, NULL)` calls through NULL, and `set_boxtype`
+    and `get_boxtype` don't check their index (the source).
+  - A window's image cursor: X11 refuses a hot spot outside it and
+    copies at its size; Wayland keeps a copy and doesn't check; both do
+    nothing for a window not shown.
+  - A program's own copies don't trigger a clipboard notice.
 - **Printing** (`doc/fltk-issues.md`, 100 to 103): text with no font
   set crashes on PostScript, PDF and EPS. A Cairo error makes
   `Fl_PostScript_File_Device::end_job` write to a closed file and close
@@ -855,6 +913,12 @@ None at present.
   Pango; 1605, 19 skipped, with no SVG, printing or GL; 1761 with no
   Forms; 1707 with no GL; 1821 with no GLEW; 1779 with no cairo; and on
   a Wayland FLTK without `FLTK_HAVE_CAIRO`, 1823 on Xvfb and 1813 on sway.
+  After Phase 23, 2274, 2264 (3 skipped), 2078 and 2069 (2 skipped) here;
+  2274 on NetBSD and FreeBSD and 2266, 1 skipped, on OpenBSD; 2264, 3
+  skipped, with neither Cairo nor Pango; 2056, 19 skipped, with no SVG,
+  printing or GL; 2212 with no Forms; 2158 with no GL; 2272 with no GLEW;
+  2230 with no cairo; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
+  2274 on Xvfb and 2264 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

@@ -167,6 +167,19 @@ add("int", [("Option" + camel(o), "Fl::OPTION_" + o) for o in
             FNFC_USES_ZENITY FNFC_USES_KDIALOG PRINTER_USES_GTK SHOW_SCALING
             SIMPLE_ZOOM_SHORTCUT""".split()])
 
+section("how Contrast chooses (SetContrastMode)")
+add("int", [("ContrastNone", "FL_CONTRAST_NONE"), ("ContrastLegacy", "FL_CONTRAST_LEGACY"),
+            ("ContrastCielab", "FL_CONTRAST_CIELAB"), ("ContrastCustom", "FL_CONTRAST_CUSTOM")])
+
+section("why a widget called back (CallbackReason)")
+add("int", [("Reason" + camel(k), "FL_REASON_" + k) for k in
+            """UNKNOWN SELECTED DESELECTED RESELECTED OPENED CLOSED DRAGGED CANCELLED
+            CHANGED GOT_FOCUS LOST_FOCUS RELEASED ENTER_KEY USER""".split()])
+
+section("what Visual asks for, added together")
+add("int", [("VisualRgb", "FL_RGB"), ("VisualIndex", "FL_INDEX"), ("VisualSingle", "FL_SINGLE"),
+            ("VisualDouble", "FL_DOUBLE"), ("VisualRgb8", "FL_RGB8")])
+
 section("what a watched file descriptor waits for (FdWatch, WatchFd)")
 add("set", [("FdRead", "FL_READ"), ("FdWrite", "FL_WRITE"), ("FdExcept", "FL_EXCEPT")])
 
@@ -176,6 +189,14 @@ section("line styles (LineStyle): a dash pattern, plus a cap and a join")
 add("int", [(camel(c), "FL_" + c) for c in
             """SOLID DASH DOT DASHDOT DASHDOTDOT CAP_FLAT CAP_ROUND CAP_SQUARE
             JOIN_MITER JOIN_ROUND JOIN_BEVEL""".split()])
+section("kinds of arrow (DrawArrow)")
+add("int", [("ArrowSingle", "FL_ARROW_SINGLE"), ("ArrowDouble", "FL_ARROW_DOUBLE"),
+            ("ArrowChoice", "FL_ARROW_CHOICE"), ("ArrowReturn", "FL_ARROW_RETURN")])
+section("where an arrow points (DrawArrow)")
+add("int", [("OrientRight", "FL_ORIENT_RIGHT"), ("OrientNE", "FL_ORIENT_NE"),
+            ("OrientUp", "FL_ORIENT_UP"), ("OrientNW", "FL_ORIENT_NW"),
+            ("OrientLeft", "FL_ORIENT_LEFT"), ("OrientSW", "FL_ORIENT_SW"),
+            ("OrientDown", "FL_ORIENT_DOWN"), ("OrientSE", "FL_ORIENT_SE")])
 
 module("FlButtons")
 section("kinds of button (Button.SetKind); not ToggleButton and RadioButton, the types")

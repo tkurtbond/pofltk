@@ -47,6 +47,11 @@ CONST
   Escaped* = -1;  (* the Escape key *)
   Closed* = -2;   (* the window's close button *)
 
+  (* Position's results *)
+  NoPosition* = 0;       (* none set *)
+  PositionAt* = 1;       (* the next dialog's top left *)
+  PositionCentred* = 2;  (* the next dialog's centre *)
+
   (* how ChooseColor shows the color: FLTK has no names for these *)
   ColorDefault* = -1;  (* as last time *)
   ColorRGB* = 0;       (* red, green and blue from 0 to 1 *)
@@ -169,6 +174,20 @@ PROCEDURE ["C", "ofl_fc_resize"] CFcResize(c: SYSTEM.ADDRESS; x, y, w, h: SYSTEM
 PROCEDURE ["C", "ofl_fc_set_extra"] CFcSetExtra(c, extra: SYSTEM.ADDRESS; gone: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_fc_set_label"] CFcSetLabel(which: SYSTEM.INT32; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_file_chosen_register"] CChosenRegister(f: PROCEDURE (name: SYSTEM.ADDRESS));
+PROCEDURE ["C", "ofl_dialog_icon"] CIcon(VAR box, font, size, color, labelColor: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_dialog_set_icon"] CSetIcon(box, font, size, color, labelColor: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_dialog_icon_label"] CIconLabel(dflt: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_dialog_set_position"] CSetPosition(x, y, center: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_dialog_position_over"] CPositionOver(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_dialog_position"] CPosition(VAR x, y: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_file_chooser_ok"] CFileChooserOK(s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_filename_absolute"] CFilenameAbsolute(from, base: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_filename_expand"] CFilenameExpand(from: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_filename_isdir"] CFilenameIsDir(name: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_filename_match"] CFilenameMatch(name, pattern: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_filename_part"] CFilenamePart(ext: SYSTEM.INT32; name: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_filename_setext"] CFilenameSetExt(VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32; ext: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_decode_uri"] CDecodeURI(VAR uri: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_filename_relative"] CFilenameRelative(from, base: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_filename_list"] CFilenameList(dir: ARRAY OF CHAR; sort: SYSTEM.INT32; VAR n: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_filename_length"] CFilenameLength(l: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
@@ -258,6 +277,45 @@ END Font;
 PROCEDURE SetFont*(font, size: INTEGER);
 BEGIN CSetFont(font, size)
 END SetFont;
+
+(* What each dialog's icon looks like: a box type, font, size and colors
+   of Fl's. *)
+PROCEDURE Icon*(VAR box, font, size, color, labelColor: INTEGER);
+  VAR b, f, s, c, l: SYSTEM.INT32;
+BEGIN CIcon(b, f, s, c, l); box := b; font := f; size := s; color := c; labelColor := l
+END Icon;
+
+PROCEDURE SetIcon*(box, font, size, color, labelColor: INTEGER);
+BEGIN CSetIcon(box, font, size, color, labelColor)
+END SetIcon;
+
+(* The text of the next dialog's icon only; SetDefaultIconLabel, of every
+   one given none. "" is the dialog's own, an "i", "?" or "!". *)
+PROCEDURE SetIconLabel*(s-: ARRAY OF CHAR);
+BEGIN CIconLabel(0, s)
+END SetIconLabel;
+
+PROCEDURE SetDefaultIconLabel*(s-: ARRAY OF CHAR);
+BEGIN CIconLabel(1, s)
+END SetDefaultIconLabel;
+
+(* Where the next dialog goes, on the screen, whatever Hotspot says: its
+   top left at x, y, or its centre if centred. *)
+PROCEDURE SetPosition*(x, y: INTEGER; centred: BOOLEAN);
+BEGIN CSetPosition(x, y, Int(centred))
+END SetPosition;
+
+(* The next dialog goes centred on w. *)
+PROCEDURE SetPositionOver*(w: Fl.Widget);
+BEGIN CPositionOver(Fl.Live(w))
+END SetPositionOver;
+
+(* What is set for the next dialog, one of the Position constants, and
+   where. The next dialog uses it up. *)
+PROCEDURE Position*(VAR x, y: INTEGER): INTEGER;
+  VAR X, Y, r: SYSTEM.INT32;
+BEGIN r := CPosition(X, Y); x := X; y := Y; RETURN r
+END Position;
 
 (* Sounds the system's beep of this kind, one of the Beep constants. *)
 PROCEDURE Beep*(kind: INTEGER);
@@ -785,6 +843,12 @@ BEGIN
   CFcSetLabel(which, s)
 END SetChooserLabel;
 
+(* The OK button's label in ChooseFile and ChooseDirectory; "" is FLTK's
+   own. *)
+PROCEDURE SetFileChooserOK*(s-: ARRAY OF CHAR);
+BEGIN CFileChooserOK(s)
+END SetFileChooserOK;
+
 (* Directories *)
 
 (* Sets to, cut to fit, to from as a name relative to the current
@@ -800,6 +864,66 @@ END FilenameRelative;
 PROCEDURE FilenameRelativeTo*(from-, base-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CFilenameRelative(SYSTEM.ADR(from), SYSTEM.ADR(base), to, SHORT(LEN(to))) # 0
 END FilenameRelativeTo;
+
+(* Sets to, cut to fit, to from made absolute, against the current
+   directory, or with FilenameAbsoluteTo against base. The "." and ".."
+   that start from are taken out, by the text alone, and any later ones
+   left; more ".." than there are directories stay, after the root. FALSE,
+   and to the same as from, if from is already absolute, or starts with
+   "|". *)
+PROCEDURE FilenameAbsolute*(from-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameAbsolute(SYSTEM.ADR(from), 0, to, SHORT(LEN(to))) # 0
+END FilenameAbsolute;
+
+PROCEDURE FilenameAbsoluteTo*(from-, base-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameAbsolute(SYSTEM.ADR(from), SYSTEM.ADR(base), to, SHORT(LEN(to))) # 0
+END FilenameAbsoluteTo;
+
+(* Sets to, cut to fit, to from with each part between slashes that is
+   "~", "~user" or "$VARIABLE" replaced by that home directory or that
+   variable's value. A value starting with a slash ends what came before
+   it. A value is put in as it is: "$" in it isn't looked at again. A name
+   that doesn't exist is left. FALSE if nothing was replaced. *)
+PROCEDURE FilenameExpand*(from-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameExpand(SYSTEM.ADR(from), to, SHORT(LEN(to))) # 0
+END FilenameExpand;
+
+(* TRUE if name exists and is a directory. *)
+PROCEDURE FilenameIsDir*(name-: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameIsDir(name) # 0
+END FilenameIsDir;
+
+(* TRUE if name fits pattern, whatever the case of A to Z: "?" is any one
+   byte, "*" any bytes, "[a-c]" and "[!a-c]" one byte of or not of a set,
+   "{a|b}" or "{a,b}" any one of a list, and a backslash takes the next
+   byte as it is. *)
+PROCEDURE FilenameMatch*(name-, pattern-: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CFilenameMatch(name, pattern) # 0
+END FilenameMatch;
+
+(* Sets to, cut to fit, to what follows name's last slash. *)
+PROCEDURE FilenameName*(name-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR);
+BEGIN CFilenamePart(0, SYSTEM.ADR(name), to, SHORT(LEN(to)))
+END FilenameName;
+
+(* Sets to, cut to fit, to name's extension: from the last "." after its
+   last slash, so all of ".bashrc", and "" if there is none. *)
+PROCEDURE FilenameExt*(name-: ARRAY OF CHAR; VAR to: ARRAY OF CHAR);
+BEGIN CFilenamePart(1, SYSTEM.ADR(name), to, SHORT(LEN(to)))
+END FilenameExt;
+
+(* Puts ext in place of name's extension, or after its name if it has
+   none; cut to fit. ext has its "."; "" takes the extension off. *)
+PROCEDURE FilenameSetExt*(VAR name: ARRAY OF CHAR; ext-: ARRAY OF CHAR);
+BEGIN CFilenameSetExt(name, SHORT(LEN(name)), ext)
+END FilenameSetExt;
+
+(* Replaces each "%" and two hexadecimal digits in uri by that byte. It
+   stops at a "%" with no digit after it, and at the end, so leaves a "%"
+   in the last two bytes; "%00" ends the text. *)
+PROCEDURE DecodeURI*(VAR uri: ARRAY OF CHAR);
+BEGIN CDecodeURI(uri)
+END DecodeURI;
 
 (* Lists directory dir's names in names, in the order sort says, with "."
    and ".."; FLTK adds a "/" to each directory's name. FALSE, and names

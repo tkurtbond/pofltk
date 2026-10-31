@@ -11,6 +11,7 @@
 #include <FL/Fl_Bitmap.H>
 #include <FL/Fl_Browser.H>
 #include <FL/Fl_Copy_Surface.H>
+#include <FL/Fl_Device.H>
 #include <FL/Fl_File_Icon.H>
 #include <FL/Fl_GIF_Image.H>
 #include <FL/Fl_ICO_Image.H>
@@ -866,6 +867,30 @@ void add_rows(Fl_File_Icon *f, Fl_RGB_Image *r) {
   }
 }
 
+// The n lines at lines, stride bytes apart, in p, if they are an XPM's:
+// Fl_Pixmap, fl_draw_pixmap and fl_measure_pixmap trust an XPM's values,
+// so a short line or array would be read past its end. false if they don't
+// match, or FLTK's own form (fewer than 1 color) is used.
+bool xpm_lines(const char *lines, int32_t n, int32_t stride,
+               std::vector<const char *> &p) {
+  if (n < 1 || stride < 1) return false;
+  for (int32_t i = 0; i < n; i++) {
+    if (!memchr(lines + static_cast<size_t>(i) * stride, 0, stride)) return false;
+  }
+  int w, h, colors, cpp;
+  if (sscanf(lines, "%d %d %d %d", &w, &h, &colors, &cpp) != 4) return false;
+  if (w < 1 || h < 1 || colors < 1 || cpp < 1 || cpp > 2) return false;
+  if (static_cast<long>(n) != 1L + colors + h) return false;
+  p.resize(n);
+  for (int32_t i = 0; i < n; i++) {
+    p[i] = lines + static_cast<size_t>(i) * stride;
+    size_t need = i == 0 ? 0 : i <= colors ? static_cast<size_t>(cpp)
+                                           : static_cast<size_t>(w) * cpp;
+    if (strlen(p[i]) < need) return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 extern "C" {
@@ -937,28 +962,48 @@ int32_t ofl_image_ico_count(const char *name, const unsigned char *data,
 
 // The pixmap in the n XPM lines at lines, each in stride bytes ending in
 // a 0: the values, the colors, then the rows of pixels, as the strings of
-// an XPM file. Fl_Pixmap keeps the lines and trusts the values, so a
-// short line or array would be read past its end: they are checked
-// against the values first, and the pixmap copies them (copy_data). 0
-// if they don't match, or FLTK's own form (fewer than 1 color) is used.
+// an XPM file. Fl_Pixmap keeps the lines, so the pixmap copies them
+// (copy_data). 0 if they aren't an XPM's (xpm_lines).
 intptr_t ofl_image_xpm(const char *lines, int32_t n, int32_t stride) {
-  if (n < 1 || stride < 1) return 0;
-  for (int32_t i = 0; i < n; i++) {
-    if (!memchr(lines + static_cast<size_t>(i) * stride, 0, stride)) return 0;
-  }
-  int w, h, colors, cpp;
-  if (sscanf(lines, "%d %d %d %d", &w, &h, &colors, &cpp) != 4) return 0;
-  if (w < 1 || h < 1 || colors < 1 || cpp < 1 || cpp > 2) return 0;
-  if (static_cast<long>(n) != 1L + colors + h) return 0;
-  std::vector<const char *> p(n);
-  for (int32_t i = 0; i < n; i++) {
-    p[i] = lines + static_cast<size_t>(i) * stride;
-    size_t need = i == 0 ? 0 : i <= colors ? static_cast<size_t>(cpp)
-                                           : static_cast<size_t>(w) * cpp;
-    if (strlen(p[i]) < need) return 0;
-  }
+  std::vector<const char *> p;
+  if (!xpm_lines(lines, n, stride, p)) return 0;
   Fl_Pixmap given(p.data());
   return make(given.copy());
+}
+
+int32_t ofl_image_draw_pixmap(const char *lines, int32_t n, int32_t stride,
+                              int32_t x, int32_t y, int32_t bg) {
+  std::vector<const char *> p;
+  if (!xpm_lines(lines, n, stride, p)) return 0;
+  return fl_draw_pixmap(p.data(), x, y, static_cast<Fl_Color>(bg));
+}
+
+int32_t ofl_image_measure_pixmap(const char *lines, int32_t n, int32_t stride,
+                                 int32_t *w, int32_t *h) {
+  std::vector<const char *> p;
+  int a = 0, b = 0;
+  if (!xpm_lines(lines, n, stride, p)) return 0;
+  if (!fl_measure_pixmap(p.data(), a, b)) return 0;
+  *w = a;
+  *h = b;
+  return 1;
+}
+
+// What window win shows of x, y, w, h, or 0 if it isn't shown. With a size
+// under 1 FLTK writes past the array it makes (doc/fltk-issues.md, 127).
+intptr_t ofl_image_capture(intptr_t win, int32_t x, int32_t y, int32_t w,
+                           int32_t h) {
+  Fl_Window *window = ofl::as<Fl_Window>(win);
+  if (!window->shown()) return 0;
+  // FLTK's drivers read outside their buffers for a rectangle of no size
+  // or partly off the window (doc/fltk-issues.md, 127).
+  int r = x < window->w() - w ? x + w : window->w();
+  int b = y < window->h() - h ? y + h : window->h();
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (r <= x || b <= y) return 0;
+  Fl_RGB_Image *i = fl_capture_window(window, x, y, r - x, b - y);
+  return i ? make(i) : 0;
 }
 
 // An RGB image of w by h pixels of d bytes each (1 gray, 2 gray and alpha,
@@ -1148,6 +1193,13 @@ void ofl_window_icon(intptr_t w, intptr_t i) {
 // pixels of its data, past their end if the image is drawn larger than
 // they are (doc/fltk-issues.md, 61): FLTK is given a copy, w() by h(),
 // which the window holds.
+int32_t ofl_window_image_cursor(intptr_t w, intptr_t i, int32_t hotx, int32_t hoty) {
+  Fl_RGB_Image *r = img(i)->rgb();
+  if (r == 0) return 0;
+  ofl::as<Fl_Window>(w)->cursor(r, hotx, hoty);
+  return 1;
+}
+
 int32_t ofl_window_shape(intptr_t w, intptr_t i) {
   Fl_RGB_Image *r = img(i)->rgb();
   if (r == 0) return 0;
@@ -1487,10 +1539,39 @@ intptr_t ofl_surface_image(intptr_t s) {
   return make(reinterpret_cast<Fl_Image_Surface *>(s)->image());
 }
 
-// The w by h pixels at x, y of the surface drawn on, as a new RGB image
-// (RGBA if alpha); 0 if FLTK couldn't read them.
+// The size of what is drawn on; 0 if nothing is, or it can't be told.
+bool drawn_on(int &w, int &h) {
+  Fl_Surface_Device *d = Fl_Surface_Device::surface();
+  if (d != Fl_Display_Device::display_device()) {
+    Fl_Widget_Surface *s = dynamic_cast<Fl_Widget_Surface *>(d);
+    return s != 0 && s->printable_rect(&w, &h) == 0;
+  }
+  Fl_Window *c = Fl_Window::current();
+  for (Fl_Window *o = Fl::first_window(); c && o; o = Fl::next_window(o)) {
+    if (o == c) {
+      w = c->w();
+      h = c->h();
+      return true;
+    }
+  }
+  return false;
+}
+
+// As much as is there of the w by h pixels at x, y of the surface drawn
+// on, as a new RGB image (RGBA if alpha); 0 if none is, or FLTK couldn't
+// read them. Past the edge FLTK reads outside its buffer
+// (doc/fltk-issues.md, 127).
 intptr_t ofl_read_image(int32_t x, int32_t y, int32_t w, int32_t h,
                         int32_t alpha) {
+  int sw, sh;
+  if (!drawn_on(sw, sh)) return 0;
+  int r = x < sw - w ? x + w : sw;
+  int b = y < sh - h ? y + h : sh;
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
+  if (r <= x || b <= y) return 0;
+  w = r - x;
+  h = b - y;
   unsigned char *p = fl_read_image(0, x, y, w, h, alpha ? 255 : 0);
   if (p == 0) return 0;
   Fl_RGB_Image *i = new Fl_RGB_Image(p, w, h, alpha ? 4 : 3);

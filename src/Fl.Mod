@@ -384,11 +384,42 @@ CONST
   OptionShowScaling* = 8;
   OptionSimpleZoomShortcut* = 9;
 
+  (* how Contrast chooses (SetContrastMode) *)
+  ContrastNone* = 0;
+  ContrastLegacy* = 1;
+  ContrastCielab* = 2;
+  ContrastCustom* = 3;
+
+  (* why a widget called back (CallbackReason) *)
+  ReasonUnknown* = 0;
+  ReasonSelected* = 1;
+  ReasonDeselected* = 2;
+  ReasonReselected* = 3;
+  ReasonOpened* = 4;
+  ReasonClosed* = 5;
+  ReasonDragged* = 6;
+  ReasonCancelled* = 7;
+  ReasonChanged* = 8;
+  ReasonGotFocus* = 9;
+  ReasonLostFocus* = 10;
+  ReasonReleased* = 11;
+  ReasonEnterKey* = 12;
+  ReasonUser* = 32;
+
+  (* what Visual asks for, added together *)
+  VisualRgb* = 0;
+  VisualIndex* = 1;
+  VisualSingle* = 0;
+  VisualDouble* = 2;
+  VisualRgb8* = 64;
+
   (* what a watched file descriptor waits for (FdWatch, WatchFd) *)
   FdRead* = {0};
   FdWrite* = {2};
   FdExcept* = {3};
 (* END generated constants *)
+
+  MaxFont* = 65535;  (* the last number SetFont takes: a limit of pofltk's *)
 
 TYPE
   Widget* = POINTER TO WidgetDesc;
@@ -457,6 +488,15 @@ TYPE
     action*: PROCEDURE (i: Idle)
   END;
 
+  (* Runs each time the event loop is about to wait, while added
+     (AddCheck): its Run, whose default calls its action. *)
+  Checker* = POINTER TO CheckerDesc;
+  CheckerDesc* = RECORD
+    added: BOOLEAN;
+    prev, next: Checker; (* the checkers added *)
+    action*: PROCEDURE (c: Checker)
+  END;
+
   (* Watches a file descriptor, fd, for what when says (FdRead, FdWrite,
      FdExcept), while it watches (WatchFd): its Ready, whose default
      calls its action, runs when the descriptor is ready for one of them.
@@ -484,11 +524,41 @@ TYPE
     next: HandlerNode
   END;
 
+  (* Asked for a color against bg, with context and size as ContrastSized
+     has them (SetContrastFunction). *)
+  ContrastFunction* = PROCEDURE (fg, bg, context, size: INTEGER): INTEGER;
+
+  (* Draws a box of color c (SetBoxtype), as any drawing, with FlDraw. *)
+  BoxDraw* = PROCEDURE (x, y, w, h, c: INTEGER);
+
+  (* Told that w, the program's, is to close (SetAtclose). *)
+  Atclose* = PROCEDURE (w: Window);
+
+  (* Told FLTK's fatal error (SetAbort). *)
+  Abort* = PROCEDURE (message-: ARRAY OF CHAR);
+
+  (* Told that source, Selection or Clipboard, has another program's
+     contents (AddClipboardNotify). *)
+  ClipboardNotify* = PROCEDURE (source: INTEGER);
+
+  ClipboardNode = POINTER TO RECORD
+    h: ClipboardNotify;  (* NIL once removed *)
+    next: ClipboardNode
+  END;
+
+  (* A moment, as Now gives it. FLTK's seconds are a time_t, whose size
+     differs, so here a LONGREAL, which holds them exactly. *)
+  Timestamp* = RECORD
+    sec-: LONGREAL;
+    usec-: INTEGER
+  END;
+
   SelfProc = PROCEDURE (self: SYSTEM.ADDRESS);
   HandleProc = PROCEDURE (self: SYSTEM.ADDRESS; event: SYSTEM.INT32): SYSTEM.INT32;
   ResizeProc = PROCEDURE (self: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32);
   DispatchProc = PROCEDURE (event: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.INT32;
   HandlerProc = PROCEDURE (event: SYSTEM.INT32): SYSTEM.INT32;
+  ClipboardProc = PROCEDURE (source: SYSTEM.INT32);
   ArgProc = PROCEDURE (i: SYSTEM.INT32): SYSTEM.INT32;
 
   (* A program's own command-line options (ParseArgs): given argument i
@@ -507,6 +577,10 @@ VAR
   dispatch: EventDispatch;   (* the event dispatch, or NIL for FLTK's own *)
   dispatching: INTEGER;      (* how many dispatch calls are running *)
   handlers: HandlerNode;     (* the event handlers, newest first *)
+  checkers: Checker;         (* every checker added *)
+  atclose: Atclose;          (* SetAtclose's, or NIL for FLTK's own *)
+  abort: Abort;              (* SetAbort's, or NIL for FLTK's own *)
+  notices: ClipboardNode;    (* the clipboard's, newest first *)
 
 PROCEDURE ["C", "ofl_overlay_window_new"] COverlayWindowNew(placed, x, y, w, h: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_register_overlay"] CRegisterOverlay(drawOverlay: SelfProc);
@@ -595,6 +669,7 @@ PROCEDURE ["C", "ofl_belowmouse"] CBelowmouse(): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_pushed"] CPushed(): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_open_uri"] COpenURI(uri: ARRAY OF CHAR; VAR msg: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_register_loop"] CRegisterLoop(idle, fd: SelfProc; dispatch: DispatchProc; handler: HandlerProc);
+PROCEDURE ["C", "ofl_register_statics"] CRegisterStatics(check, atclose, abort: SelfProc; clipboard: ClipboardProc);
 PROCEDURE ["C", "ofl_event_handlers"] CEventHandlers(on: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_redraw_all"] CRedrawAll;
 PROCEDURE ["C", "ofl_window_shown_any"] CWindowShownAny(): SYSTEM.INT32;
@@ -664,6 +739,7 @@ PROCEDURE ["C", "ofl_group_init_sizes"] CInitSizes(g: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_group_set_resizable"] CSetResizable(g, w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_group_resizable"] CResizable(g: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_window_shown"] CShown(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_window_make_current"] CMakeCurrent(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_wait_for_expose"] CWaitForExpose(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_size_range"] CSizeRange(w: SYSTEM.ADDRESS; minw, minh, maxw, maxh: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_window_set_modal"] CSetModal(w: SYSTEM.ADDRESS);
@@ -1218,6 +1294,13 @@ END Shown;
    meanwhile; returns at once if it is there, or not shown. Under Wayland
    a menu popped up over a window not yet on the screen kills the program
    (doc/fltk-issues.md, 28), so MenuButton.Popup waits first. *)
+(* Sends drawing to w, outside a Draw, for FlDraw's OverlayRect and Scroll.
+   What is drawn lasts until FLTK next draws w. A window not shown halts
+   with OutOfOrder; under Wayland, use WaitForExpose first. *)
+PROCEDURE (w: Window) MakeCurrent*;
+BEGIN ASSERT(CMakeCurrent(Live(w)) # 0, OutOfOrder)
+END MakeCurrent;
+
 PROCEDURE (w: Window) WaitForExpose*;
 BEGIN CWaitForExpose(Live(w))
 END WaitForExpose;
@@ -2043,6 +2126,46 @@ BEGIN
   END
 END RemoveIdle;
 
+(* Checks *)
+
+PROCEDURE ["C", "ofl_add_check"] CAddCheck(self: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_remove_check"] CRemoveCheck(self: SYSTEM.ADDRESS);
+
+(* What a checker does: its action, if set. *)
+PROCEDURE (c: Checker) Run*;
+BEGIN
+  IF c.action # NIL THEN c.action(c) END
+END Run;
+
+PROCEDURE (c: Checker) Added*(): BOOLEAN;
+BEGIN RETURN c.added
+END Added;
+
+(* Has c run each time the event loop is about to wait, until
+   RemoveCheck. Adding one added does nothing. *)
+PROCEDURE AddCheck*(c: Checker);
+BEGIN
+  ASSERT(c # NIL, NilArgument);
+  IF ~c.added THEN
+    c.prev := NIL; c.next := checkers;
+    IF checkers # NIL THEN checkers.prev := c END;
+    checkers := c; c.added := TRUE;
+    CAddCheck(SYSTEM.VAL(SYSTEM.ADDRESS, c))
+  END
+END AddCheck;
+
+(* c won't run again, even from its own Run; nothing if it isn't added. *)
+PROCEDURE RemoveCheck*(c: Checker);
+BEGIN
+  ASSERT(c # NIL, NilArgument);
+  IF c.added THEN
+    CRemoveCheck(SYSTEM.VAL(SYSTEM.ADDRESS, c));
+    IF c.prev = NIL THEN checkers := c.next ELSE c.prev.next := c.next END;
+    IF c.next # NIL THEN c.next.prev := c.prev END;
+    c.prev := NIL; c.next := NIL; c.added := FALSE
+  END
+END RemoveCheck;
+
 (* File descriptors *)
 
 (* What a watch does when its descriptor is ready: its action, if set. *)
@@ -2223,6 +2346,620 @@ BEGIN
   outer := firing; firing := t; t.Fire; firing := outer
 END TimeoutD;
 
+PROCEDURE ["C", "ofl_flush"] CFlush;
+PROCEDURE ["C", "ofl_ready"] CReady(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_run_checks"] CRunChecks;
+PROCEDURE ["C", "ofl_run_idle"] CRunIdle;
+PROCEDURE ["C", "ofl_program_should_quit"] CProgramShouldQuit(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_program_should_quit"] CSetProgramShouldQuit(q: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_hide_all_windows"] CHideAllWindows;
+PROCEDURE ["C", "ofl_damage_any"] CDamageAny(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_first_window"] CFirstWindow(): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_next_window"] CNextWindow(w: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_set_first_window"] CSetFirstWindow(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_set_atclose"] CSetAtclose(on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_default_atclose"] CDefaultAtclose(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_set_abort"] CSetAbort(on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_now"] CNow(offset: LONGREAL; VAR sec: LONGREAL; VAR usec: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_seconds_since"] CSecondsSince(sec: LONGREAL; usec: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_seconds_between"] CSecondsBetween(s1: LONGREAL; u1: SYSTEM.INT32; s2: LONGREAL; u2: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_ticks_since"] CTicksSince(sec: LONGREAL; usec: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_ticks_between"] CTicksBetween(s1: LONGREAL; u1: SYSTEM.INT32; s2: LONGREAL; u2: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_font_end"] CFontEnd(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_get_font"] CGetFont(f: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_get_font_name"] CGetFontName(f: SYSTEM.INT32; VAR attributes: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_get_font_sizes"] CGetFontSizes(f: SYSTEM.INT32; sizes: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_font"] CSetFont(f: SYSTEM.INT32; name: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_set_font_from"] CSetFontFrom(to, from: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_fonts"] CSetFonts(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_contrast_mode"] CContrastMode(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_contrast_mode"] CSetContrastMode(mode: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_contrast_level"] CContrastLevel(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_contrast_level"] CSetContrastLevel(level: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_set_contrast_function"] CSetContrastFunction(f: ContrastFunction);
+PROCEDURE ["C", "ofl_contrast_sized"] CContrastSized(fg, bg, context, size: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_lightness"] CLightness(c: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_luminance"] CLuminance(c: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_box_kind"] CBoxKind(b, what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_parse_color"] CParseColor(name: SYSTEM.ADDRESS; VAR r, g, b: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_modifier"] CModifier(control: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_boxtype"] CSetBoxtype(b: SYSTEM.INT32; draw: BoxDraw; dx, dy, dw, dh: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_set_boxtype_from"] CSetBoxtypeFrom(to, from: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_get_boxtype"] CGetBoxtype(b: SYSTEM.INT32): BoxDraw;
+PROCEDURE ["C", "ofl_box_color"] CBoxColor(c: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_box_color"] CSetBoxColor(c: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_box_active"] CDrawBoxActive(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_box_border_radius_max"] CBoxBorderRadiusMax(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_box_border_radius_max"] CSetBoxBorderRadiusMax(r: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_box_shadow_width"] CBoxShadowWidth(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_box_shadow_width"] CSetBoxShadowWidth(w: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_free_color"] CFreeColor(c, overlay: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_get_system_colors"] CGetSystemColors;
+PROCEDURE ["C", "ofl_own_colormap"] COwnColormap;
+PROCEDURE ["C", "ofl_visual"] CVisual(mode: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_is_scheme"] CIsScheme(name: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_reload_scheme"] CReloadScheme(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_callback_reason"] CCallbackReason(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_compose"] CCompose(VAR del: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_compose_reset"] CComposeReset;
+PROCEDURE ["C", "ofl_test_shortcut"] CTestShortcut(s: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_get_mouse"] CGetMouse(VAR x, y: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_grab"] CGrab(): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_set_grab"] CSetGrab(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_handle_event"] CHandleEvent(event: SYSTEM.INT32; w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_selection"] CSelection(owner: SYSTEM.ADDRESS; text: SYSTEM.ADDRESS; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_selection_owner"] CSelectionOwner(): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_set_selection_owner"] CSetSelectionOwner(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_selection_to_clipboard"] CSelectionToClipboard(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_selection_to_clipboard"] CSetSelectionToClipboard(on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_clipboard_notify"] CClipboardNotify(on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_screen_dpi"] CScreenDpi(n: SYSTEM.INT32; VAR h, v: LONGREAL);
+PROCEDURE ["C", "ofl_screen_scale"] CScreenScale(n: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_set_screen_scale"] CSetScreenScale(n: SYSTEM.INT32; factor: LONGREAL);
+PROCEDURE ["C", "ofl_screen_scaling_supported"] CScreenScalingSupported(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_keyboard_screen_scaling"] CKeyboardScreenScaling(on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_enable_im"] CEnableIM(on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_version"] CVersion(): LONGREAL;
+PROCEDURE ["C", "ofl_api_version"] CApiVersion(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_abi_version"] CAbiVersion(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_abi_check"] CAbiCheck(): SYSTEM.INT32;
+
+PROCEDURE Int(b: BOOLEAN): SYSTEM.INT32;
+BEGIN IF b THEN RETURN 1 ELSE RETURN 0 END
+END Int;
+
+(* FLTK's loop *)
+
+(* Draws what needs it now, not when the loop next waits. *)
+PROCEDURE Flush*;
+BEGIN CFlush
+END Flush;
+
+(* Whether an event or a timer is waiting. *)
+PROCEDURE Ready*(): BOOLEAN;
+BEGIN RETURN CReady() # 0
+END Ready;
+
+PROCEDURE RunChecks*;
+BEGIN CRunChecks
+END RunChecks;
+
+(* Runs the idles once, as the loop does with nothing else to do. *)
+PROCEDURE RunIdle*;
+BEGIN CRunIdle
+END RunIdle;
+
+(* Whether the system asked the program to quit, on macOS alone. *)
+PROCEDURE ProgramShouldQuit*(): BOOLEAN;
+BEGIN RETURN CProgramShouldQuit() # 0
+END ProgramShouldQuit;
+
+PROCEDURE SetProgramShouldQuit*(q: BOOLEAN);
+BEGIN CSetProgramShouldQuit(Int(q))
+END SetProgramShouldQuit;
+
+(* Hides every window shown, FLTK's too, each by its close callback,
+   unless one stays. *)
+PROCEDURE HideAllWindows*;
+BEGIN CHideAllWindows
+END HideAllWindows;
+
+(* Whether any window needs drawing. *)
+PROCEDURE AnyDamage*(): BOOLEAN;
+BEGIN RETURN CDamageAny() # 0
+END AnyDamage;
+
+(* The windows shown, the program's alone, most recent first: FirstWindow
+   then NextWindow, until NIL. *)
+PROCEDURE FirstWindow*(): Window;
+BEGIN RETURN SYSTEM.VAL(Window, CFirstWindow())
+END FirstWindow;
+
+(* NIL if w is the last, or isn't shown. *)
+PROCEDURE NextWindow*(w: Window): Window;
+BEGIN RETURN SYSTEM.VAL(Window, CNextWindow(Live(w)))
+END NextWindow;
+
+(* Makes w the first window, and the one a new dialog sits over; nothing
+   if it isn't shown. *)
+PROCEDURE SetFirstWindow*(w: Window);
+BEGIN CSetFirstWindow(Live(w))
+END SetFirstWindow;
+
+(* a is told when one of the program's windows is to close, in place of
+   hiding it (a window's Callback's default); NIL for FLTK's own. FLTK's
+   windows are hidden as ever. *)
+PROCEDURE SetAtclose*(a: Atclose);
+BEGIN atclose := a; CSetAtclose(Int(a # NIL))
+END SetAtclose;
+
+(* What FLTK does when a window is to close: hides it. *)
+PROCEDURE DefaultAtclose*(w: Window);
+BEGIN CDefaultAtclose(Live(w))
+END DefaultAtclose;
+
+(* a is told FLTK's fatal error, in place of writing it out; NIL for
+   FLTK's own. The program ends then, by exit(1), if a returns. *)
+PROCEDURE SetAbort*(a: Abort);
+BEGIN abort := a; CSetAbort(Int(a # NIL))
+END SetAbort;
+
+(* Time *)
+
+(* offset seconds from now. *)
+PROCEDURE Now*(VAR t: Timestamp; offset: LONGREAL);
+  VAR u: SYSTEM.INT32;
+BEGIN CNow(offset, t.sec, u); t.usec := u
+END Now;
+
+PROCEDURE SecondsSince*(VAR t: Timestamp): LONGREAL;
+BEGIN RETURN CSecondsSince(t.sec, t.usec)
+END SecondsSince;
+
+(* later minus earlier *)
+PROCEDURE SecondsBetween*(VAR later, earlier: Timestamp): LONGREAL;
+BEGIN RETURN CSecondsBetween(later.sec, later.usec, earlier.sec, earlier.usec)
+END SecondsBetween;
+
+(* In 60ths of a second. *)
+PROCEDURE TicksSince*(VAR t: Timestamp): HUGEINT;
+  VAR h: HUGEINT;
+BEGIN h := CTicksSince(t.sec, t.usec); RETURN h
+END TicksSince;
+
+PROCEDURE TicksBetween*(VAR later, earlier: Timestamp): HUGEINT;
+  VAR h: HUGEINT;
+BEGIN
+  h := CTicksBetween(later.sec, later.usec, earlier.sec, earlier.usec);
+  RETURN h
+END TicksBetween;
+
+(* Fonts. A number is a font's in 0 to FontEnd() - 1, or has none: such a
+   number's name is empty, and it draws as Helvetica. *)
+
+PROCEDURE FontEnd*(): INTEGER;
+BEGIN RETURN CFontEnd()
+END FontEnd;
+
+PROCEDURE CheckFont(f: INTEGER);
+BEGIN ASSERT((f >= 0) & (f < CFontEnd()), IndexOutOfRange)
+END CheckFont;
+
+(* The name FLTK finds font f by, which SetFont takes. *)
+PROCEDURE GetFont*(f: INTEGER; VAR name: ARRAY OF CHAR);
+BEGIN CheckFont(f); FromC(CGetFont(f), name)
+END GetFont;
+
+(* The name to show, and Bold, Italic or BoldItalic in attributes. *)
+PROCEDURE GetFontName*(f: INTEGER; VAR name: ARRAY OF CHAR; VAR attributes: INTEGER);
+  VAR a: SYSTEM.INT32;
+BEGIN
+  CheckFont(f); FromC(CGetFontName(f, a), name); attributes := a
+END GetFontName;
+
+(* Puts f's sizes in sizes, as many as fit, ascending, and returns how
+   many; a first size of 0 means any size will do. *)
+PROCEDURE GetFontSizes*(f: INTEGER; VAR sizes: ARRAY OF INTEGER): INTEGER;
+BEGIN
+  CheckFont(f);
+  RETURN CGetFontSizes(f, SYSTEM.ADR(sizes), SHORT(LEN(sizes)))
+END GetFontSizes;
+
+(* Makes f the font name says, up to 0 to MaxFont, which may be past
+   FontEnd(), and cut to 126 bytes. On X11 with neither Cairo nor Pango,
+   name's first character is its style: " " plain, "B" bold, "I" italic,
+   "P" both. *)
+PROCEDURE SetFont*(f: INTEGER; name-: ARRAY OF CHAR);
+  VAR n: LONGINT;
+BEGIN
+  ASSERT((f >= 0) & (f <= MaxFont), IndexOutOfRange);
+  n := 0; WHILE (n < LEN(name)) & (name[n] # 0X) DO INC(n) END;
+  ASSERT(n < LEN(name), IndexOutOfRange);
+  CSetFont(f, SYSTEM.ADR(name))
+END SetFont;
+
+(* Makes font to what font from is, which must have a name. *)
+PROCEDURE SetFontFrom*(to, from: INTEGER);
+BEGIN
+  ASSERT((to >= 0) & (to <= MaxFont), IndexOutOfRange);
+  CheckFont(from);
+  ASSERT(CSetFontFrom(to, from) # 0, IndexOutOfRange)
+END SetFontFrom;
+
+(* Adds every font the system has, from FreeFont on, over any font set
+   there, and returns FontEnd(). The first call can take seconds. *)
+PROCEDURE SetFonts*(): INTEGER;
+BEGIN RETURN CSetFonts()
+END SetFonts;
+
+(* Colors *)
+
+PROCEDURE ContrastMode*(): INTEGER;
+BEGIN RETURN CContrastMode()
+END ContrastMode;
+
+(* mode is ContrastNone to ContrastCustom. ContrastCustom is
+   ContrastCielab until SetContrastFunction. Each mode has its level. *)
+PROCEDURE SetContrastMode*(mode: INTEGER);
+BEGIN
+  ASSERT((mode >= ContrastNone) & (mode <= ContrastCustom), IndexOutOfRange);
+  CSetContrastMode(mode)
+END SetContrastMode;
+
+PROCEDURE ContrastLevel*(): INTEGER;
+BEGIN RETURN CContrastLevel()
+END ContrastLevel;
+
+(* The current mode's level, 0 to 100: more is less likely to change. *)
+PROCEDURE SetContrastLevel*(level: INTEGER);
+BEGIN CSetContrastLevel(level)
+END SetContrastLevel;
+
+(* f is ContrastCustom's; NIL for none. *)
+PROCEDURE SetContrastFunction*(f: ContrastFunction);
+BEGIN CSetContrastFunction(f)
+END SetContrastFunction;
+
+(* Contrast, for text (context 0) or a line, of size pixels if known. *)
+PROCEDURE ContrastSized*(fg, bg, context, size: INTEGER): INTEGER;
+BEGIN RETURN CContrastSized(fg, bg, context, size)
+END ContrastSized;
+
+(* CIELAB's L*, as the eye sees c: 0.0 for black to 100.0 for white. *)
+PROCEDURE Lightness*(c: INTEGER): LONGREAL;
+BEGIN RETURN CLightness(c)
+END Lightness;
+
+(* The light c gives: 0.0 to 1.0. *)
+PROCEDURE Luminance*(c: INTEGER): LONGREAL;
+BEGIN RETURN CLuminance(c)
+END Luminance;
+
+(* name's color, "#rrggbb" and the like, or an X11 name on X11; FALSE,
+   with r, g and b unchanged, if there is none. *)
+PROCEDURE ParseColor*(name-: ARRAY OF CHAR; VAR r, g, b: INTEGER): BOOLEAN;
+  VAR n: LONGINT; cr, cg, cb: SYSTEM.INT32;
+BEGIN
+  n := 0; WHILE (n < LEN(name)) & (name[n] # 0X) DO INC(n) END;
+  ASSERT(n < LEN(name), IndexOutOfRange);
+  IF CParseColor(SYSTEM.ADR(name), cr, cg, cb) = 0 THEN RETURN FALSE END;
+  r := cr; g := cg; b := cb;
+  RETURN TRUE
+END ParseColor;
+
+(* The state a program's commands use: Ctrl, or Meta on macOS. *)
+PROCEDURE CommandModifier*(): SET;
+BEGIN RETURN SYSTEM.VAL(SET, CModifier(0))
+END CommandModifier;
+
+(* The other: Meta, or Ctrl on macOS. *)
+PROCEDURE ControlModifier*(): SET;
+BEGIN RETURN SYSTEM.VAL(SET, CModifier(1))
+END ControlModifier;
+
+(* c, as Color would be, grayed while drawing an inactive box. *)
+PROCEDURE BoxColor*(c: INTEGER): INTEGER;
+BEGIN RETURN CBoxColor(c)
+END BoxColor;
+
+(* In a BoxDraw, sets the color to draw with to BoxColor(c). *)
+PROCEDURE SetBoxColor*(c: INTEGER);
+BEGIN CSetBoxColor(c)
+END SetBoxColor;
+
+(* In a BoxDraw, whether the box is active. *)
+PROCEDURE DrawBoxActive*(): BOOLEAN;
+BEGIN RETURN CDrawBoxActive() # 0
+END DrawBoxActive;
+
+PROCEDURE BoxBorderRadiusMax*(): INTEGER;
+BEGIN RETURN CBoxBorderRadiusMax()
+END BoxBorderRadiusMax;
+
+(* Below 5 is taken as 5. *)
+PROCEDURE SetBoxBorderRadiusMax*(r: INTEGER);
+BEGIN CSetBoxBorderRadiusMax(r)
+END SetBoxBorderRadiusMax;
+
+PROCEDURE BoxShadowWidth*(): INTEGER;
+BEGIN RETURN CBoxShadowWidth()
+END BoxShadowWidth;
+
+(* Below 1 is taken as 1. *)
+PROCEDURE SetBoxShadowWidth*(w: INTEGER);
+BEGIN CSetBoxShadowWidth(w)
+END SetBoxShadowWidth;
+
+(* Box types, 0 to 255 *)
+
+PROCEDURE CheckBox(b: INTEGER);
+BEGIN ASSERT((b >= 0) & (b <= 255), IndexOutOfRange)
+END CheckBox;
+
+(* The filled box of frame or down box b, and others as they are. *)
+PROCEDURE BoxFilled*(b: INTEGER): INTEGER;
+BEGIN CheckBox(b); RETURN CBoxKind(b, 0)
+END BoxFilled;
+
+(* The pressed form of b. *)
+PROCEDURE BoxDown*(b: INTEGER): INTEGER;
+BEGIN CheckBox(b); RETURN CBoxKind(b, 1)
+END BoxDown;
+
+(* The frame of b. *)
+PROCEDURE BoxFrame*(b: INTEGER): INTEGER;
+BEGIN CheckBox(b); RETURN CBoxKind(b, 2)
+END BoxFrame;
+
+(* Makes b draw with draw, which must draw only within what dx, dy, dw
+   and dh, 0 to 255, leave for the widget's edge (BoxDx). A scheme set
+   later can replace a box type it uses. *)
+PROCEDURE SetBoxtype*(b: INTEGER; draw: BoxDraw; dx, dy, dw, dh: INTEGER);
+BEGIN
+  CheckBox(b);
+  ASSERT(draw # NIL, NilArgument);
+  ASSERT((dx >= 0) & (dx <= 255) & (dy >= 0) & (dy <= 255)
+    & (dw >= 0) & (dw <= 255) & (dh >= 0) & (dh <= 255), IndexOutOfRange);
+  CSetBoxtype(b, draw, dx, dy, dw, dh)
+END SetBoxtype;
+
+PROCEDURE SetBoxtypeFrom*(to, from: INTEGER);
+BEGIN CheckBox(to); CheckBox(from); CSetBoxtypeFrom(to, from)
+END SetBoxtypeFrom;
+
+(* What draws b, to call with a color from a BoxDraw of its own. *)
+PROCEDURE GetBoxtype*(b: INTEGER): BoxDraw;
+BEGIN CheckBox(b); RETURN CGetBoxtype(b)
+END GetBoxtype;
+
+(* The color map *)
+
+(* Lets index color c, 0 to 255, be set again, on the X11 of a colormap. *)
+PROCEDURE ReleaseColor*(c: INTEGER; overlay: BOOLEAN);
+BEGIN
+  ASSERT((c >= 0) & (c <= 255), IndexOutOfRange);
+  CFreeColor(c, Int(overlay))
+END ReleaseColor;
+
+(* Takes the colors the system gives, as Background and the like. *)
+PROCEDURE GetSystemColors*;
+BEGIN CGetSystemColors
+END GetSystemColors;
+
+PROCEDURE OwnColormap*;
+BEGIN COwnColormap
+END OwnColormap;
+
+(* Asks for a visual of mode, VisualRgb and the rest added together, for
+   the windows to come; FALSE if there is none. *)
+PROCEDURE Visual*(mode: INTEGER): BOOLEAN;
+BEGIN RETURN CVisual(mode) # 0
+END Visual;
+
+PROCEDURE IsScheme*(name-: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CIsScheme(name) # 0
+END IsScheme;
+
+(* Applies the scheme again, over any box type set since it was, and
+   redraws. *)
+PROCEDURE ReloadScheme*(): BOOLEAN;
+BEGIN RETURN CReloadScheme() # 0
+END ReloadScheme;
+
+(* Events *)
+
+PROCEDURE EventAlt*(): BOOLEAN;
+BEGIN RETURN Alt * EventState() # {}
+END EventAlt;
+
+PROCEDURE EventCtrl*(): BOOLEAN;
+BEGIN RETURN Ctrl * EventState() # {}
+END EventCtrl;
+
+PROCEDURE EventShift*(): BOOLEAN;
+BEGIN RETURN Shift * EventState() # {}
+END EventShift;
+
+PROCEDURE EventCommand*(): BOOLEAN;
+BEGIN RETURN CommandModifier() * EventState() # {}
+END EventCommand;
+
+(* Which buttons are held: of Button1, Button2 and Button3 and so on. *)
+PROCEDURE EventButtons*(): SET;
+BEGIN RETURN EventState() * {24 .. 30}
+END EventButtons;
+
+(* Why the widget's Callback runs: ReasonUnknown and the rest. *)
+PROCEDURE CallbackReason*(): INTEGER;
+BEGIN RETURN CCallbackReason()
+END CallbackReason;
+
+(* In a Handle of an EvKeyDown, for an editor of text: TRUE if EventText
+   is to be taken, after deleting del bytes before the cursor. *)
+PROCEDURE Compose*(VAR del: INTEGER): BOOLEAN;
+  VAR d, r: SYSTEM.INT32;
+BEGIN r := CCompose(d); del := d; RETURN r # 0
+END Compose;
+
+PROCEDURE ComposeReset*;
+BEGIN CComposeReset
+END ComposeReset;
+
+(* Whether the event is key and state as a shortcut. *)
+PROCEDURE TestShortcut*(key: INTEGER; state: SET): BOOLEAN;
+BEGIN RETURN CTestShortcut(key + ORD(state)) # 0
+END TestShortcut;
+
+(* Where the mouse is now, on the screen; Wayland gives where it last
+   was over a window. *)
+PROCEDURE GetMouse*(VAR x, y: INTEGER);
+  VAR cx, cy: SYSTEM.INT32;
+BEGIN CGetMouse(cx, cy); x := cx; y := cy
+END GetMouse;
+
+(* The window with the grab, if it is the program's; NIL with no grab. *)
+PROCEDURE Grab*(): Window;
+BEGIN RETURN SYSTEM.VAL(Window, CGrab())
+END Grab;
+
+(* Gives w, shown, every event, wherever it happens, until SetGrab(NIL)
+   or w is deleted. *)
+PROCEDURE SetGrab*(w: Window);
+BEGIN
+  IF w = NIL THEN CSetGrab(0)
+  ELSE ASSERT(w.Shown(), OutOfOrder); CSetGrab(Live(w))
+  END
+END SetGrab;
+
+(* Sends event to shown window w as the window system would. *)
+PROCEDURE HandleEvent*(event: INTEGER; w: Window): BOOLEAN;
+BEGIN
+  ASSERT(w # NIL, NilArgument);
+  ASSERT(w.Shown(), OutOfOrder);
+  RETURN CHandleEvent(event, Live(w)) # 0
+END HandleEvent;
+
+(* The selection and the clipboard *)
+
+(* As Copy to Selection, recording owner, for SelectionOwner. FLTK 1.4
+   sends no EvSelectionClear, whatever its documentation says, so owner
+   isn't told when it loses the selection (doc/fltk-issues.md, 132). *)
+PROCEDURE SetSelection*(owner: Widget; text-: ARRAY OF CHAR);
+  VAR n: LONGINT;
+BEGIN
+  n := 0; WHILE (n < LEN(text)) & (text[n] # 0X) DO INC(n) END;
+  ASSERT(n < LEN(text), IndexOutOfRange);
+  CSelection(Live(owner), SYSTEM.ADR(text), SHORT(n))
+END SetSelection;
+
+PROCEDURE SelectionOwner*(): Widget;
+BEGIN RETURN SYSTEM.VAL(Widget, CSelectionOwner())
+END SelectionOwner;
+
+(* owner is NIL for none. *)
+PROCEDURE SetSelectionOwner*(owner: Widget);
+BEGIN
+  IF owner = NIL THEN CSetSelectionOwner(0)
+  ELSE CSetSelectionOwner(Live(owner))
+  END
+END SetSelectionOwner;
+
+(* Whether what goes in the selection goes in the clipboard too. *)
+PROCEDURE SelectionToClipboard*(): BOOLEAN;
+BEGIN RETURN CSelectionToClipboard() # 0
+END SelectionToClipboard;
+
+PROCEDURE SetSelectionToClipboard*(on: BOOLEAN);
+BEGIN CSetSelectionToClipboard(Int(on))
+END SetSelectionToClipboard;
+
+(* n is told when another program changes the selection or the clipboard;
+   n may be added more than once. X11 needs XFixes. *)
+PROCEDURE AddClipboardNotify*(n: ClipboardNotify);
+  VAR c: ClipboardNode;
+BEGIN
+  ASSERT(n # NIL, NilArgument);
+  IF notices = NIL THEN CClipboardNotify(1) END;
+  NEW(c); c.h := n; c.next := notices; notices := c
+END AddClipboardNotify;
+
+(* Removes n, added last; nothing if it isn't added. *)
+PROCEDURE RemoveClipboardNotify*(n: ClipboardNotify);
+  VAR c, prev: ClipboardNode;
+BEGIN
+  c := notices; prev := NIL;
+  WHILE (c # NIL) & (c.h # n) DO prev := c; c := c.next END;
+  IF c # NIL THEN
+    IF prev = NIL THEN notices := c.next ELSE prev.next := c.next END;
+    c.h := NIL;
+    IF notices = NIL THEN CClipboardNotify(0) END
+  END
+END RemoveClipboardNotify;
+
+(* Screens and input *)
+
+(* Screen n's dots per inch, across and up. *)
+PROCEDURE ScreenDPI*(n: INTEGER; VAR h, v: LONGREAL);
+BEGIN
+  ASSERT((n >= 0) & (n < CScreenCount()), IndexOutOfRange);
+  CScreenDpi(n, h, v)
+END ScreenDPI;
+
+PROCEDURE ScreenScale*(n: INTEGER): LONGREAL;
+BEGIN
+  ASSERT((n >= 0) & (n < CScreenCount()), IndexOutOfRange);
+  RETURN CScreenScale(n)
+END ScreenScale;
+
+(* Scales screen n's windows by factor, above 0; nothing if
+   ScreenScalingSupported() is 0. *)
+PROCEDURE SetScreenScale*(n: INTEGER; factor: LONGREAL);
+BEGIN
+  ASSERT((n >= 0) & (n < CScreenCount()), IndexOutOfRange);
+  ASSERT(factor > 0.0D0, IndexOutOfRange);
+  CSetScreenScale(n, factor)
+END SetScreenScale;
+
+(* 0 for no scaling, 1 for one scale for all screens, 2 for one each. *)
+PROCEDURE ScreenScalingSupported*(): INTEGER;
+BEGIN RETURN CScreenScalingSupported()
+END ScreenScalingSupported;
+
+(* Whether ctrl-plus and ctrl-minus scale the screen. *)
+PROCEDURE KeyboardScreenScaling*(on: BOOLEAN);
+BEGIN CKeyboardScreenScaling(Int(on))
+END KeyboardScreenScaling;
+
+(* The system's input method, on by default. *)
+PROCEDURE EnableIM*;
+BEGIN CEnableIM(1)
+END EnableIM;
+
+PROCEDURE DisableIM*;
+BEGIN CEnableIM(0)
+END DisableIM;
+
+(* The version *)
+
+(* As 1.0405, of the library running. *)
+PROCEDURE Version*(): LONGREAL;
+BEGIN RETURN CVersion()
+END Version;
+
+(* As 10405. *)
+PROCEDURE ApiVersion*(): INTEGER;
+BEGIN RETURN CApiVersion()
+END ApiVersion;
+
+PROCEDURE AbiVersion*(): INTEGER;
+BEGIN RETURN CAbiVersion()
+END AbiVersion;
+
+(* Whether the library running suits pofltk's C++ parts. *)
+PROCEDURE AbiCheck*(): BOOLEAN;
+BEGIN RETURN CAbiCheck() # 0
+END AbiCheck;
+
 PROCEDURE IdleD(self: SYSTEM.ADDRESS);
   VAR i: Idle;
 BEGIN i := SYSTEM.VAL(Idle, self); i.Run
@@ -2232,6 +2969,31 @@ PROCEDURE FdD(self: SYSTEM.ADDRESS);
   VAR w: FdWatch;
 BEGIN w := SYSTEM.VAL(FdWatch, self); w.Ready
 END FdD;
+
+PROCEDURE CheckerD(self: SYSTEM.ADDRESS);
+  VAR c: Checker;
+BEGIN c := SYSTEM.VAL(Checker, self); c.Run
+END CheckerD;
+
+PROCEDURE AtcloseD(self: SYSTEM.ADDRESS);
+BEGIN atclose(SYSTEM.VAL(Window, self))
+END AtcloseD;
+
+PROCEDURE AbortD(text: SYSTEM.ADDRESS);
+  VAR message: ARRAY 1024 OF CHAR;
+BEGIN FromC(text, message); abort(message)
+END AbortD;
+
+(* As HandlerD: one may remove itself or another. *)
+PROCEDURE ClipboardD(source: SYSTEM.INT32);
+  VAR c: ClipboardNode;
+BEGIN
+  c := notices;
+  WHILE c # NIL DO
+    IF c.h # NIL THEN c.h(source) END;
+    c := c.next
+  END
+END ClipboardD;
 
 (* self is the event's window's object, or 0. *)
 PROCEDURE DispatchD(event: SYSTEM.INT32; self: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -2261,5 +3023,6 @@ END HandlerD;
 BEGIN
   CRegister(CallbackD, DrawD, HandleD, ResizeD, DeletedD, TimeoutD);
   CRegisterOverlay(DrawOverlayD);
-  CRegisterLoop(IdleD, FdD, DispatchD, HandlerD)
+  CRegisterLoop(IdleD, FdD, DispatchD, HandlerD);
+  CRegisterStatics(CheckerD, AtcloseD, AbortD, ClipboardD)
 END Fl.

@@ -76,7 +76,9 @@ BEGIN
   Probe.Release; RETURN n
 END Ink;
 
-(* Lets FLTK's timers run for about s seconds. *)
+(* Lets FLTK's timers run for at most about s seconds: a wait can end
+   early, and 30 didn't always bring a 0.01 second timer, on artos. So
+   wait for what must happen, as WaitRing and WaitSteps do. *)
 PROCEDURE Run(s: LONGREAL);
   VAR k: INTEGER;
 BEGIN FOR k := 1 TO SHORT(ENTIER(s * 100)) DO Fl.Wait(0.01D0) END
@@ -86,6 +88,11 @@ PROCEDURE WaitRing(r: Ringing);
   VAR k: INTEGER;
 BEGIN k := 0; WHILE (r.rung = 0) & (k < 1000) DO Fl.Wait(0.01D0); INC(k) END
 END WaitRing;
+
+PROCEDURE WaitSteps(h: Heard);
+  VAR k: INTEGER;
+BEGIN k := 0; WHILE (h.steps = 0) & (k < 1000) DO Fl.Wait(0.01D0); INC(k) END
+END WaitSteps;
 
 PROCEDURE TestTimers;
   VAR gone, left: INTEGER;
@@ -185,7 +192,7 @@ BEGIN
 
   NEW(h); h.called := FALSE;
   FlForms.OpenFree(h, FlForms.ContinuousFree, 0, 0, 10, 10, "");
-  Run(0.3D0);
+  WaitSteps(h);
   Check.Check(h.steps > 0, "a continuous free gets steps");
   h.Delete;
   Run(0.1D0);
@@ -193,7 +200,7 @@ BEGIN
 
   NEW(h); h.called := FALSE;
   FlForms.OpenFree(h, FlForms.AllFree, 0, 0, 10, 10, "");
-  Run(0.3D0);
+  WaitSteps(h);
   Check.Check(h.steps > 0, "so does a free of all kinds");
   h.Delete
 END TestFrees;

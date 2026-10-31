@@ -20,6 +20,7 @@
 #include <FL/Fl_Menu_Item.H>
 #include <FL/Fl_Multi_Label.H>
 #include <FL/Fl_Widget.H>
+#include <FL/Fl_Window.H>
 #include <FL/filename.H>
 #include <FL/fl_utf8.h>
 #include <ctype.h>
@@ -334,6 +335,12 @@ inline void drop_pasted_image() {
 template <class B> class W : public B, public Hooks {
 public:
   using B::B;
+  // FLTK keeps the grabbed window and the selection's owner past their
+  // deletion (doc/fltk-issues.md, 129).
+  ~W() {
+    if (Fl::grab() == static_cast<Fl_Widget *>(this)) Fl::grab(0);
+    if (Fl::selection_owner() == this) Fl::selection_owner(0);
+  }
   void draw() override {
     if (this->user_data()) {
       Dispatch d;

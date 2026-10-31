@@ -463,6 +463,21 @@ BEGIN
   Check.Check(FlImages.openImages = n, "SetShape, of an image drawn larger than its data, and a pixmap");
   shaped.Delete;
 
+  (* Cursors: a window not shown ignores them, FLTK copies the image, and
+     a scaled image is read at its drawn size *)
+  NEW(shaped); Fl.OpenWindow(shaped, 40, 40, "cursor"); shaped.End;
+  n := FlImages.openImages;
+  NEW(j); ASSERT(FlImages.OpenXPM(j, xpm, 5));
+  FlImages.SetCursor(shaped, j, 3, 1);
+  shaped.Show; Fl.Check;
+  FlImages.SetCursor(shaped, j, 0, 0);
+  j.Scale(16, 8, FALSE, TRUE);
+  FlImages.SetCursor(shaped, j, 15, 7); j.Close;
+  Fl.Check;
+  shaped.SetCursor(Fl.CursorDefault);
+  Check.Check(FlImages.openImages = n, "SetCursor, in a window shown and not, keeps nothing of the image");
+  shaped.Delete;
+
   i.Close; i.Close;
   pic.img := NIL;
   win.Delete;

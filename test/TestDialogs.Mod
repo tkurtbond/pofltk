@@ -1,6 +1,6 @@
 MODULE TestDialogs; (* FlDialogs: each dialog answered by keys, as a user would *)
 
-IMPORT Fl, FlDialogs, Check, Probe;
+IMPORT Platform, Fl, FlDialogs, Check, Probe;
 
 CONST tries = 400;  (* of 0.05 s, waiting for a dialog; generous, for valgrind *)
 
@@ -21,8 +21,12 @@ VAR
   names: FlDialogs.Names;
   title: ARRAY 16 OF CHAR;
   s, picked: ARRAY 256 OF CHAR;
+  home: ARRAY 256 OF CHAR;
   cut: ARRAY 4 OF CHAR;
-  i, r, g, b, font, size, c, calls: INTEGER;
+  tiny: ARRAY 1 OF CHAR;
+  long: ARRAY 6000 OF CHAR;
+  box2: Fl.Box;
+  i, r, g, b, font, size, c, calls, box, color, label, x0, y0: INTEGER;
   x, y, z: LONGREAL;
   ok: BOOLEAN;
   win: Fl.Window;
@@ -66,6 +70,14 @@ END Enter;
 PROCEDURE Escape;
 BEGIN Reply("", Fl.KeyEscape, 1BX)
 END Escape;
+
+(* A dialog with this icon text, for this call alone: FLTK keeps the pointer. *)
+PROCEDURE ShowIcon(text: ARRAY OF CHAR);
+  VAR s: ARRAY 8 OF CHAR;
+BEGIN
+  COPY(text, s); FlDialogs.SetIconLabel(s);
+  Enter; FlDialogs.Message("An icon")
+END ShowIcon;
 
 PROCEDURE Ends(s, end: ARRAY OF CHAR): BOOLEAN;
   VAR i, j: INTEGER;
@@ -256,6 +268,135 @@ BEGIN
   Check.Check(FlDialogs.FilenameRelativeTo("/a/cdef", "/a/b", cut) & (cut = "../"), "cut to fit");
   Check.Check(~FlDialogs.FilenameRelative("x/y", s) & (s = "x/y"), "FilenameRelative: a relative name");
   Check.Check(FlDialogs.FilenameRelative("/no/such", s) & (s[0] = ".") & (s[1] = "."), "against the current directory");
+
+  (* absolute names *)
+  Check.Check(FlDialogs.FilenameAbsoluteTo("foo", "/a/b", s) & (s = "/a/b/foo"), "FilenameAbsoluteTo");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("../foo", "/a/b", s) & (s = "/a/foo"), "takes out ..");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("./x/../y", "/a", s) & (s = "/a/x/../y"), "takes out what starts it alone");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("../../x", "/a", s) & (s = "/../x"), "a .. too many stays");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("x", "", s) & (s = "/x"), "an empty base is the root");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("x", "/a/", s) & (s = "/a/x"), "a base with a slash");
+  Check.Check(~FlDialogs.FilenameAbsoluteTo("/p/q", "/a/b", s) & (s = "/p/q"), "an absolute name is left, and FALSE");
+  Check.Check(~FlDialogs.FilenameAbsoluteTo("|cmd", "/a", s) & (s = "|cmd"), "a pipe is left");
+  s := "foo";
+  Check.Check(FlDialogs.FilenameAbsoluteTo(s, "/a", s) & (s = "/a/foo"), "from and to the same variable");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("../foo", "/a/b", cut) & (cut = "/a/"), "cut after the .. is out");
+  Check.Check(FlDialogs.FilenameAbsoluteTo("../foo", "/a/b", tiny) & (tiny = ""), "room for the 0X alone");
+  Check.Check(FlDialogs.FilenameAbsolute("TestDialogs.Mod", s) & (s[0] = "/") & Ends(s, "/TestDialogs.Mod"), "against the current directory");
+
+  (* expanded names *)
+  Check.Check(~FlDialogs.FilenameExpand("a/b/c", s) & (s = "a/b/c"), "FilenameExpand: nothing to do");
+  Check.Check(~FlDialogs.FilenameExpand("", s) & (s = ""), "an empty name");
+  Check.Check(~FlDialogs.FilenameExpand("$POFLTK_NO_SUCH/x", s) & (s = "$POFLTK_NO_SUCH/x"), "an unset variable is left");
+  Check.Check(~FlDialogs.FilenameExpand("~pofltk-no-such/x", s) & (s = "~pofltk-no-such/x"), "an unknown user is left");
+  Check.Check(~FlDialogs.FilenameExpand("a~/b$", s) & (s = "a~/b$"), "only the start of a part counts");
+  Platform.GetEnv("HOME", home);
+  Probe.SetEnv("HOME", "/pofltk/home/");
+  Check.Check(FlDialogs.FilenameExpand("~/x", s) & (s = "/pofltk/home/x"), "~ is HOME, its last slash dropped");
+  Check.Check(FlDialogs.FilenameExpand("~", s) & (s = "/pofltk/home"), "~ alone");
+  Check.Check(FlDialogs.FilenameExpand("$HOME/x", s) & (s = "/pofltk/home/x"), "a variable");
+  Check.Check(FlDialogs.FilenameExpand("before/$HOME/x", s) & (s = "/pofltk/home/x"), "a value with a slash ends what came before it");
+  Check.Check(FlDialogs.FilenameExpand("$HOME/$HOME", s) & (s = "/pofltk/home"), "and so does a second");
+  Check.Check(FlDialogs.FilenameExpand("$HOME/x", cut) & (cut = "/po"), "cut to fit");
+  Check.Check(FlDialogs.FilenameExpand("$HOME/x", tiny) & (tiny = ""), "room for the 0X alone");
+  s := "$HOME";
+  Check.Check(FlDialogs.FilenameExpand(s, s) & (s = "/pofltk/home"), "from and to the same variable");
+  Probe.SetEnv("HOME", home);
+  Check.Check(FlDialogs.FilenameExpand("~root/x", s) & (s[0] = "/") & Ends(s, "/x"), "~user");
+  Probe.SetEnv("POFLTK_REL", "in/side");
+  Check.Check(FlDialogs.FilenameExpand("a/$POFLTK_REL/b", s) & (s = "a/in/side/b"), "a value with no slash stays in place");
+  Probe.SetEnv("POFLTK_EMPTY", "");
+  Check.Check(FlDialogs.FilenameExpand("a/$POFLTK_EMPTY/b", s) & (s = "a//b"), "an empty value");
+  Probe.SetEnv("POFLTK_SELF", "$POFLTK_SELF");
+  Check.Check(FlDialogs.FilenameExpand("$POFLTK_SELF/x", s) & (s = "$POFLTK_SELF/x"), "a value naming itself, which never ends in FLTK");
+  Check.Check(FlDialogs.FilenameExpand("$POFLTK_SELF/x", cut), "too long for the buffer, which crashes FLTK");
+  FOR i := 0 TO LEN(long) - 2 DO long[i] := "a" END;
+  long[0] := "/"; long[LEN(long) - 1] := 0X;
+  Probe.SetEnv("POFLTK_LONG", long);
+  Check.Check(FlDialogs.FilenameExpand("$POFLTK_LONG/x", s) & (s[0] = "/") & (s[LEN(s) - 2] = "a"), "a value longer than FLTK's buffers");
+
+  (* the rest of filename.H *)
+  Check.Check(FlDialogs.FilenameIsDir("names"), "FilenameIsDir: a directory");
+  Check.Check(FlDialogs.FilenameIsDir("names/"), "with a slash");
+  Check.Check(FlDialogs.FilenameIsDir("/"), "the root");
+  Check.Check(~FlDialogs.FilenameIsDir("TestDialogs.Mod"), "a file");
+  Check.Check(~FlDialogs.FilenameIsDir("no-such-directory"), "nothing");
+  Check.Check(~FlDialogs.FilenameIsDir(""), "an empty name");
+  FOR i := 0 TO LEN(long) - 3 DO long[i] := "a" END;
+  long[LEN(long) - 2] := "/"; long[LEN(long) - 1] := 0X;
+  Check.Check(~FlDialogs.FilenameIsDir(long), "a name longer than FLTK's buffer, with a slash");
+
+  Check.Check(FlDialogs.FilenameMatch("a.txt", "*.txt"), "FilenameMatch");
+  Check.Check(FlDialogs.FilenameMatch("A.TXT", "*.txt"), "whatever the case");
+  Check.Check(~FlDialogs.FilenameMatch("a.txt", "*.c"), "no match");
+  Check.Check(FlDialogs.FilenameMatch("a.txt.bak", "*.{txt,bak}"), "a list");
+  Check.Check(FlDialogs.FilenameMatch("b", "[a-c]") & ~FlDialogs.FilenameMatch("d", "[a-c]"), "a set");
+  Check.Check(~FlDialogs.FilenameMatch("a", "[!a]"), "a set refused");
+  Check.Check(FlDialogs.FilenameMatch("*", "\*") & ~FlDialogs.FilenameMatch("a", "\*"), "a backslash");
+  Check.Check(FlDialogs.FilenameMatch("", "*") & FlDialogs.FilenameMatch("", ""), "empty names");
+  s[0] := 0C3X; s[1] := 0A9X; s[2] := 0X;
+  Check.Check(~FlDialogs.FilenameMatch(s, "?") & FlDialogs.FilenameMatch(s, "??"), "? is a byte");
+  ok := FlDialogs.FilenameMatch("a", "[a"); ok := FlDialogs.FilenameMatch("a", "[a-");
+  ok := FlDialogs.FilenameMatch("a", "["); ok := FlDialogs.FilenameMatch("a", "[!");
+  ok := FlDialogs.FilenameMatch("a", "{a"); ok := FlDialogs.FilenameMatch("a", "{a,");
+  ok := FlDialogs.FilenameMatch("a", "\"); ok := FlDialogs.FilenameMatch("a", "[\");
+  Check.Check(TRUE, "a pattern left open reads nothing it shouldn't");
+
+  FlDialogs.FilenameName("/a/b.c", s); Check.Check(s = "b.c", "FilenameName");
+  FlDialogs.FilenameName("/a/b/", s); Check.Check(s = "", "of a directory");
+  FlDialogs.FilenameName("b", s); Check.Check(s = "b", "with no directory");
+  FlDialogs.FilenameName("/a/bcdefg", cut); Check.Check(cut = "bcd", "cut to fit");
+  s := "/a/b"; FlDialogs.FilenameName(s, s); Check.Check(s = "b", "from and to the same variable");
+  FlDialogs.FilenameExt("/a/b.c", s); Check.Check(s = ".c", "FilenameExt");
+  FlDialogs.FilenameExt("a.b.c", s); Check.Check(s = ".c", "the last");
+  FlDialogs.FilenameExt("a.d/b", s); Check.Check(s = "", "none, with a dot before");
+  FlDialogs.FilenameExt(".bashrc", s); Check.Check(s = ".bashrc", "all of a dot file");
+  FlDialogs.FilenameExt("a.extension", cut); Check.Check(cut = ".ex", "cut to fit");
+
+  s := "a.txt"; FlDialogs.FilenameSetExt(s, ".c"); Check.Check(s = "a.c", "FilenameSetExt");
+  s := "a"; FlDialogs.FilenameSetExt(s, ".c"); Check.Check(s = "a.c", "with none");
+  s := "a.txt"; FlDialogs.FilenameSetExt(s, ""); Check.Check(s = "a", "taken off");
+  s := "a.txt"; FlDialogs.FilenameSetExt(s, ".longer.ext"); Check.Check(s = "a.longer.ext", "longer");
+  cut := "a.c"; FlDialogs.FilenameSetExt(cut, ".long"); Check.Check(cut = "a.l", "cut to fit");
+  s := ".c"; FlDialogs.FilenameSetExt(s, s); Check.Check(s = ".c", "name and ext the same variable");
+
+  s := "a%20b"; FlDialogs.DecodeURI(s); Check.Check(s = "a b", "DecodeURI");
+  s := "%41%42c"; FlDialogs.DecodeURI(s); Check.Check(s = "ABc", "several");
+  s := "plain"; FlDialogs.DecodeURI(s); Check.Check(s = "plain", "nothing to do");
+  s := "a%"; FlDialogs.DecodeURI(s); Check.Check(s = "a%", "a % at the end");
+  s := "%zz%41"; FlDialogs.DecodeURI(s); Check.Check(s = "%zz%41", "stops at a bad %");
+  s := "a%00b"; FlDialogs.DecodeURI(s); Check.Check(s = "a", "%00 ends it");
+  s := ""; FlDialogs.DecodeURI(s); Check.Check(s = "", "empty");
+
+  (* a dialog's icon and place *)
+  FlDialogs.Icon(box, font, size, color, label);
+  Check.Check((box = Fl.ThinUpBox) & (font = Fl.TimesBold) & (size = 34) & (color = Fl.White) & (label = Fl.Blue), "Icon: FLTK's to start with");
+  FlDialogs.SetIcon(Fl.FlatBox, Fl.Helvetica, 20, Fl.Yellow, Fl.Red);
+  FlDialogs.Icon(box, font, size, color, label);
+  Check.Check((box = Fl.FlatBox) & (font = Fl.Helvetica) & (size = 20) & (color = Fl.Yellow) & (label = Fl.Red), "SetIcon");
+  FlDialogs.SetDefaultIconLabel("D");
+  Check.Check(FlDialogs.Position(x0, y0) = FlDialogs.NoPosition, "no position to start with");
+  FlDialogs.SetPosition(30, 40, FALSE);
+  Check.Check((FlDialogs.Position(x0, y0) = FlDialogs.PositionAt) & (x0 = 30) & (y0 = 40), "SetPosition");
+  FlDialogs.SetPosition(50, 60, TRUE);
+  Check.Check((FlDialogs.Position(x0, y0) = FlDialogs.PositionCentred) & (x0 = 50) & (y0 = 60), "centred");
+  ShowIcon("T");
+  Check.Check(FlDialogs.Position(x0, y0) = FlDialogs.NoPosition, "a dialog uses it up");
+  FlDialogs.SetDefaultIconLabel("");
+  FlDialogs.SetIcon(Fl.ThinUpBox, Fl.TimesBold, 34, Fl.White, Fl.Blue);
+  ShowIcon("");
+  Check.Check(answer.tries < tries, "SetIconLabel, SetIcon: dialogs still run");
+  NEW(win); Fl.OpenWindow(win, 220, 110, "TestDialogs");
+  NEW(box2); Fl.OpenBox(box2, 20, 30, 40, 10, "");
+  win.End;
+  FlDialogs.SetPositionOver(box2);
+  ok := FlDialogs.Position(x0, y0) = FlDialogs.PositionCentred;
+  Check.Check(ok & (x0 - win.X() = 40) & (y0 - win.Y() = 35), "SetPositionOver");
+  win.Delete;
+  FlDialogs.SetPosition(0, 0, FALSE);
+  ShowIcon("");
+  FlDialogs.SetFileChooserOK("Take it");
+  FlDialogs.SetFileChooserOK("");
 
   Check.Check(Fl.OpenWidgets() = 0, "no widget left open");
   Check.Summary

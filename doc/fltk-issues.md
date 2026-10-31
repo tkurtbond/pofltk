@@ -2055,3 +2055,304 @@ sway, reading pixels back: under Wayland the context pointer was the same
 at each draw, its status 2 from the second draw on, and a box's new
 color didn't appear; on X11 the pointer differed and the color did
 (2026-10-31). `TestCairo` checks `FlCairo`'s window for the same.
+
+## 115. Composed characters and `fl_utf8strlen` at the ends of the text
+
+**What happens:** `fl_utf8_previous_composed_char` at the start of the
+text returns a pointer before it, and on a variation selector at the
+start `fl_utf8back` reads before the text. `fl_utf8_next_composed_char`
+goes past the end: a lone lead byte `F0`, one byte long, gave 4, and "a"
+with a zero-width joiner at the end, 4 bytes, gave 5.
+`fl_utf8strlen(text, len)` turns characters into bytes, not bytes into
+characters, and steps past the NUL on a lead byte cut short.
+
+**Cause:** `from += fl_utf8len(*from)`, in `fl_utf8.cxx`, trusts the
+lead byte, and `fl_utf8len` can be -1. The backward walk doesn't test
+for the start (`fl_utf8back`, line 852, is where valgrind stops).
+
+**Effect on pofltk:** `FlUtf8` passes a copy with zeros on both sides
+(`Text`), and keeps what comes back within the text.
+
+**Confirmed:** programs under valgrind, 2026-10-31; `TestUtf8`.
+
+## 116. `fl_utf_tolower` and `fl_utf_toupper` have no size and no terminator
+
+**What happens:** each writes to a buffer of no stated size and doesn't
+end it with `0X`. A bad byte becomes U+FFFD, 3 bytes.
+
+**Cause:** the destination has no length parameter, and the result is
+only a count.
+
+**Effect on pofltk:** `FlUtf8` gives each a buffer of its own, larger
+than the `3 * n` a bad text needs, and copies out what fits.
+
+**Confirmed:** by a program, and `TestUtf8`, 2026-10-31.
+
+## 117. `fl_utf8toa`'s count past a short buffer
+
+**What happens:** the result is meant to be the length needed, but
+differs with the buffer: `"xx\xC3a"` counts 4 in a buffer big enough, and
+3 in one of 2 bytes. So does `"xx\xC0\xC0"`.
+
+**Cause:** past the end of the buffer, the rest is measured with
+`fl_utf8len1`, which takes a bad lead byte's word for its length; filling
+the buffer uses `fl_utf8decode`, which takes one byte of it.
+
+**Effect on pofltk:** the shim always gives it a buffer as long as the
+text, which can't be too short, and copies out what fits.
+
+**Confirmed:** by a program, 2026-10-31.
+
+## 118. `fl_utf8to_mb` and `fl_utf8from_mb`, buffers and locales
+
+**What happens:** in a UTF-8 locale, with `srclen >= dstlen`, both
+return the length and write nothing, not even a `0X`. `fl_utf8from_mb`
+in Latin-1 returns one too many for 1024 bytes or more.
+`fl_utf8locale` reads the environment once and caches it.
+
+`fl_utf8_to_locale` and `fl_locale_to_utf8` are declared in no header
+for this system: they exist only in the WinAPI driver.
+
+**Cause:** the UTF-8 case is a plain copy that only tests the size.
+
+**Effect on pofltk:** `FlUtf8` asks each for the size first and gives it
+a buffer of that, measures `fl_utf8from_mb`'s result itself, and leaves
+the two Windows functions out.
+
+**Confirmed:** by a program in each locale, 2026-10-31.
+
+## 119. `fl_filename_absolute`
+
+**What happens:** it works in a temporary as long as `tolen`, so a short
+buffer cuts the *base* directory, and it then reads before the temporary
+as it removes `..`. An empty base does too (from the source). Only a
+leading `.` or `..` is removed. It returns 0 for a name already absolute
+or starting with `|`.
+
+**Cause:** `Fl_System_Driver::filename_absolute`, in
+`Fl_System_Driver.cxx`.
+
+**Effect on pofltk:** the shim gives it a buffer of its own, big enough,
+and `/` for an empty base.
+
+**Confirmed:** under valgrind, 2026-10-31; `TestDialogs`.
+
+## 120. `fl_filename_expand`
+
+**What happens:** it aborts (status 134) when a variable's value doesn't
+fit, and loops for ever with `SELF='$SELF'` in the environment. An empty
+value reads `value[-1]` (from the source).
+
+**Cause:** the driver's `filename_expand` copies in place and rescans
+what it has copied.
+
+**Effect on pofltk:** `FlDialogs.cpp` has its own `expand`.
+
+**Confirmed:** by a program, 2026-10-31; `TestDialogs`, with `Probe.SetEnv`.
+
+## 121. `fl_filename_isdir`
+
+**What happens:** a name of 4096 bytes or more ending in `/` overruns a
+stack buffer.
+
+**Cause:** `fn[FL_PATH_MAX]` in `filename_isdir`.
+
+**Effect on pofltk:** the shim calls `stat` itself.
+
+**Confirmed:** by a program, 2026-10-31.
+
+## 122. `fl_filename_match`
+
+**What happens:** a pattern with an open `[` or `{` reads past its NUL.
+
+**Cause:** the matcher's loops for a set test for the closing character,
+not for the end.
+
+**Effect on pofltk:** the shim matches copies with 16 zeros after them.
+
+**Confirmed:** under valgrind, 2026-10-31; `TestDialogs`.
+
+## 123. Symbols: names outside ASCII, and a table that fills
+
+**What happens:** a symbol name with a byte above 7F gives a negative
+hash index, on a system where `char` is signed: x86, and not arm64.
+That is reachable from a label like `"@é"`. The table is full when
+`symbnumb > MAXSYMBOL / 2`, 105 symbols, of which FLTK's own are about 41.
+`fl_add_symbol` keeps the name, takes no user data, and an empty name
+replaces the default symbol.
+
+**Cause:** `find` in `fl_symbols.cxx` hashes `char`s without a cast.
+
+**Effect on pofltk:** `FlDraw.AddSymbol` copies the name, checks it, and
+says whether it was added. Labels are the program's to keep ASCII after
+`@`.
+
+**Confirmed:** under valgrind, 2026-10-31; `TestDrawMore`.
+
+## 124. Drawing that needs a current window
+
+**What happens:** with no current window, `fl_overlay_rect`, `fl_scroll`
+and `fl_antialias()` crash.
+
+**Cause:** each goes to the window's or the driver's state unchecked.
+
+**Effect on pofltk:** `FlDraw` halts (`Fl.OutOfOrder`): `HaltOverlay`,
+`HaltScroll`, `HaltAntialias`.
+
+**Confirmed:** by a program, 2026-10-31.
+
+## 125. `fl_expand_text`
+
+**What happens:** with `maxbuf` 0, FLTK allocates a buffer the caller
+can't get, since `buf` is by value. With a size, the text stops at
+`buf + maxbuf - 4`. With `draw_symbols`, it stops at `@x` without moving
+on, so a caller's loop never ends.
+
+**Cause:** `fl_expand_text` in `fl_draw.cxx`.
+
+**Effect on pofltk:** the shim always gives a buffer big enough, and
+`FlDraw`'s result says where it stopped; a program looping on lines must
+allow for no progress there.
+
+**Confirmed:** by a program, 2026-10-31; `TestDrawMore`.
+
+## 126. `fl_local_to_mac_roman` writes to NULL
+
+**What happens:** `fl_local_to_mac_roman("abc", 3)` as the first call
+writes to NULL; only a first call with `n = 0` allocates.
+`fl_mac_roman_to_local` has the same test.
+
+**Cause:** `if (n <= n_buf)` is inverted, so the buffer grows only when
+it needn't.
+
+**Effect on pofltk:** the shim calls each with `n = 0` first, then a byte
+at a time, since the one to Mac Roman writes only its first byte.
+
+**Confirmed:** by a program, 2026-10-31; `TestDrawMore`.
+
+## 127. Reading a window back, partly or wholly outside it
+
+**What happens:** X11's `fl_capture_window` writes out of bounds for a
+width of 0 or below, or a rectangle partly off the window. Wayland's
+`read_win_rectangle` reads past the draw buffer, from `fl_capture_window`
+and `fl_read_image`.
+
+**Cause:** neither clips to the window.
+
+**Effect on pofltk:** both shims clip first.
+
+**Confirmed:** under valgrind, on X11 and sway, 2026-10-31; `TestImages`,
+`TestDrawMore`.
+
+## 128. `fl_restore_clip` on Cairo
+
+**What happens:** on Cairo it drops a pushed clip, so what follows is
+drawn outside it.
+
+**Cause:** `Fl_Cairo_Graphics_Driver::push_clip` keeps its clip in
+`clip_` and cairo's saved state, not in `rstack`, and `restore_clip` calls
+`cairo_reset_clip` and applies only `rstack`.
+
+**Effect on pofltk:** `FlDraw` leaves `fl_restore_clip` out, with
+`fl_clip_region`: `PushClip` and `PopClip` are what programs need.
+
+**Confirmed:** by a program, 2026-10-31.
+
+## 129. `Fl::grab` and `Fl::selection_owner` of a deleted widget
+
+**What happens:** `Fl::grab_` isn't cleared when the grabbed window is
+deleted, and the next event reads freed memory in `send_event`
+(`Fl.cxx`, 1267), on both back ends. `Fl::selection_owner_` isn't
+cleared either. On X11, `Fl::grab(win)` with no window shown crashes in
+`XGrabPointer`.
+
+**Cause:** `~Fl_Widget` calls `fl_throw_focus`, which clears `pushed`,
+`belowmouse`, `focus` and the selection's requestor, not these two.
+
+**Effect on pofltk:** `ofl::W<B>`'s destructor clears both, and
+`Fl.SetGrab` halts if the window isn't shown (`HaltGrabHidden`).
+
+**Confirmed:** under valgrind, on X11 and sway, 2026-10-31; `TestStatics`.
+
+## 130. Fonts: the table has no bounds
+
+**What happens:**
+
+- `Fl::get_font(5000)` returns garbage, and `get_font_name(20)` crashes,
+  past the table;
+- on Cairo, `get_font_name` of a gap crashes;
+- a name of 128 bytes or more overruns `fontname[128]`, and
+  `fontname[127]` holds the type, so 126 is the limit;
+- `Fl::set_font(n, name)` keeps the pointer; `set_font(to, from)` shares
+  it;
+- `Fl::set_fonts` is cached on Cairo, and overwrites the table from
+  `FL_FREE_FONT` on;
+- `Fl::get_font_sizes` on Cairo gives one entry, 0;
+- a widget's label font past the table crashes when drawn (a segmentation
+  fault in `Fl_Cairo_Graphics_Driver::font`); a gap draws.
+
+**Cause:** `fl_fonts` has a private `table_size`, and nothing tests a
+number against it. `Fl_Cairo_Graphics_Driver.cxx`, 1176, does
+`strcpy(f->fontname, f->name)` before its test for NULL;
+`drivers/Xlib/Fl_Font.H`, 60, declares the array.
+
+**Effect on pofltk:** `Fl` keeps `font_end` itself and halts on a number
+past it (`HaltFontNumber`, `HaltFontFrom`), or past `MaxFont`
+(`HaltFontGap`). The shim keeps each name (`font_names`) and cuts it to
+126 bytes at a character's boundary; replacing a name is safe, as
+`Fl::set_font` sets the pointer even if the text is equal. A widget's
+font isn't checked, in every setter, against the table: a program
+keeps to `Fl.FontEnd()`.
+
+**Confirmed:** by programs, 2026-10-31; `TestStatics`.
+
+## 131. Statics that crash with no display open
+
+**What happens:** `Fl::ready()` and `Fl::selection` crash on X11 (in
+`XQLength`, `XSetSelectionOwner`); `Fl::disable_im` and `enable_im`
+crash under Wayland (`Fl_Wayland_Screen_Driver.cxx`, 103);
+`Fl::set_box_color` with nothing drawn crashes on both (`fl_color` with
+no driver, `fl_draw.H`, 51).
+
+**Cause:** none opens the display, as `fl_open_display` would.
+
+**Effect on pofltk:** each shim opens it first. `Fl.SetBoxColor` as the
+first thing a program does works on X11 and Wayland.
+
+**Confirmed:** by programs on both back ends, 2026-10-31.
+
+## 132. `FL_SELECTIONCLEAR` is never sent
+
+**What happens:** a widget set with `Fl::selection_owner` hears nothing
+when another takes the selection.
+
+**Cause:** nothing in FLTK 1.4.5 sends it: its one mention is a comment
+(`Fl.cxx`, 1630), and `Fl::selection_owner(Fl_Widget *)` only sets the
+static.
+
+**Effect on pofltk:** none, but `Fl.EvSelectionClear` is not to be relied
+on, and no test waits for it.
+
+**Confirmed:** from the source, and `TestStatics` looking at
+`SelectionOwner`, 2026-10-31.
+
+## 133. `fl_draw_image` inside a line callback, on Xlib
+
+**What happens:** an image drawn from the callback of `fl_draw_image(cb,
+...)` spoils the outer one, and if it is larger the outer one writes to
+freed memory.
+
+**Cause:** `innards` in `Fl_Xlib_Graphics_Driver_image.cxx` keeps its
+`XImage` `xi` and its `buffer` in statics. The inner call sets `xi`'s
+size, and a larger one does `delete[] buffer` while the outer loop's `to`
+points into it. FLTK's documentation doesn't mention it.
+
+**Effect on pofltk:** `DrawImage`, `DrawImageMono`, `DrawImageLines` and
+`DrawImageMonoLines` halt with `Fl.OutOfOrder` in a `Line`, on every back
+end, so that a program tried on Cairo doesn't go wrong on Xlib
+(`HaltImageInLine`). The other ways into it, such as `FlImages`'
+drawing, aren't checked, and `Line`'s comment forbids them.
+
+**Confirmed:** the outer image was wrong on NetBSD's FLTK and on one
+built for plain X11 with neither Cairo nor Pango, not on Cairo's, and
+valgrind shows the invalid write there, 2026-10-31.

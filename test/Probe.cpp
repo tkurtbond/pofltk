@@ -13,6 +13,7 @@
 #include <FL/Fl_Window.H>
 #include <FL/fl_draw.H>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -29,6 +30,9 @@ int32_t send(intptr_t win, int32_t event) {
 }
 
 }  // namespace
+
+// Not in a header: what the window system's code calls.
+extern void fl_trigger_clipboard_notify(int source);
 
 extern "C" {
 
@@ -235,6 +239,23 @@ int32_t ofltest_read(int32_t fd, char *buf, int32_t n) {
 }
 
 void ofltest_close(int32_t fd) { close(fd); }
+
+// The key of the event, with no event sent, keeping its state.
+void ofltest_set_key(int32_t key, const char *s) {
+  strncpy(text, s, sizeof text - 1);
+  Fl::e_keysym = Fl::e_original_keysym = key;
+  Fl::e_text = text;
+  Fl::e_length = static_cast<int>(strlen(text));
+}
+
+void ofltest_fatal(const char *text) { Fl::fatal("%s %d", text, 7); }
+void ofltest_clipboard_notice(int32_t source) {
+  fl_trigger_clipboard_notify(source);
+}
+
+void ofltest_setenv(const char *name, const char *value) {
+  setenv(name, value, 1);
+}
 
 // The width of the image FLTK's own Fl_Shared_Image::get makes of file
 // name, or 0.

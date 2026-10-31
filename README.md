@@ -197,6 +197,7 @@ END Hello.
 | `FlPreferences` | `Preferences`: FLTK's settings databases; `Plugin`, `PluginManager`: objects found by class and name, and libraries loaded to add them |
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
 | `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
+| `FlUtf8` | UTF-8 text in `ARRAY OF CHAR`: walking it, its characters, case, and conversions, in bytes |
 | `FlTerminal` | `Terminal`: a screen of text for a program's output, with a history and ANSI colors |
 | `FlPrint` | `Printer`, and files: `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile`; what `FlDraw` draws goes to the one begun |
 | `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |

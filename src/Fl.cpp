@@ -18,8 +18,12 @@
 #include <FL/fl_draw.H>
 #include <FL/filename.H>
 #include <FL/platform.H>
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
+#include <map>
+#include <memory>
 #include <vector>
 
 namespace ofl {
@@ -93,6 +97,72 @@ int handler_trampoline(int event) {
 std::vector<char> event_text;
 
 
+// Checks and the clipboard's notices: Fl's, as idles and handlers are.
+ofl::SelfFn on_check;
+void (*on_clipboard)(int32_t);
+
+void check_trampoline(void *self) {
+  ofl::Dispatch d;
+  on_check(reinterpret_cast<intptr_t>(self));
+}
+
+void clipboard_trampoline(int source, void *) {
+  ofl::Dispatch d;
+  on_clipboard(source);
+}
+
+// Closing a window: FLTK's windows are FLTK's to hide, and Oberon sees
+// only its own.
+ofl::SelfFn on_atclose;
+
+void atclose_trampoline(Fl_Window *w, void *data) {
+  intptr_t self = ofl::object_of(w);
+  if (self) {
+    ofl::Dispatch d;
+    on_atclose(self);
+  } else {
+    Fl::default_atclose(w, data);
+  }
+}
+
+// A fatal error: FLTK's handler takes a printf format, and must not
+// return (Fl.H), so if Oberon's does the program ends as FLTK's own
+// handler ends it.
+void (*on_abort)(intptr_t);
+Fl_Abort_Handler fltk_abort;
+
+void abort_trampoline(const char *format, ...) {
+  char text[1024];
+  va_list args;
+  va_start(args, format);
+  vsnprintf(text, sizeof text, format, args);
+  va_end(args);
+  on_abort(reinterpret_cast<intptr_t>(text));
+  exit(1);
+}
+
+// FLTK's font table grows with Fl::set_font, knows its size only there,
+// checks no number, and keeps the name's pointer: so the table's end
+// and the names' copies are kept here (doc/fltk-issues.md, 130).
+int font_end = FL_FREE_FONT;
+std::map<int, std::unique_ptr<char[]>> font_names;
+
+// Sets font f to name, cut to fit the 127 bytes of Fl_Fontdesc's
+// fontname, whose last is the font's attributes, at a character's start.
+void set_font(int f, const char *name) {
+  size_t n = strlen(name);
+  if (n > 126) {
+    n = 126;
+    while (n > 0 && (name[n] & 0xC0) == 0x80) n--;
+  }
+  std::unique_ptr<char[]> copy(new char[n + 1]);
+  memcpy(copy.get(), name, n);
+  copy[n] = 0;
+  Fl::set_font(static_cast<Fl_Font>(f), copy.get());
+  std::swap(font_names[f], copy);
+  if (f >= font_end) font_end = f + 1;
+}
+
 // True if the display, which this opens, is Wayland's. An FLTK built
 // without Wayland (OpenBSD's) has no fl_wl_display.
 bool wayland() {
@@ -124,6 +194,15 @@ void ofl_event_handlers(int32_t on) {
   } else {
     Fl::remove_handler(handler_trampoline);
   }
+}
+
+void ofl_register_statics(ofl::SelfFn check, ofl::SelfFn atclose,
+                          void (*abort)(intptr_t),
+                          void (*clipboard)(int32_t)) {
+  on_check = check;
+  on_atclose = atclose;
+  on_abort = abort;
+  on_clipboard = clipboard;
 }
 
 void ofl_redraw_all() { Fl::redraw(); }
@@ -541,6 +620,15 @@ int32_t ofl_window_decorated_w(intptr_t w) {
 
 int32_t ofl_window_decorated_h(intptr_t w) {
   return ofl::as<Fl_Window>(w)->decorated_h();
+}
+
+// Under Wayland, make_current of a window not shown is a fatal error
+// (doc/fltk-issues.md, 77).
+int32_t ofl_window_make_current(intptr_t w) {
+  Fl_Window *win = ofl::as<Fl_Window>(w);
+  if (!win->shown()) return 0;
+  win->make_current();
+  return 1;
 }
 
 void ofl_window_cursor(intptr_t w, int32_t c) {
@@ -1057,5 +1145,340 @@ void ofl_repeat_timeout(double seconds, intptr_t self) {
 void ofl_remove_timeout(intptr_t self) {
   Fl::remove_timeout(timeout_trampoline, reinterpret_cast<void *>(self));
 }
+
+void ofl_flush(void) {
+  fl_open_display();
+  Fl::flush();
+}
+
+// Under X11 with no display open FLTK reads through a null pointer
+// (doc/fltk-issues.md, 131).
+int32_t ofl_ready(void) {
+  fl_open_display();
+  return Fl::ready();
+}
+
+void ofl_add_check(intptr_t self) {
+  Fl::add_check(check_trampoline, reinterpret_cast<void *>(self));
+}
+
+void ofl_remove_check(intptr_t self) {
+  Fl::remove_check(check_trampoline, reinterpret_cast<void *>(self));
+}
+
+void ofl_run_checks(void) { Fl::run_checks(); }
+void ofl_run_idle(void) { Fl::run_idle(); }
+int32_t ofl_program_should_quit(void) { return Fl::program_should_quit(); }
+void ofl_set_program_should_quit(int32_t q) { Fl::program_should_quit(q); }
+void ofl_hide_all_windows(void) { Fl::hide_all_windows(); }
+int32_t ofl_damage_any(void) { return Fl::damage(); }
+
+// The first window shown from w on with an Oberon object, or 0.
+static intptr_t oberon_window(Fl_Window *w) {
+  while (w && !ofl::object_of(w)) w = Fl::next_window(w);
+  return ofl::object_of(w);
+}
+
+intptr_t ofl_first_window(void) { return oberon_window(Fl::first_window()); }
+
+// Fl::next_window of a window not shown is an Fl::error.
+intptr_t ofl_next_window(intptr_t w) {
+  Fl_Window *win = ofl::as<Fl_Window>(w);
+  return win->shown() ? oberon_window(Fl::next_window(win)) : 0;
+}
+
+void ofl_set_first_window(intptr_t w) {
+  Fl::first_window(ofl::as<Fl_Window>(w));
+}
+
+void ofl_set_atclose(int32_t on) {
+  Fl::set_atclose(on ? atclose_trampoline : Fl::default_atclose);
+}
+
+void ofl_default_atclose(intptr_t w) {
+  Fl_Window *win = ofl::as<Fl_Window>(w);
+  Fl::default_atclose(win, win->user_data());
+}
+
+void ofl_set_abort(int32_t on) {
+  if (!fltk_abort) fltk_abort = Fl::fatal;
+  Fl::set_abort(on ? abort_trampoline : fltk_abort);
+}
+
+// Time
+
+void ofl_now(double offset, double *sec, int32_t *usec) {
+  Fl_Timestamp t = Fl::now(offset);
+  *sec = static_cast<double>(t.sec);
+  *usec = t.usec;
+}
+
+static Fl_Timestamp stamp(double sec, int32_t usec) {
+  Fl_Timestamp t;
+  t.sec = static_cast<time_t>(sec);
+  t.usec = usec;
+  return t;
+}
+
+double ofl_seconds_since(double sec, int32_t usec) {
+  Fl_Timestamp t = stamp(sec, usec);
+  return Fl::seconds_since(t);
+}
+
+double ofl_seconds_between(double s1, int32_t u1, double s2, int32_t u2) {
+  Fl_Timestamp t1 = stamp(s1, u1), t2 = stamp(s2, u2);
+  return Fl::seconds_between(t1, t2);
+}
+
+intptr_t ofl_ticks_since(double sec, int32_t usec) {
+  Fl_Timestamp t = stamp(sec, usec);
+  return Fl::ticks_since(t);
+}
+
+intptr_t ofl_ticks_between(double s1, int32_t u1, double s2, int32_t u2) {
+  Fl_Timestamp t1 = stamp(s1, u1), t2 = stamp(s2, u2);
+  return Fl::ticks_between(t1, t2);
+}
+
+// Fonts (doc/fltk-issues.md, 130)
+
+int32_t ofl_font_end(void) { return font_end; }
+
+intptr_t ofl_get_font(int32_t f) {
+  return reinterpret_cast<intptr_t>(Fl::get_font(static_cast<Fl_Font>(f)));
+}
+
+// A number with no font has no name; Cairo's driver copies it unchecked.
+intptr_t ofl_get_font_name(int32_t f, int32_t *attributes) {
+  int a = 0;
+  *attributes = 0;
+  if (!Fl::get_font(static_cast<Fl_Font>(f))) return 0;
+  const char *name = Fl::get_font_name(static_cast<Fl_Font>(f), &a);
+  *attributes = a;
+  return reinterpret_cast<intptr_t>(name);
+}
+
+int32_t ofl_get_font_sizes(int32_t f, int32_t *sizes, int32_t n) {
+  int *found;
+  int count = Fl::get_font_sizes(static_cast<Fl_Font>(f), found);
+  if (count > n) count = n;
+  for (int i = 0; i < count; i++) sizes[i] = found[i];
+  return count;
+}
+
+void ofl_set_font(int32_t f, const char *name) { set_font(f, name); }
+
+// Fl::set_font(to, from) shares from's name, which set_font frees when
+// from is set again, so to has a copy. 0 if from has no font.
+int32_t ofl_set_font_from(int32_t to, int32_t from) {
+  const char *name = Fl::get_font(static_cast<Fl_Font>(from));
+  if (!name) return 0;
+  if (to != from) set_font(to, name);
+  return 1;
+}
+
+int32_t ofl_set_fonts(void) {
+  int n = Fl::set_fonts(0);
+  if (n > font_end) font_end = n;
+  return n;
+}
+
+// Colors and boxes
+
+int32_t ofl_contrast_mode(void) { return fl_contrast_mode(); }
+void ofl_set_contrast_mode(int32_t mode) { fl_contrast_mode(mode); }
+int32_t ofl_contrast_level(void) { return fl_contrast_level(); }
+void ofl_set_contrast_level(int32_t level) { fl_contrast_level(level); }
+
+void ofl_set_contrast_function(Fl_Contrast_Function *f) {
+  fl_contrast_function(f);
+}
+
+int32_t ofl_contrast_sized(int32_t fg, int32_t bg, int32_t context,
+                           int32_t size) {
+  return static_cast<int32_t>(fl_contrast(static_cast<Fl_Color>(fg),
+                                          static_cast<Fl_Color>(bg), context,
+                                          size));
+}
+
+double ofl_lightness(int32_t c) {
+  return fl_lightness(static_cast<Fl_Color>(c));
+}
+
+double ofl_luminance(int32_t c) {
+  return fl_luminance(static_cast<Fl_Color>(c));
+}
+
+// fl_box, fl_down and fl_frame, by what (0, 1, 2).
+int32_t ofl_box_kind(int32_t b, int32_t what) {
+  Fl_Boxtype t = static_cast<Fl_Boxtype>(b);
+  return what == 0 ? fl_box(t) : what == 1 ? fl_down(t) : fl_frame(t);
+}
+
+int32_t ofl_parse_color(const char *name, int32_t *r, int32_t *g, int32_t *b) {
+  uchar cr = 0, cg = 0, cb = 0;
+  fl_open_display();
+  if (!fl_parse_color(name, cr, cg, cb)) return 0;
+  *r = cr;
+  *g = cg;
+  *b = cb;
+  return 1;
+}
+
+int32_t ofl_modifier(int32_t control) {
+  return control ? fl_control_modifier() : fl_command_modifier();
+}
+
+void ofl_set_boxtype(int32_t b, Fl_Box_Draw_F *draw, int32_t dx, int32_t dy,
+                     int32_t dw, int32_t dh) {
+  Fl::set_boxtype(static_cast<Fl_Boxtype>(b), draw, static_cast<uchar>(dx),
+                  static_cast<uchar>(dy), static_cast<uchar>(dw),
+                  static_cast<uchar>(dh));
+}
+
+void ofl_set_boxtype_from(int32_t to, int32_t from) {
+  Fl::set_boxtype(static_cast<Fl_Boxtype>(to), static_cast<Fl_Boxtype>(from));
+}
+
+Fl_Box_Draw_F *ofl_get_boxtype(int32_t b) {
+  return Fl::get_boxtype(static_cast<Fl_Boxtype>(b));
+}
+
+int32_t ofl_box_color(int32_t c) {
+  return static_cast<int32_t>(Fl::box_color(static_cast<Fl_Color>(c)));
+}
+
+// There is no driver until the display is open (doc/fltk-issues.md, 131).
+void ofl_set_box_color(int32_t c) {
+  fl_open_display();
+  Fl::set_box_color(static_cast<Fl_Color>(c));
+}
+
+int32_t ofl_draw_box_active(void) { return Fl::draw_box_active(); }
+int32_t ofl_box_border_radius_max(void) { return Fl::box_border_radius_max(); }
+void ofl_set_box_border_radius_max(int32_t r) { Fl::box_border_radius_max(r); }
+int32_t ofl_box_shadow_width(void) { return Fl::box_shadow_width(); }
+void ofl_set_box_shadow_width(int32_t w) { Fl::box_shadow_width(w); }
+
+void ofl_free_color(int32_t c, int32_t overlay) {
+  Fl::free_color(static_cast<Fl_Color>(c), overlay);
+}
+
+void ofl_get_system_colors(void) { Fl::get_system_colors(); }
+void ofl_own_colormap(void) { Fl::own_colormap(); }
+int32_t ofl_visual(int32_t mode) { return Fl::visual(mode); }
+int32_t ofl_is_scheme(const char *name) { return Fl::is_scheme(name); }
+int32_t ofl_reload_scheme(void) { return Fl::reload_scheme(); }
+
+// Events
+
+int32_t ofl_callback_reason(void) { return Fl::callback_reason(); }
+
+int32_t ofl_compose(int32_t *del) {
+  int d = 0;
+  int r = Fl::compose(d);
+  *del = d;
+  return r;
+}
+
+void ofl_compose_reset(void) { Fl::compose_reset(); }
+int32_t ofl_test_shortcut(int32_t s) { return Fl::test_shortcut(s); }
+
+void ofl_get_mouse(int32_t *x, int32_t *y) {
+  int cx = 0, cy = 0;
+  Fl::get_mouse(cx, cy);
+  *x = cx;
+  *y = cy;
+}
+
+intptr_t ofl_grab(void) { return ofl::object_of(Fl::grab()); }
+
+// w is 0 to release. Under X11 FLTK grabs for its first window shown,
+// reading through a null pointer if there is none, so Fl has checked w.
+void ofl_set_grab(intptr_t w) {
+  fl_open_display();
+  Fl::grab(w ? ofl::as<Fl_Window>(w) : 0);
+}
+
+// A dispatch, so that a widget deleted by the event goes later, not
+// under Fl::handle.
+int32_t ofl_handle_event(int32_t event, intptr_t w) {
+  ofl::Dispatch d;
+  return Fl::handle(event, ofl::as<Fl_Window>(w));
+}
+
+// The selection
+
+void ofl_selection(intptr_t owner, const char *text, int32_t n) {
+  fl_open_display();  // as ofl_copy
+  Fl::selection(*ofl::widget(owner), text, n);
+}
+
+intptr_t ofl_selection_owner(void) {
+  return ofl::object_of(Fl::selection_owner());
+}
+
+void ofl_set_selection_owner(intptr_t w) {
+  Fl::selection_owner(w ? ofl::widget(w) : 0);
+}
+
+int32_t ofl_selection_to_clipboard(void) {
+  return Fl::selection_to_clipboard();
+}
+
+void ofl_set_selection_to_clipboard(int32_t on) {
+  Fl::selection_to_clipboard(on);
+}
+
+void ofl_clipboard_notify(int32_t on) {
+  fl_open_display();
+  if (on) {
+    Fl::add_clipboard_notify(clipboard_trampoline);
+  } else {
+    Fl::remove_clipboard_notify(clipboard_trampoline);
+  }
+}
+
+// Screens and input
+
+void ofl_screen_dpi(int32_t n, double *h, double *v) {
+  float ch = 0, cv = 0;
+  Fl::screen_dpi(ch, cv, n);
+  *h = ch;
+  *v = cv;
+}
+
+double ofl_screen_scale(int32_t n) { return Fl::screen_scale(n); }
+
+void ofl_set_screen_scale(int32_t n, double factor) {
+  fl_open_display();
+  Fl::screen_scale(n, static_cast<float>(factor));
+}
+
+int32_t ofl_screen_scaling_supported(void) {
+  return Fl::screen_scaling_supported();
+}
+
+void ofl_keyboard_screen_scaling(int32_t on) {
+  Fl::keyboard_screen_scaling(on);
+}
+
+// Wayland's driver reads through a null pointer with no display open
+// (doc/fltk-issues.md, 131).
+void ofl_enable_im(int32_t on) {
+  fl_open_display();
+  if (on) {
+    Fl::enable_im();
+  } else {
+    Fl::disable_im();
+  }
+}
+
+// The version
+
+double ofl_version(void) { return Fl::version(); }
+int32_t ofl_api_version(void) { return Fl::api_version(); }
+int32_t ofl_abi_version(void) { return Fl::abi_version(); }
+int32_t ofl_abi_check(void) { return Fl::abi_check(FL_ABI_VERSION); }
 
 }  // extern "C"

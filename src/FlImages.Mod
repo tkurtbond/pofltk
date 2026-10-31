@@ -150,6 +150,8 @@ PROCEDURE ["C", "ofl_image_ico"] CICO(name, data: SYSTEM.ADDRESS; n, id: SYSTEM.
 PROCEDURE ["C", "ofl_image_ico_count"] CICOCount(name, data: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_image_bitmap"] CBitmap(bits: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_xpm"] CXPM(lines: ARRAY OF ARRAY OF CHAR; n, stride: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_image_draw_pixmap"] CDrawPixmap(lines: ARRAY OF ARRAY OF CHAR; n, stride, x, y, bg: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_image_measure_pixmap"] CMeasurePixmap(lines: ARRAY OF ARRAY OF CHAR; n, stride: SYSTEM.INT32; VAR w, h: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_image_rgb"] CRGB(bits: ARRAY OF CHAR; w, h, d, ld: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_close"] CClose(i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_image_get"] CGet(i: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
@@ -189,6 +191,7 @@ PROCEDURE ["C", "ofl_tree_item_icon"] CTreeItemIcon(t, p: SYSTEM.ADDRESS; what: 
 PROCEDURE ["C", "ofl_widget_image"] CWidgetImage(w: SYSTEM.ADDRESS; slot: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_icon"] CWindowIcon(w, i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_shape"] CWindowShape(w, i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_window_image_cursor"] CWindowCursor(w, i: SYSTEM.ADDRESS; hotx, hoty: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_image_tiled"] CTiled(t: SYSTEM.ADDRESS; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_surface_new"] CSurfaceNew(w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_surface_close"] CSurfaceClose(s: SYSTEM.ADDRESS);
@@ -199,6 +202,7 @@ PROCEDURE ["C", "ofl_surface_draw"] CSurfaceDraw(s, w: SYSTEM.ADDRESS; x, y: SYS
 PROCEDURE ["C", "ofl_surface_decorated"] CSurfaceDecorated(s, w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_surface_image"] CSurfaceImage(s: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_read_image"] CReadImage(x, y, w, h, alpha: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_image_capture"] CCapture(win: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_shared_get"] CSharedGet(name: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_shared_find"] CSharedFind(name: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_shared_of_image"] CSharedOfImage(i: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
@@ -346,6 +350,25 @@ BEGIN
   New(i); ASSERT((n >= 0) & (n <= LEN(lines)), Fl.IndexOutOfRange);
   RETURN Opened(i, CXPM(lines, n, SHORT(LEN(lines, 1))))
 END OpenXPM;
+
+(* Draws the pixmap in the lines OpenXPM takes at x, y, without keeping it,
+   with bg as its color "None" where it can't be transparent. FALSE, and
+   nothing drawn, if they don't make one. *)
+PROCEDURE DrawPixmap*(lines-: ARRAY OF ARRAY OF CHAR; n, x, y, bg: INTEGER): BOOLEAN;
+BEGIN
+  ASSERT((n >= 0) & (n <= LEN(lines)), Fl.IndexOutOfRange);
+  RETURN CDrawPixmap(lines, n, SHORT(LEN(lines, 1)), x, y, bg) # 0
+END DrawPixmap;
+
+(* The size of that pixmap. FALSE, and w and h unchanged, if there is none. *)
+PROCEDURE MeasurePixmap*(lines-: ARRAY OF ARRAY OF CHAR; n: INTEGER; VAR w, h: INTEGER): BOOLEAN;
+  VAR a, b: SYSTEM.INT32;
+BEGIN
+  ASSERT((n >= 0) & (n <= LEN(lines)), Fl.IndexOutOfRange);
+  IF CMeasurePixmap(lines, n, SHORT(LEN(lines, 1)), a, b) = 0 THEN RETURN FALSE END;
+  w := a; h := b;
+  RETURN TRUE
+END MeasurePixmap;
 
 (* Makes i an image of w by h pixels, from bits, which are copied: d
    bytes a pixel (1 gray, 2 gray and alpha, 3 red, green and blue, 4 those
@@ -539,6 +562,20 @@ END SetIcon;
 PROCEDURE SetShape*(win: Fl.Window; i: Image);
 BEGIN ASSERT(CWindowShape(Fl.Live(win), Hd(i)) # 0, Fl.Unsupported)
 END SetShape;
+
+(* Makes i the cursor over win, and over the window it is in; hotx, hoty
+   is the point of i that clicks, which must be in it (Fl.IndexOutOfRange).
+   FLTK takes a copy. It does nothing in a window not shown, and on X11
+   without Xcursor it shows the default cursor. An image with no pixels to
+   read, a tiled one or a Bitmap, halts (Fl.Unsupported). Window.SetCursor
+   sets a standard cursor again. *)
+PROCEDURE SetCursor*(win: Fl.Window; i: Image; hotx, hoty: INTEGER);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(win);
+  ASSERT((hotx >= 0) & (hotx < i.W()) & (hoty >= 0) & (hoty < i.H()), Fl.IndexOutOfRange);
+  ASSERT(CWindowCursor(h, Hd(i), hotx, hoty) # 0, Fl.Unsupported)
+END SetCursor;
 
 (* Shows i at the left of b's line, which is 1 to b.Count(); NIL for
    none. The line is made as tall as the image. b keeps i while a line
@@ -952,14 +989,24 @@ BEGIN h := S(s); New(i); ASSERT(Opened(i, CSurfaceImage(h)))  (* out of memory *
 END GetImage;
 
 (* Makes i an image of the w by h pixels at x, y of what is being drawn
-   on: a Surface begun, or a window in its Draw. With alpha, 4 bytes a
-   pixel, all opaque; else 3. FALSE, and i not open, if FLTK couldn't read
-   them. *)
+   on, a Surface begun or a window in its Draw, as much of them as is on
+   it. With alpha, 4 bytes a pixel, all opaque; else 3. FALSE, and i not
+   open, if there is nothing to read, none of them is on it, or FLTK
+   couldn't read them. *)
 PROCEDURE ReadImage*(i: Image; x, y, w, h: INTEGER; alpha: BOOLEAN): BOOLEAN;
 BEGIN
   New(i); ASSERT((w > 0) & (h > 0), Fl.IndexOutOfRange);
   RETURN Opened(i, CReadImage(x, y, w, h, Int(alpha)))
 END ReadImage;
+
+(* Makes i what window win shows of x, y, w, h, with its subwindows, outside
+   a Draw, as much of that as is on win. FALSE, and i not open, if win isn't
+   shown, or none of it is. *)
+PROCEDURE CaptureWindow*(i: Image; win: Fl.Window; x, y, w, h: INTEGER): BOOLEAN;
+BEGIN
+  New(i);
+  RETURN Opened(i, CCapture(Fl.Live(win), x, y, w, h))
+END CaptureWindow;
 
 (* Shared images *)
 
