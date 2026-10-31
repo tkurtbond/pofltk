@@ -15,6 +15,22 @@ MODULE FlPreferences; (* Fl_Preferences: a program's settings, kept between runs
 
    Reals are written in the C locale, whatever the program's. Bad data
    is not an error: an entry missing or unreadable gives the default.
+
+   Plugins are also kept in preferences, in FLTK, and so are here. A
+   Plugin is an object of the program's own type, opened under a class
+   and a name, which a part of the program that knows nothing of it finds
+   through a PluginManager of the class. It stays until closed, and
+   nothing lets it go, so it needs nothing to keep it.
+
+   Load and LoadAll load shared libraries, whose C++ static objects make
+   Fl_Plugins. A library of Oberon modules can be one, given two things:
+   its modules' bodies aren't run by loading it, so its C++ part must call
+   its main module's <Module>_init from a static object; and the program
+   must share its modules with it, by being built -shared-libraries or
+   -link -rdynamic, or the library gets its own copy of FlPreferences,
+   and its plugins go there. Such a program must be linked with
+   -link -rdynamic too for a C++ plugin, if FLTK is static.
+
    The C++ part is FlPreferences.cpp. *)
 
 IMPORT SYSTEM, GarbageCollectedHeap, Fl;
@@ -35,9 +51,23 @@ TYPE
     path: Path          (* from the database: "" itself, "a/b" a group *)
   END;
 
+  (* A thing a class of them can be found by. Extend it. *)
+  Plugin* = POINTER TO PluginDesc;
+  PluginDesc* = RECORD
+    h: SYSTEM.ADDRESS;  (* 0 closed *)
+    next: Plugin        (* in opened *)
+  END;
+
+  (* The plugins of a class. It holds nothing, and needs no closing. *)
+  PluginManager* = POINTER TO PluginManagerDesc;
+  PluginManagerDesc* = RECORD
+    class: Path
+  END;
+
 VAR
   openDatabases-: INTEGER;  (* databases opened and not yet closed or finalized *)
   none: Path;               (* "", the path of every database *)
+  opened: Plugin;           (* every open Plugin; FLTK's copy is an address *)
 
 PROCEDURE ["C", "ofl_prefs_open"] COpen(kind: SYSTEM.INT32; dir, vendor, application: ARRAY OF CHAR): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_prefs_close"] CClose(r: SYSTEM.ADDRESS);
@@ -55,6 +85,14 @@ PROCEDURE ["C", "ofl_prefs_get_real"] CGetReal(r: SYSTEM.ADDRESS; path, name: AR
 PROCEDURE ["C", "ofl_prefs_get_text"] CGetText(r: SYSTEM.ADDRESS; path, name, def: ARRAY OF CHAR; VAR text: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_prefs_size"] CSize(r: SYSTEM.ADDRESS; path, name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_prefs_flush"] CFlush(r: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_plugin_new"] CPluginNew(class, name: ARRAY OF CHAR): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_plugin_close"] CPluginClose(p: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_plugins"] CPlugins(class: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_plugin_at"] CPluginAt(class: ARRAY OF CHAR; i: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_plugin_named"] CPluginNamed(class, name: ARRAY OF CHAR): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_plugin_name"] CPluginName(class: ARRAY OF CHAR; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_plugin_load"] CPluginLoad(file: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_plugin_load_all"] CPluginLoadAll(dir, pattern: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_prefs_filename"] CFilename(r: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 
 PROCEDURE Length(s-: ARRAY OF CHAR): INTEGER;
@@ -274,6 +312,122 @@ END GetText;
 PROCEDURE (p: Preferences) TextLength*(name-: ARRAY OF CHAR): INTEGER;
 BEGIN RETURN CSize(Hd(p), p.path^, name)
 END TextLength;
+
+(* A class or a plugin's name: FLTK takes a / as a path, and leaves groups
+   nothing removes. *)
+PROCEDURE CheckName(name-: ARRAY OF CHAR);
+  VAR i, n: INTEGER;
+BEGIN
+  n := Length(name); ASSERT(n > 0, Fl.IndexOutOfRange);
+  FOR i := 0 TO n - 1 DO ASSERT(name[i] # "/", Fl.IndexOutOfRange) END
+END CheckName;
+
+(* Adds p to class, as name, which the class must not have yet (halts,
+   Fl.OpenedTwice). Neither may be "", or hold a /. *)
+PROCEDURE OpenPlugin*(p: Plugin; class-, name-: ARRAY OF CHAR);
+BEGIN
+  ASSERT(p # NIL, Fl.NilArgument); ASSERT(p.h = 0, Fl.OpenedTwice);
+  CheckName(class); CheckName(name);
+  ASSERT(CPluginNamed(class, name) = 0, Fl.OpenedTwice);
+  p.h := CPluginNew(class, name);
+  p.next := opened; opened := p
+END OpenPlugin;
+
+(* Takes p out of its class. Closing it twice does nothing. *)
+PROCEDURE (p: Plugin) Close*;
+  VAR q: Plugin;
+BEGIN
+  IF p.h # 0 THEN
+    IF opened = p THEN opened := p.next
+    ELSE
+      q := opened; WHILE q.next # p DO q := q.next END;
+      q.next := p.next
+    END;
+    p.next := NIL;
+    CPluginClose(p.h); p.h := 0
+  END
+END Close;
+
+PROCEDURE (p: Plugin) IsOpen*(): BOOLEAN;
+BEGIN RETURN p.h # 0
+END IsOpen;
+
+(* Makes m the manager of class, which needs no plugins yet. *)
+PROCEDURE OpenPluginManager*(m: PluginManager; class-: ARRAY OF CHAR);
+  VAR i, n: INTEGER;
+BEGIN
+  ASSERT(m # NIL, Fl.NilArgument); ASSERT(m.class = NIL, Fl.OpenedTwice);
+  CheckName(class);
+  n := Length(class); NEW(m.class, n + 1);
+  FOR i := 0 TO n DO
+    IF i < n THEN m.class[i] := class[i] ELSE m.class[i] := 0X END
+  END
+END OpenPluginManager;
+
+(* m's class, halting if m isn't open. *)
+PROCEDURE ClassOf(m: PluginManager): Path;
+BEGIN
+  ASSERT(m # NIL, Fl.NilArgument); ASSERT(m.class # NIL, Fl.NotOpen);
+  RETURN m.class
+END ClassOf;
+
+(* How many plugins the class has, the C++ ones included. *)
+PROCEDURE (m: PluginManager) Plugins*(): INTEGER;
+  VAR c: Path;
+BEGIN c := ClassOf(m); RETURN CPlugins(c^)
+END Plugins;
+
+(* The object that is the plugin at h; NIL for one made in C++. *)
+PROCEDURE ObjectOf(h: SYSTEM.ADDRESS): Plugin;
+  VAR p: Plugin;
+BEGIN
+  p := opened; WHILE (p # NIL) & (p.h # h) DO p := p.next END;
+  RETURN p
+END ObjectOf;
+
+(* Plugin i, from 0, oldest first (halts if there is no i,
+   Fl.IndexOutOfRange); NIL if it was made in C++. *)
+PROCEDURE (m: PluginManager) PluginAt*(i: INTEGER): Plugin;
+  VAR c: Path;
+BEGIN
+  c := ClassOf(m);
+  ASSERT((i >= 0) & (i < CPlugins(c^)), Fl.IndexOutOfRange);
+  RETURN ObjectOf(CPluginAt(c^, i))
+END PluginAt;
+
+(* The plugin of that name; NIL if the class has none, or it was made in
+   C++: HasPlugin tells which. *)
+PROCEDURE (m: PluginManager) PluginNamed*(name-: ARRAY OF CHAR): Plugin;
+  VAR c: Path;
+BEGIN c := ClassOf(m); RETURN ObjectOf(CPluginNamed(c^, name))
+END PluginNamed;
+
+PROCEDURE (m: PluginManager) HasPlugin*(name-: ARRAY OF CHAR): BOOLEAN;
+  VAR c: Path;
+BEGIN c := ClassOf(m); RETURN CPluginNamed(c^, name) # 0
+END HasPlugin;
+
+(* The name of plugin i (halts if there is no i, Fl.IndexOutOfRange),
+   truncated to fit. *)
+PROCEDURE (m: PluginManager) PluginName*(i: INTEGER; VAR name: ARRAY OF CHAR);
+  VAR c: Path;
+BEGIN
+  c := ClassOf(m);
+  ASSERT((i >= 0) & (i < CPlugins(c^)), Fl.IndexOutOfRange);
+  CPluginName(c^, i, name, SHORT(LEN(name)))
+END PluginName;
+
+(* Loads the shared library file; FALSE if it can't be. It can't be
+   unloaded. *)
+PROCEDURE Load*(file-: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CPluginLoad(file) = 0
+END Load;
+
+(* Loads each file of directory dir matching pattern, as fl_filename_match
+   would ("" is every file), passing over those that aren't libraries. *)
+PROCEDURE LoadAll*(dir-, pattern-: ARRAY OF CHAR);
+BEGIN CPluginLoadAll(dir, pattern)
+END LoadAll;
 
 BEGIN
   NEW(none, 1); none[0] := 0X

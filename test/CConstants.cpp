@@ -1,5 +1,5 @@
 // Written by tools/gen-constants.py: FLTK's values of the constants
-// TestConstants checks Fl's against. Edit the script, not this file.
+// TestConstants checks them against. Edit the script, not this file.
 
 #include <FL/Fl.H>
 #include <FL/Enumerations.H>

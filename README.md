@@ -78,6 +78,24 @@ poc -OC -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk \
 A library records the poc that built it, and another poc refuses it:
 run `make install` again after upgrading poc.
 
+`FlForms` needs FLTK's Forms library, so it is a library of its own,
+`pofltk-forms`, beside `pofltk`. `make install` writes it if this FLTK
+has Forms (`make test` says if it doesn't). Only a program using it
+needs the second path, and is linked with `-lfltk_forms`:
+
+```sh
+poc -OC -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk \
+    -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk-forms \
+    -o Forms Forms.Mod
+```
+
+A library records what FLTK offered as it was built: run `make install`
+again after rebuilding FLTK with other options.
+
+A poc library is also a shared object, so `make install` needs an FLTK
+that can go into one: shared libraries do, and static ones built without
+`-fPIC` fail to link. `make` and `make test` work with either.
+
 ## Example
 
 This is `examples/Hello.Mod`, FLTK's `test/hello.cxx`:
@@ -168,11 +186,12 @@ END Hello.
 | `FlText` | `TextBuffer`, `TextDisplay`, `TextEditor`, styles |
 | `FlBrowsers` | `Browser` and its kinds, `CheckBrowser`, `FileBrowser`, `Tree`, `TreeItem` (FLTK's, or the program's own, which draw themselves; widgets in items) |
 | `FlImages` | `Image` (loaded, decoded, from pixels or bits, or tiled), `AnimGIF` (animated GIFs), `Shared` (FLTK's pool), handlers for more formats (`AddHandler`), `FileIcon`, `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing) |
-| `FlPreferences` | `Preferences`: FLTK's settings databases |
+| `FlPreferences` | `Preferences`: FLTK's settings databases; `Plugin`, `PluginManager`: objects found by class and name, and libraries loaded to add them |
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
 | `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
 | `FlTerminal` | `Terminal`: a screen of text for a program's output, with a history and ANSI colors |
 | `FlPrint` | `Printer`, and files: `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile`; what `FlDraw` draws goes to the one begun |
+| `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which
 flattens FLTK to C functions; `src/pofltk.h` is what they share.

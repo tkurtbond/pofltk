@@ -1989,7 +1989,7 @@ Done 2026-10-31:
   Ghostscript. Its file choosers weren't driven: GTK's opened behind the
   window, with no window manager, so a scratch copy called `Write`.
 
-### Phase 20: Optional libraries and forms
+### Phase 20: Optional libraries and forms `[done]`
 
 Forms, GL and Cairo each need another library, and a program using only
 widgets must not be linked with them.
@@ -2046,6 +2046,45 @@ widgets must not be linked with them.
   `FlForms`' classes.
 - New examples: `FreeForm`, a `Free` tracing the mouse; `Plugins`, two
   plugins found by class and run.
+
+Done 2026-10-31. Found, and decided:
+
+- **The probe passed.** A poc library can import another: `pofltk-forms`
+  uses `pofltk` through `-library-path`, its name's hyphen is fine, a
+  program using both needs the two paths alone, and a program using only
+  `pofltk` isn't linked with `fltk_forms`. So the design above stands,
+  and the fallback (a list of optional modules) wasn't needed.
+- **The makefile** is simpler than planned: `LINK` stays one line, and a
+  target-specific `MORE` carries the part's flags (`FORMSLINK`), not a
+  `name=flags` list. Sources are in `src/forms/`, for later parts' to sit
+  beside. `make test` reports what wasn't built (`MISSING`).
+- **`Direction` became `CountsUp`**, since FLTK's direction is the
+  opposite of its header (`doc/fltk-issues.md`, 107).
+- **`Free`'s method is `HandleFree`**, not `Handle`, which would clash
+  with `Widget.Handle`'s different parameters; it finds its object
+  through the widget's `Ref`, and FLTK's step event needed a fix (105).
+- **`FormsBitmap` and `FormsPixmap`** bind `SetBitmap` and `SetPixmap`,
+  which take a `FlImages.Image` that the widget's `Ref` holds (the new
+  `content` slot), not `set`, which leaks (106). `FlImages.ImageHandle`
+  is "for pofltk's modules only". Their `Open` takes no box: they start
+  with none.
+- **`PluginManager` needs no `Close`**: it holds a class name, no FLTK
+  object. A name twice, a `/` in a name and an index out of range halt
+  (108).
+- **`Load` and `LoadAll` work for Oberon libraries**, probed with a poc
+  library of real modules (`-library`), a C++ static object calling its
+  `<Module>_init` (poc doesn't document that name), and a program built
+  with `-shared-libraries` or `-link -rdynamic`, so that it shares one
+  copy of the modules. A plain program loads it too, but has two
+  copies, and `PluginAt` gives NIL. `FlPreferences`' module comment
+  says so.
+- **`Forms`** was compared with FLTK's `test/forms`: no differing pixels
+  in the plain window and six box types, with the clock and timer
+  masked. It doesn't open under the mouse, as hotspots aren't bound.
+  `FreeForm` and `Plugins` were run under Xvfb.
+- **An FLTK without Forms** can't be made with `configure
+  --disable-forms`, whose `make install` fails; CMake's
+  `FLTK_BUILD_FORMS=OFF` can.
 
 ### Phase 21: OpenGL and GLUT
 

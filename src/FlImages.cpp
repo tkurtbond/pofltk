@@ -981,6 +981,11 @@ intptr_t ofl_image_bitmap(const unsigned char *bits, int32_t w, int32_t h) {
   return make(new_bitmap(bits, w, h));
 }
 
+// For FlForms, a library of its own: image i's FLTK object, and what holds
+// it.
+Fl_Image *ofl_image_fltk(intptr_t i) { return img(i)->image; }
+ofl::Shared *ofl_image_shared(intptr_t i) { return img(i); }
+
 // The program lets go of its image; widgets showing it keep it.
 void ofl_image_close(intptr_t i) { img(i)->close(); }
 

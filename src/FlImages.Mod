@@ -276,6 +276,12 @@ BEGIN
   RETURN i.h
 END Hd;
 
+(* For pofltk's modules only: i's handle, for a C++ part of another
+   library. It halts if i is closed. *)
+PROCEDURE ImageHandle*(i: Image): SYSTEM.ADDRESS;
+BEGIN RETURN Hd(i)
+END ImageHandle;
+
 (* Makes i the image in file name; FALSE, and i not open, if the file
    can't be read, or isn't an image FLTK can decode. *)
 PROCEDURE Load*(i: Image; name-: ARRAY OF CHAR): BOOLEAN;

@@ -21,12 +21,12 @@ anything:
 
 ## Status
 
-As of 2026-10-31, Phases 0 to 19 of PLAN.md are done, and `README.md`
+As of 2026-10-31, Phases 0 to 20 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
 `FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`,
-`FlTerminal` and `FlPrint` modules, and the
+`FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, and the
 tests pass. Also kept:
 
 - `doc/design.md`: the feasibility analysis.
@@ -123,6 +123,23 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   be built with no printing, which only a weak symbol shows
   (`FlPrint.Available`, 104); a `HaltPrint` test then ends with
   `HALT(99)`, which `make test` counts as a skip.
+- `src/forms/FlForms.Mod`, `src/forms/FlForms.cpp`: `Fl_Timer`, `Fl_Free`,
+  `Fl_FormsBitmap`, `Fl_FormsPixmap` and `Fl_FormsText`, the first
+  optional part: `pofltk` is unchanged, and `make install` writes a
+  library of its own, `pofltk-forms`, importing `pofltk` and recording
+  `-lfltk_forms`, so a program not using it isn't linked with it. An
+  optional part has a directory in `src/`, is built when `fl_config.h`
+  says FLTK has it (`HAVE_FORMS`), and is skipped otherwise, with its
+  tests and examples: `make test` names it in its "Not built" line
+  (`MISSING`). Its programs are built with `FORMSLINK`.
+- `FlPreferences`' plugins: `Plugin` and `PluginManager`, with a
+  `Pin : Fl_Plugin` in the C++ part holding the Oberon object. A
+  plugin library is `dlopen`ed; `test/CPlugin.cpp` is one, in C++, built
+  by the makefile into `build/plugins/`. An Oberon plugin library needs `-library`,
+  and a `.cpp` with a static initializer calling `<Module>_init`, which
+  poc doesn't document; the program must share its modules
+  (`-shared-libraries`, or `-link -rdynamic`), or `PluginAt` gives NIL
+  (`FlPreferences`' module comment; `doc/fltk-issues.md`, 108).
 - **What a widget's C++ part keeps beside FLTK's object** goes in a base
   class listed before `ofl::W<B>`, so it is destroyed after FLTK's
   object, and is reached by `dynamic_cast`: `Holds` (`FlText`: the
@@ -137,7 +154,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   - `poc-gc.supp`, and `vg-check.sh` (Valgrind, below);
   - `TestConstants.Mod`, `CConstants.Mod` and `CConstants.cpp`, written
     by `tools/gen-constants.py`. `CConstants` is a test module with a C++
-    part;
+    part. `TestFormsConstants.Mod` and `CFormsConstants` are the same
+    for `FlForms` (`OPTIONAL` in the script), apart so that they go
+    when it does;
   - `Probe.Mod` and `Probe.cpp`, a test module with a C++ part: a
     widget's pixels, captured into an `Fl_Image_Surface`; mouse, wheel
     and key events sent as the window system would; the modal window (a
@@ -215,6 +234,8 @@ make clean      # rm -rf build
 - **A new test** needs its name added to `TESTS`, a halt test to
   `HALTTESTS` (as `name:code`). `TestArgs` alone is given a command
   line, `TESTARGS`, by both test loops.
+- **A new optional part** follows Forms in the makefile: `HAVE_<PART>`,
+  a library, tests, halts and examples of its own, and `MISSING`.
 - **A new module** needs its name added to `MODULES`, and a new header to
   `HEADERS`. A test module with a C++ part goes in `TESTCXX`, an example
   in `EXAMPLES`, and an example's module with a C++ part in
@@ -241,6 +262,14 @@ make clean      # rm -rf build
 make install    # the poc library pofltk, into $(POC_OBERON_LIBRARIES)/pofltk
 make uninstall  # remove exactly what make install wrote
 ```
+
+`pofltk-forms`, where FLTK has Forms, goes beside it, and a program
+using it adds `-library-path $POC_OBERON_LIBRARIES/pofltk-forms`.
+
+`poc -library` always links a shared object too, so `make install` fails
+on an FLTK of static libraries built without `-fPIC`, as on cymoril,
+jherek, alerik and rackhir (2026-10-31), which `make test` doesn't mind.
+pkgsrc's FLTK, on yishana and artos, installs.
 
 `POC_OBERON_LIBRARIES` defaults to `/usr/local/sw/versions/oberon/poc/lib`,
 as polibfyaml's does. Try it elsewhere first with
@@ -690,6 +719,19 @@ held only in C++ memory**.
   recurses without end. `textsize` below 1 divides by zero. `print_char`,
   `plot_char`, the cursor's moves and the clears don't redraw. A byte
   like `FF` waits for a long form's rest, and shows nothing.
+- **Forms** (`doc/fltk-issues.md`, 105 to 107): `Fl_Free`'s timer sends
+  event 0, not `FL_STEP`; its header's event numbers aren't its
+  documentation's; its handler is called from its destructor, and takes
+  the key as a `char`. `set` of `Fl_FormsBitmap` and `Fl_FormsPixmap`
+  leaks, keeps its pointer and deletes the image it had. An image is
+  drawn at the widget's top left. `Fl_Timer`'s direction is the opposite
+  of its header's. FLTK's `configure --disable-forms` builds, but its
+  `make install` fails on an empty library name; CMake's
+  `FLTK_BUILD_FORMS=OFF` works.
+- **Plugins** (`doc/fltk-issues.md`, 108): one name twice in a class is a
+  use after free; `plugin(i)` out of range makes a group; a `/` in a
+  name makes nested groups; `loadAll` sorts with `fl_numericsort` (63).
+  A manager's index is oldest first.
 - **Printing** (`doc/fltk-issues.md`, 100 to 103): text with no font
   set crashes on PostScript, PDF and EPS. A Cairo error makes
   `Fl_PostScript_File_Device::end_job` write to a closed file and close
@@ -761,7 +803,12 @@ None at present.
   valgrind error summary 0), as `make test` does on all six BSDs (823).
   After Phase 14, the same runs give 932, 928, 849 and 845 here, and
   932 on all six BSDs, on an FLTK with neither Cairo nor Pango (932),
-  and on one without SVG (932, 2 skipped).
+  and on one without SVG (932, 2 skipped). After Phase 20, the same
+  runs give 1664, 1660, 1521 and 1517 here, with `ok` lines of the
+  halt tests and examples counted; 1664 on NetBSD and FreeBSD and 1656,
+  1 skipped, on OpenBSD; 1654, 3 skipped, with neither Cairo nor Pango;
+  1562, 19 skipped, with no SVG or printing; and 1592, 3 skipped, and
+  Forms not built, with no Forms.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

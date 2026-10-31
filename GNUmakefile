@@ -11,7 +11,10 @@
 # make install builds the poc library pofltk (-OC) in
 # $(POC_OBERON_LIBRARIES)/pofltk, recording -lfltk_images -lfltk in its
 # manifest, so a program using it needs only -library-path: no FLTK or C++
-# flags.
+# flags. Each optional part of FLTK that needs a library of its own has a
+# poc library of its own, importing pofltk, as pofltk-forms does, so only
+# a program using it is linked with FLTK's: make install builds those
+# FLTK has.
 # Both need poc 0.4.1: C++ parts, libraries that record link flags, and
 # ORD of a SET under -OC.
 
@@ -36,6 +39,10 @@ FLTK_LIBS_ALL := $(shell $(FLTK_CONFIG) --use-images --ldflags)
 # fltk-config names both, and pkgsrc installs only libpng16
 # (doc/fltk-issues.md, 71).
 FLTK_LIBS     := $(if $(filter -lpng1%,$(FLTK_LIBS_ALL)),$(filter-out -lpng,$(FLTK_LIBS_ALL)),$(FLTK_LIBS_ALL))
+# What FLTK has that needs a library of its own (fl_config.h says) makes
+# an optional part, with sources in src/<part>/.
+FLTK_CONFIG_H := $(shell $(FLTK_CONFIG) --includedir)/FL/fl_config.h
+HAVE_FORMS    := $(shell grep -q 'define FLTK_HAVE_FORMS 1' $(FLTK_CONFIG_H) && echo yes)
 # X11's own directories, which fltk-config leaves out: needed where X11
 # is outside the compiler's search path (OpenBSD's /usr/X11R6), empty
 # where it is not or pkg-config isn't there.
@@ -54,7 +61,7 @@ MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs F
 HEADERS := src/pofltk.h
 LIBSRC  := $(MODULES:%=src/%.Mod) $(MODULES:%=src/%.cpp) $(HEADERS)
 # Test modules with a C++ part (test/<Module>.cpp).
-TESTCXX := CConstants Probe
+TESTCXX := CConstants CFormsConstants Probe
 TESTSRC := $(TESTCXX:%=test/%.Mod) $(TESTCXX:%=test/%.cpp)
 # Example modules, not programs, with a C++ part (examples/<Module>.cpp).
 EXAMPLECXX := Pipe
@@ -68,25 +75,43 @@ LINK   := $(CFLAGS) $(foreach f,$(X11_LIBS) $(FLTK_LIBS),-link $(f))
 POC_OBERON_LIBRARIES ?= /usr/local/sw/versions/oberon/poc/lib
 LIBRARY := pofltk
 LIBDIR   = $(POC_OBERON_LIBRARIES)/$(LIBRARY)
+FORMSLIBRARY := pofltk-forms
+FORMSLIBDIR   = $(POC_OBERON_LIBRARIES)/$(FORMSLIBRARY)
 TRIPLE   = $(shell $(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p')
 
 # Test programs (test/<name>.Mod, each a main module).
-TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint
+TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint TestPlugins
 # TestArgs's command line: options of its own and FLTK's, and words that
 # aren't options.
 TESTARGS := -o hello --help -g 120x80 -ti Title -s plastic -nokbd rest more
 # Programs that must halt (test/<name>.Mod), as name:ASSERT-code. poc's
 # ASSERT(x, n) prints "assertion failed (n)" on standard error and exits
 # with status 10, so `make test` requires both.
-HALTTESTS := HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74
+HALTTESTS := HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74 HaltPluginTwice:71 HaltPluginName:74 HaltPluginAt:74 HaltPluginManager:70
 ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
+
+# FlForms needs libfltk_forms: these programs are linked with it, and are
+# left out without it (PLAN.md, Phase 20). A program can't adapt to the
+# library as it runs: using FlForms where it is missing fails as it builds.
+FORMSTESTS := TestForms TestFormsConstants
+FORMSHALTS := HaltFormsTimerKind:74 HaltFormsFreeKind:74 HaltFormsBitmap:78 HaltFormsPixmap:78
+FORMSEXAMPLES := Forms FreeForm
+FORMSSRC := src/forms/FlForms.Mod src/forms/FlForms.cpp
+FORMSLINK := -import-path src/forms -link -lfltk_forms
+ifeq ($(HAVE_FORMS),yes)
+  TESTS += $(FORMSTESTS)
+  HALTTESTS += $(FORMSHALTS)
+  EXAMPLES += $(FORMSEXAMPLES)
+else
+  MISSING += Forms
+endif
 
 TESTBINS := $(TESTS:%=$(BUILD)/%)
 HALTBINS := $(foreach h,$(HALTTESTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
@@ -102,14 +127,27 @@ tests: $(TESTBINS) $(HALTBINS) $(EXAMPLEBINS)
 $(BUILD):
 	mkdir -p $@
 
+# TestPlugins loads shared libraries, which find FLTK in the program.
+$(BUILD)/plugins:
+	mkdir -p $@
+
+$(BUILD)/TestPlugins: MORE := -link -rdynamic
+$(BUILD)/TestPlugins: $(BUILD)/plugins/one.so $(BUILD)/plugins/two.so
+$(BUILD)/plugins/%.so: test/CPlugin.cpp | $(BUILD)/plugins
+	clang++ $(FLTK_CXXFLAGS) $(X11_CXXFLAGS) $(CXXFLAGS) -DPLUGIN='"$*"' -fPIC -shared -o $@ $<
+
+FORMSPROGRAMS := $(FORMSTESTS:%=$(BUILD)/%) $(FORMSEXAMPLES:%=$(BUILD)/%) $(foreach h,$(FORMSHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
+$(FORMSPROGRAMS): MORE := $(FORMSLINK)
+$(FORMSPROGRAMS): $(FORMSSRC)
+
 $(BUILD)/Test%: test/Test%.Mod test/Check.Mod $(LIBSRC) $(TESTSRC) | $(BUILD)
-	$(POC) $(POCFLAGS) -import-path src -import-path test -output-dir $(BUILD) $(LINK) -o $@ $<
+	$(POC) $(POCFLAGS) -import-path src -import-path test -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
 
 $(EXAMPLEBINS): $(BUILD)/%: examples/%.Mod $(LIBSRC) $(EXAMPLESRC) | $(BUILD)
-	$(POC) $(POCFLAGS) -import-path src -import-path examples -output-dir $(BUILD) $(LINK) -o $@ $<
+	$(POC) $(POCFLAGS) -import-path src -import-path examples -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
 
 $(BUILD)/Halt%: test/Halt%.Mod $(LIBSRC) | $(BUILD)
-	$(POC) $(POCFLAGS) -import-path src -output-dir $(BUILD) $(LINK) -o $@ $<
+	$(POC) $(POCFLAGS) -import-path src -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
 
 # FLTK needs a display even for widgets never shown (PLAN.md, "Build and
 # test"): run under X11 or Wayland, or headless (test-headless and
@@ -146,6 +184,7 @@ test: tests display
 	  else echo "FAIL - $$e exited with $$got: $$(cat $(BUILD)/$$e.out)"; status=1; fi; \
 	done; \
 	if [ $$skips -gt 0 ]; then echo "$$skips check(s) skipped: this FLTK lacks what they test."; fi; \
+	$(if $(MISSING),echo "Not built (this FLTK lacks them): $(MISSING)."; )\
 	exit $$status
 
 # Memory errors fail a test (--error-exitcode); leaks don't count as
@@ -190,12 +229,22 @@ install: tests
 	  -library $(LIBRARY) $(MODULES:%=%.Mod)
 	install -d $(LIBDIR)
 	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -output-dir $(LIBDIR) -install-library $(LIBRARY)
+ifeq ($(HAVE_FORMS),yes)
+	cd src/forms && $(POC) $(POCFLAGS) -library-path $(abspath $(BUILD))/lib -output-dir $(abspath $(BUILD))/lib-forms \
+	  $(CFLAGS) $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)) -lfltk_forms,-link $(f)) -library $(FORMSLIBRARY) FlForms.Mod
+	install -d $(FORMSLIBDIR)
+	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-forms -output-dir $(FORMSLIBDIR) -install-library $(FORMSLIBRARY)
+endif
 
 # Remove what make install wrote, and only that.
 uninstall:
 	d=$(LIBDIR)/$(TRIPLE)/OC; \
 	rm -f $$d/lib$(LIBRARY).a $$d/lib$(LIBRARY).so $$d/$(LIBRARY).library \
 	  $(foreach x,$(MODULES),$$d/$(x).sym $$d/$(x).owner); \
+	rmdir $$d 2>/dev/null; \
+	d=$(FORMSLIBDIR)/$(TRIPLE)/OC; \
+	rm -f $$d/lib$(FORMSLIBRARY).a $$d/lib$(FORMSLIBRARY).so $$d/$(FORMSLIBRARY).library \
+	  $$d/FlForms.sym $$d/FlForms.owner; \
 	rmdir $$d 2>/dev/null; true
 
 clean:

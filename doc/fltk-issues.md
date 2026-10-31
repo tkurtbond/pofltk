@@ -1796,3 +1796,90 @@ without defining it.
 **Confirmed:** `make test-headless` on an FLTK configured with
 `--disable-print` and without SVG, where the link failed before
 (2026-10-31).
+
+## 105. `Fl_Free` passes a comparison as its event, and its numbers aren't what it says
+
+**What happens:** a `FL_CONTINUOUS_FREE` or `FL_ALL_FREE` widget's
+handler gets event 0 from its timer, never `FL_STEP`. `FL_DRAW`,
+`FL_STEP` and `FL_FREEMEM` are 100, 101 and 102, not the 0, 9 and 12 the
+constructor's documentation gives. The destructor calls the handler
+with `FL_FREEMEM`, from inside `~Fl_Free`. The key given is a `char`,
+which cuts `Fl::event_key()` down, and the mouse button is given as
+`4 - event_button()`.
+
+**Cause:** `src/forms_free.cxx:28`, `f->handle(Fl::e_number == FL_STEP)`,
+which is `handle(0)`, as `e_number` is never `FL_STEP`.
+`FL/Fl_Free.H:68`, and the comment at `src/forms_free.cxx:57`.
+
+**Effect on pofltk:** `FlForms.cpp` turns event 0 into `FL_STEP`, gives
+`HandleFree` the whole key from `Fl::event_key()` and the button from
+`Fl::event_button()`, and drops `FL_FREEMEM`, since the widget is half
+gone by then. `FlForms` exports the right numbers, as `FreeDraw` and
+`FreeStep`.
+
+**Confirmed:** `TestForms`, under valgrind too (2026-10-31).
+
+## 106. `Fl_FormsBitmap::set` and `Fl_FormsPixmap::set` leak, and keep what they're given
+
+**What happens:** neither class has a destructor, so the image `set`
+makes outlives the widget. `set` keeps the pointer to the bits, and
+deletes whatever image the widget had, including one the program gave
+with `bitmap(B)` and still owns.
+
+**Cause:** `src/forms_bitmap.cxx:28`, `src/forms_pixmap.cxx:39`.
+
+**Effect on pofltk:** `set` isn't bound. `FlForms.SetBitmap` and
+`SetPixmap` take a `FlImages.Image`, which the widget's `Ref` holds in
+its `content` slot until the widget dies, and the C++ part sets the
+pointer alone. A shared image is refused, with `Fl.Unsupported`, as for
+trees and tiled images (83, 84).
+
+**Confirmed:** `TestForms` under valgrind, and `HaltFormsBitmap` and
+`HaltFormsPixmap` (2026-10-31).
+
+## 107. `Fl_Timer`'s direction is the opposite of its header
+
+**What happens:** a value timer with direction 0 shows the time left,
+and with any other direction the time gone. The header says 0 counts
+up, and non-zero counts down.
+
+**Cause:** `src/forms_timer.cxx:50`, `direction_ ? total-delay : delay`;
+`FL/Fl_Timer.H:55`.
+
+**Effect on pofltk:** `Timer.CountsUp` and `SetCountsUp` say what the
+timer shows, with no direction number to get backwards.
+
+Also: a hidden timer clears its visibility with its `FL_HIDDEN_TIMER`
+type, a value timer aligns its label left, and a shown one that has run
+out blinks until a mouse release. Its destructor removes its timeout, so
+one deleted running is safe.
+
+**Confirmed:** `TestForms` (2026-10-31).
+
+## 108. Plugins: a name used twice, and an index out of range
+
+**What happens:** two `Fl_Plugin`s of one class and name share a node
+in the manager's group, and deleting the second removes a node the first
+removal freed: valgrind shows a use after free, and the program can
+crash. `Fl_Plugin_Manager::plugin(i)` of an index out of range makes a
+new group. A name with a `/` makes nested groups. `loadAll`'s default
+sort is `fl_numericsort`, which reads past names (63).
+
+**Cause:** `src/Fl_Preferences.cxx:2070` (`addPlugin`), `:2087`
+(`removePlugin`), `:2030` (`plugin`, through the `Fl_Preferences(parent,
+index)` constructor), `:2114` (`loadAll`).
+
+**Effect on pofltk:** `OpenPlugin` halts with `Fl.OpenedTwice` on a
+name already open in its class, and with `Fl.IndexOutOfRange` on a name
+with a `/`. `PluginAt` checks its index.
+`LoadAll` sorts the directory itself. Each is a halt test
+(`HaltPluginTwice`, `HaltPluginName`, `HaltPluginAt`).
+
+A plugin in a library opened by `dlopen` is an object of that library:
+for an Oberon plugin to be seen as such, the program and the library
+must share one copy of the modules, which a program built with
+`-shared-libraries`, or linked `-rdynamic`, does. A plain program has a
+second copy, `Plugins()` counts it, and `PluginAt` gives NIL.
+
+**Confirmed:** `TestPlugins`, the halt tests, and scratch programs
+loading a poc library with `Load` (2026-10-31).

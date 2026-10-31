@@ -23,6 +23,10 @@ import os, re, subprocess, sys, tempfile
 # constant, "set" a SET constant (a bit-flag type, every bit below 32).
 SPEC = []
 MODULES = []  # in the order SPEC first names them
+# The modules of the optional libraries (PLAN.md, Phase 20): the source of
+# each, and the test that checks its constants, which pofltk's own mustn't
+# import, since it would link the library. Each test has its own headers.
+OPTIONAL = {"FlForms": ("src/forms/FlForms.Mod", "Forms", "#include <FL/forms.H>\n")}
 current = None
 
 def module(name):
@@ -335,6 +339,16 @@ section("the horizontal scrollbar (Terminal.SetHScrollbarStyle)")
 add("int", [("Scrollbar" + camel(k), "Fl_Terminal::SCROLLBAR_" + k) for k in
             "OFF AUTO ON".split()])
 
+module("FlForms")
+section("a Timer's kinds (OpenTimer)")
+add("int", [("NormalTimer", "FL_NORMAL_TIMER"), ("ValueTimer", "FL_VALUE_TIMER"),
+            ("HiddenTimer", "FL_HIDDEN_TIMER")])
+section("a Free's kinds (OpenFree)")
+add("int", [(camel(k) + "Free", "FL_%s_FREE" % k) for k in
+            "NORMAL SLEEPING INPUT CONTINUOUS ALL".split()])
+section("the events a Free gets beside FLTK's own (Free.HandleFree)")
+add("int", [("FreeDraw", "FL_DRAW"), ("FreeStep", "FL_STEP")])
+
 module("FlPrint")
 section("the page: its format (Fl_Paged_Device::Page_Format)")
 add("int", [(k, "Fl_Paged_Device::" + k) for k in
@@ -367,7 +381,7 @@ def values():
     """Each SPEC expression's value, from a C++ program compiled against
     the installed FLTK."""
     exprs = [e for _, e, k, _ in SPEC if k != "comment"]
-    prog = HEADERS + "int main() {\n" + "".join(
+    prog = HEADERS + "".join(o[2] for o in OPTIONAL.values()) + "int main() {\n" + "".join(
         '  printf("%%lld\\n", (long long)(int32_t)(%s));\n' % e for e in exprs) + "}\n"
     flags = subprocess.check_output(["fltk-config", "--cxxflags"], text=True).split()
     flags = [f for f in flags if f.startswith(("-I", "-D")) and f != "-I/usr/include"]
@@ -397,68 +411,73 @@ def oberon_block(vals, mod):
 def write_modules(vals):
     pat = re.compile(r"\(\* BEGIN generated constants.*?\(\* END generated constants \*\)", re.S)
     for mod in MODULES:
-        path = "src/%s.Mod" % mod
+        path = OPTIONAL[mod][0] if mod in OPTIONAL else "src/%s.Mod" % mod
         s = open(path).read()
         if not pat.search(s):
             sys.exit("gen-constants.py: no generated-constants block in " + path)
         s = pat.sub(lambda m: oberon_block(vals, mod), s)
         open(path, "w").write(s)
 
-def write_test():
-    entries = [(n, e, k, m) for n, e, k, m in SPEC if k != "comment"]
-    table = ",\n".join('  {"%s", (int32_t)(%s)}' % (e, e) for _, e, _, _ in entries)
-    table += ",\n" + ",\n".join('  {"%s", (int32_t)(%s)}' % (c, c) for _, c in CHECKS)
-    open("test/CConstants.cpp", "w").write(
+def write_test(mods, tag, headers, checked):
+    """TestConstants and CConstants for mods, with tag in their names.
+    A library's symbol has the tag too, though no program has both."""
+    entries = [(n, e, k, m) for n, e, k, m in SPEC if k != "comment" and m in mods]
+    table = ",\n".join('  {"%s", (int32_t)(%s)}' % (c, c)
+                       for c in [e for _, e, _, _ in entries] + [c for _, c in checked])
+    test, cmod, symbol = "Test%sConstants" % tag, "C%sConstants" % tag, "ofltest_%sconstant" % tag.lower()
+    open("test/%s.cpp" % cmod, "w").write(
         "// Written by tools/gen-constants.py: FLTK's values of the constants\n"
-        "// TestConstants checks Fl's against. Edit the script, not this file.\n\n"
-        + HEADERS + "#include <string.h>\n\nnamespace {\n\nstruct Entry {\n"
+        "// %s checks them against. Edit the script, not this file.\n\n" % test
+        + headers + "#include <string.h>\n\nnamespace {\n\nstruct Entry {\n"
         "  const char *name;\n  int32_t value;\n};\n\nconst Entry entries[] = {\n"
         + table + "\n};\n\n}  // namespace\n\nextern \"C\" {\n\n"
         "// The value of the C expression name, in *value; 0 if the table hasn't it.\n"
-        "int32_t ofltest_constant(const char *name, int32_t *value) {\n"
+        "int32_t %s(const char *name, int32_t *value) {\n" % symbol +
         "  for (const Entry &e : entries) {\n"
         "    if (strcmp(e.name, name) == 0) {\n"
         "      *value = e.value;\n      return 1;\n    }\n  }\n  return 0;\n}\n\n"
         "}  // extern \"C\"\n")
-    open("test/CConstants.Mod", "w").write(
-        "MODULE CConstants; (* FLTK's values of C expressions, for TestConstants *)\n\n"
-        "(* Written by tools/gen-constants.py; its C++ part is CConstants.cpp. *)\n\n"
+    open("test/%s.Mod" % cmod, "w").write(
+        "MODULE %s; (* FLTK's values of C expressions, for %s *)\n\n" % (cmod, test) +
+        "(* Written by tools/gen-constants.py; its C++ part is %s.cpp. *)\n\n" % cmod +
         "IMPORT SYSTEM;\n\n"
-        'PROCEDURE ["C", "ofltest_constant"] CConstant(name: ARRAY OF CHAR; VAR value: SYSTEM.INT32): SYSTEM.INT32;\n\n'
+        'PROCEDURE ["C", "%s"] CConstant(name: ARRAY OF CHAR; VAR value: SYSTEM.INT32): SYSTEM.INT32;\n\n' % symbol +
         "(* The value of the C expression name, in value; FALSE if there is none. *)\n"
         "PROCEDURE Value*(name-: ARRAY OF CHAR; VAR value: INTEGER): BOOLEAN;\n"
         "  VAR v: SYSTEM.INT32;\n"
         "BEGIN\n  v := 0;\n  IF CConstant(name, v) # 0 THEN value := v; RETURN TRUE END;\n"
-        "  RETURN FALSE\nEND Value;\n\nEND CConstants.\n")
+        "  RETURN FALSE\nEND Value;\n\nEND %s.\n" % cmod)
     checks = []
     for name, expr, kind, mod in entries:
         # A SET's bits by ORD, which needs poc 0.4.1 under -OC.
         q = "%s.%s" % (mod, name)
         o = "ORD(%s)" % q if kind == "set" else q
         checks.append('  Same(%s, "%s");' % (o, expr))
-    for o, c in CHECKS:
+    for o, c in checked:
         checks.append('  Same(%s, "%s");' % (o, c))
-    open("test/TestConstants.Mod", "w").write(
-        "MODULE TestConstants; (* pofltk's constants are FLTK's *)\n\n"
+    open("test/%s.Mod" % test, "w").write(
+        "MODULE %s; (* pofltk's constants are FLTK's *)\n\n" % test +
         "(* Written by tools/gen-constants.py: one check per constant, against the\n"
-        "   value the installed FLTK's headers give (CConstants). A failure means\n"
+        "   value the installed FLTK's headers give (%s). A failure means\n" % cmod +
         "   FLTK's headers changed: run the script again, and see what moved. *)\n\n"
-        "IMPORT SYSTEM, Out, " + ", ".join(MODULES) + ", Check, CConstants;\n\n"
+        "IMPORT SYSTEM, Out, " + ", ".join(mods) + ", Check, %s;\n\n" % cmod +
         "VAR checked, wrong: INTEGER;\n\n"
         "PROCEDURE Same(oberon: INTEGER; c-: ARRAY OF CHAR);\n"
         "  VAR v: INTEGER;\nBEGIN\n  INC(checked);\n"
-        "  IF ~CConstants.Value(c, v) OR (v # oberon) THEN\n"
+        "  IF ~%s.Value(c, v) OR (v # oberon) THEN\n" % cmod +
         '    INC(wrong); Out.String("  differs from C: "); Out.String(c); Out.Ln\n'
         "  END\nEND Same;\n\nBEGIN\n  checked := 0; wrong := 0;\n"
         + "\n".join(checks) + "\n"
         '  Check.Check((wrong = 0) & (checked = %d), "each of %d constants and values is FLTK\'s");\n'
         % (len(checks), len(checks))
-        + "  Check.Summary\nEND TestConstants.\n")
+        + "  Check.Summary\nEND %s.\n" % test)
 
 def main():
     vals = values()
     write_modules(vals)
-    write_test()
+    write_test([m for m in MODULES if m not in OPTIONAL], "", HEADERS, CHECKS)
+    for mod, (_, tag, headers) in OPTIONAL.items():
+        write_test([mod], tag, HEADERS + headers, [])
     print("gen-constants.py: %d constants, %d other values" %
           (sum(1 for s in SPEC if s[2] != "comment"), len(CHECKS)))
 

@@ -8,13 +8,19 @@
 // its root and its path from the root ("" the root itself, "a/b" a
 // group b in a); FlPreferences checks it with ofl_prefs_exists before
 // every other call, and each call makes it a short-lived Fl_Preferences.
+// So is a plugin class's Fl_Plugin_Manager, which holds nothing of its
+// own: the plugins are groups of a database in memory that lasts the
+// program's life.
 
 #include "pofltk.h"
 
+#include <FL/Fl_Plugin.H>
 #include <FL/Fl_Preferences.H>
+#include <FL/filename.H>
 #include <string.h>
 
 #include <new>
+#include <string>
 
 namespace {
 
@@ -29,6 +35,13 @@ auto in(intptr_t r, const char *path, F f) -> decltype(f(*root(r))) {
   Fl_Preferences g(root(r), path);
   return f(g);
 }
+
+// A plugin an Oberon object stands for. Fl_Plugin adds itself to its
+// class, and its destructor removes it.
+class Pin : public Fl_Plugin {
+public:
+  Pin(const char *cls, const char *name) : Fl_Plugin(cls, name) {}
+};
 
 }  // namespace
 
@@ -175,6 +188,62 @@ int32_t ofl_prefs_flush(intptr_t r) { return root(r)->flush(); }
 void ofl_prefs_filename(intptr_t r, char *buf, int32_t n) {
   buf[0] = 0;
   if (root(r)->filename(buf, n) == Fl_Preferences::MEMORY) buf[0] = 0;
+}
+
+// A plugin. The class has none of that name: two would remove one node
+// twice as they go (doc/fltk-issues.md, 108).
+intptr_t ofl_plugin_new(const char *cls, const char *name) {
+  return reinterpret_cast<intptr_t>(static_cast<Fl_Plugin *>(new Pin(cls, name)));
+}
+
+void ofl_plugin_close(intptr_t p) {
+  delete reinterpret_cast<Fl_Plugin *>(p);
+}
+
+int32_t ofl_plugins(const char *cls) {
+  Fl_Plugin_Manager m(cls);
+  return m.plugins();
+}
+
+// i must be in range: plugin(i) makes a group otherwise (108).
+intptr_t ofl_plugin_at(const char *cls, int32_t i) {
+  Fl_Plugin_Manager m(cls);
+  return reinterpret_cast<intptr_t>(m.plugin(i));
+}
+
+// 0 if the class has none of that name.
+intptr_t ofl_plugin_named(const char *cls, const char *name) {
+  Fl_Plugin_Manager m(cls);
+  return reinterpret_cast<intptr_t>(m.plugin(name));
+}
+
+// Plugin i's name, cut to n - 1 bytes.
+void ofl_plugin_name(const char *cls, int32_t i, char *buf, int32_t n) {
+  Fl_Plugin_Manager m(cls);
+  strncpy(buf, m.group(i), n - 1);
+  buf[n - 1] = 0;
+}
+
+// 0 loaded, -1 not.
+int32_t ofl_plugin_load(const char *file) {
+  return Fl_Plugin_Manager::load(file);
+}
+
+// Fl_Plugin_Manager::loadAll, with the directory's final / added if it
+// has none, and sorted with a sort that stays inside the names
+// (doc/fltk-issues.md, 63). pattern "" is every file.
+void ofl_plugin_load_all(const char *dir, const char *pattern) {
+  std::string d(dir);
+  if (d.empty() || d[d.size() - 1] != '/') d += '/';
+  dirent **list;
+  int n = fl_filename_list(d.c_str(), &list, ofl::numericsort);
+  for (int i = 0; i < n; i++) {
+    const char *name = list[i]->d_name;
+    if (!*pattern || fl_filename_match(name, pattern)) {
+      Fl_Plugin_Manager::load((d + name).c_str());
+    }
+  }
+  fl_filename_free_list(&list, n);
 }
 
 }  // extern "C"

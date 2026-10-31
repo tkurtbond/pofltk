@@ -103,7 +103,7 @@ public:
 // deletes it after the widget's last use of them.
 class Ref : public Fl_Callback_User_Data {
 public:
-  enum { image, deimage, label, shape, slots };
+  enum { image, deimage, label, shape, content, slots };
   explicit Ref(intptr_t s) : self(s) {
     for (int i = 0; i < slots; i++) held[i] = 0;
   }
