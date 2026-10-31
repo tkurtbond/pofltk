@@ -187,15 +187,14 @@ BEGIN
   Escape; c := FlDialogs.ChooseFromColormap(Fl.Red);
   Check.Check(c = Fl.Red, "ChooseFromColormap gives back old if none is picked");
 
-  ok := FlDialogs.ListDirectory("images", FlDialogs.AlphaSort, names);
-  Check.Check(ok & (names # NIL) & (LEN(names^) = 9), "ListDirectory: every name, with . and ..");
-  IF ok & (LEN(names^) = 9) THEN
-    Check.Check((names[0]^ = "./") & (names[1]^ = "../") & (names[2]^ = "anim.gif")
-      & (names[3]^ = "rb.bmp") & (names[8]^ = "rb.xpm"), "sorted, a directory's name ending in /");
-    Check.Check(LEN(names[2]^) = 9, "each name just long enough")
-  END;
   (* test/names: empty files, whose names each sort orders differently *)
   ok := FlDialogs.ListDirectory("names", FlDialogs.AlphaSort, names);
+  Check.Check(ok & (names # NIL) & (LEN(names^) = 10), "ListDirectory: every name, with . and ..");
+  IF ok & (LEN(names^) = 10) THEN
+    Check.Check((names[0]^ = "./") & (names[1]^ = "../") & (names[2]^ = "B1")
+      & (names[3]^ = "a10") & (names[9]^ = "ab12z"), "sorted, a directory's name ending in /");
+    Check.Check(LEN(names[2]^) = 3, "each name just long enough")
+  END;
   Check.Check(ok & Order(names, "./ ../ B1 a10 a1yb a1za a2 ab12 ab12y ab12z"), "AlphaSort: by bytes");
   ok := FlDialogs.ListDirectory("names", FlDialogs.CaseAlphaSort, names);
   Check.Check(ok & Order(names, "./ ../ a10 a1yb a1za a2 ab12 ab12y ab12z B1"), "CaseAlphaSort: case ignored");

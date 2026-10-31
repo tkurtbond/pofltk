@@ -18,7 +18,8 @@ It covers:
 - menus and FLTK's common dialogs, the desktop's native file chooser;
 - text buffers, displays and editors;
 - browsers and trees, tables;
-- images (PNG, JPEG, GIF, BMP, XPM, PNM, SVG), offscreen drawing;
+- images (PNG, JPEG, GIF, BMP, XPM, XBM, ICO, PNM, SVG), shared
+  images, file icons, offscreen drawing;
 - the clipboard, preferences, command-line options, screens.
 
 ## Requirements
@@ -111,6 +112,10 @@ END Hello.
   `Rects`, `Trackers`: the small widgets and types, one program each.
 - `TreeIcons`: a tree's icons and margins.
 - `Selections`: an editor with a text buffer's three selections.
+- `Icons`: an XBM, a bitmap made in the program, each size in an ICO, and
+  a shared image on several buttons.
+- `Bitmap`: FLTK's `test/bitmap.cxx`, a bitmap on a button, placed by its
+  label's alignment.
 - Ports of FLTK's own `examples/` programs, each named for FLTK's file
   in CamelCase, without `howto-`:
   - each module's simplest use: `TableSimple`, `TreeSimple`,
@@ -156,7 +161,7 @@ END Hello.
 | `FlDialogs` | messages, questions, input, colors, file choosers, `NativeFileChooser`; directories listed |
 | `FlText` | `TextBuffer`, `TextDisplay`, `TextEditor`, styles |
 | `FlBrowsers` | `Browser` and its kinds, `CheckBrowser`, `FileBrowser`, `Tree`, `TreeItem` (FLTK's, or the program's own, which draw themselves; widgets in items) |
-| `FlImages` | `Image` (loaded, decoded, from pixels, or tiled), `AnimGIF` (animated GIFs), `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing) |
+| `FlImages` | `Image` (loaded, decoded, from pixels or bits, or tiled), `AnimGIF` (animated GIFs), `Shared` (FLTK's pool), `FileIcon`, `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing) |
 | `FlPreferences` | `Preferences`: FLTK's settings databases |
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
 

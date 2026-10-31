@@ -1223,3 +1223,221 @@ under the mouse.
 **Confirmed:** `MenuBar` showed an `Invisible` submenu FLTK's build
 doesn't, until it hid it last, and then its menus matched FLTK's
 (2026-10-30).
+
+### 80. An `Fl_Bitmap`'s `fail()` is always -1, and `release()` deletes an ordinary image
+
+**What happens:** a good `Fl_Bitmap` and each copy of it have
+`fail()` -1, the same as an image that failed to load. And
+`Fl_Image::release()`, called on an image that isn't shared, deletes it.
+
+**Cause:** `Fl_Image::fail()` returns `ERR_NO_IMAGE` when `d()` is 0,
+and a bitmap's depth is 0. `release()` is virtual, and `delete this` in
+`Fl_Image`.
+
+**Effect on pofltk:** a loaded image is judged by `fail()` only where it
+has pixels: the shim (`good`) takes a bitmap's success from its data and
+size. `release()` lets the shim free an image one way, shared or not.
+
+**Confirmed:** a program printing `fail()` of a good bitmap and its
+copy; `TestImageFiles` (2026-10-30).
+
+### 81. `Fl_XBM_Image` can't say it failed, and takes almost anything
+
+**What happens:**
+- a good file has `fail()` -1 (80), as a missing one does;
+- a file with fewer bytes than its header says leaves the rest of the
+  bits uninitialized, and valgrind reports them as they are drawn;
+- `notxbm.h`, any text with two `#define`s and a `static` line, loads
+  as a 1 by 2 "image";
+- a huge size "loads";
+- the array is allocated with `new uchar[n]` and `alloc_array` is left
+  0, so it is never freed: a leak of each image.
+
+**Cause:** the parser takes the first two lines matching
+`#define %s %d`, any line starting `static `, and then every ` 0x%x`,
+and stops at the end of the file with no check of the count. The
+constructor doesn't set `alloc_array`.
+
+**Effect on pofltk:** the shim parses the file itself first:
+`<name>_width` and `<name>_height`, other `#define`s allowed, a sane
+size, and the bytes all there. `Load` of anything else is FALSE. It
+decodes to an `Fl_Bitmap` of its own, so `LoadData` reads XBM too, which
+the plan had thought impossible, and nothing leaks.
+
+**Confirmed:** `test/images/not-xbm.h`, `short.xbm`, `huge.xbm` and
+`rb.xbm`, through FLTK's class and then `TestImageFiles`, under
+valgrind (2026-10-30).
+
+### 82. `Fl_ICO_Image` in memory calls `fopen(NULL)` for a PNG resource
+
+**What happens:** an ICO image holding a PNG, read from memory, fails
+(`fail()` -2), and valgrind reports `fopen` called with a null name.
+The same data in a file loads. `id` -1 is the highest resolution, -2
+loads nothing and gives the entry count in `idcount()`, with `w()` 0 and
+`fail()` -1, and an `id` at or past the count gives `fail()` -3.
+
+**Cause:** `Fl_ICO_Image::load_ico_` hands a PNG resource to
+`Fl_PNG_Image` by the reader's file name, which is null for memory.
+
+**Effect on pofltk:** the shim always reads the file whole and takes the
+memory path, and decodes a PNG resource itself, from its offset in the
+data, so file and memory act alike. `ICOCount` is the -2 call.
+
+**Confirmed:** `test/images/rbpng.ico` under valgrind; `TestImageFiles`
+(2026-10-30).
+
+### 83. `Fl_Shared_Image::reload()` changes a scaled entry's place in the pool
+
+**What happens:** `reload()` of an entry scaled from its file replaces
+its image with the full size data, and sets the drawn size again. Its
+`data_w()`, which the pool is sorted by, is now the file's, so the pool
+is out of order, and a search can miss the entry or find the wrong one.
+
+**Cause:** `Fl_Shared_Image::compare` orders by `name`, `data_w()` and
+`data_h()`, and `reload` changes the data without sorting the pool.
+
+**Effect on pofltk:** `Shared.Reload` reads the file through `load_file`
+(so 81, 87 and 88 don't apply) and copies a scaled entry's image at the
+entry's data size before putting it in, so the pool's order holds.
+
+**Confirmed:** `TestShared`, finding a scaled entry after `Reload`
+(2026-10-30).
+
+### 84. A shared image's `copy()` is the pool's own entry
+
+**What happens:** `Fl_Shared_Image::copy(W, H)` isn't a copy: it is
+`get(name, W, H)`, and for the same size that is the very entry, with
+one more reference. FLTK itself assumes `copy()` gives a private image:
+- `Fl_Tree_Prefs` does `_opendeimage = _openimage->copy()`, then
+  `inactive()`, and later `delete _opendeimage`. A shared image as a
+  tree's icon therefore grays every user's pixels, and the `delete`
+  leaves a freed entry in the pool;
+- `Fl_Tiled_Image::color_average` and `desaturate` change the tile they
+  copied, the same way.
+
+Also, a scaled entry holds a reference to its original, so the original
+stays in the pool until that entry goes. That is by design.
+
+**Cause:** `copy(W, H)` and `copy() const` call `get`; plain `copy()`
+adds a reference and returns `this`.
+
+**Effect on pofltk:** `Copy` of a `Shared` must be a `Shared`
+(`Fl.Unsupported` otherwise), and is documented as the pool's entry.
+What FLTK would copy and change, a tree's icons and a tile, gets a
+private image (`Img::unpooled`), so `SetOpenIcon` and `OpenTiled` leave
+the pool alone.
+
+**Confirmed:** from FLTK's source, and `TestShared`'s tree and tile
+checks, under valgrind (2026-10-30).
+
+### 85. `Fl_File_Icon::label` sets no measure
+
+**What happens:** a widget showing a file icon as its label, when
+measured (`measure_label`), is measured as text: the icon's own bytes
+are read as a string. And a widget whose label was copied is left
+marked so, and frees the icon's address.
+
+**Cause:** `fl_define_FL_ICON_LABEL` calls
+`Fl::set_labeltype(_FL_ICON_LABEL, Fl_File_Icon::labeltype, 0)`, and a
+null measure means `fl_normal_measure`. `Fl_File_Icon::label` is
+`w->label(FL_ICON_LABEL, (const char*)this)`, which keeps the icon's
+address as the label's value, and clears no copied label.
+
+**Effect on pofltk:** `FileIcon.Label` sets a measure of its own, and
+clears the label first, and `Fl.cpp`'s label functions treat
+`_FL_ICON_LABEL` as they do `_FL_MULTI_LABEL`: text set on the widget
+replaces it.
+
+**Confirmed:** from FLTK's source, and `TestFileIcons` under valgrind
+(2026-10-30).
+
+### 86. `Fl_File_Icon::load_image` crashes on images it can't convert, and `load` can't fail
+
+**What happens:**
+- `load_image` of an XBM reads past its data (valgrind), and of an SVG
+  or `notxbm.h` crashes;
+- `load` of a file it can't read warns and returns nothing;
+- `load_fti` of bad data calls `Fl::error`, which by default prints,
+  and returns 0, the same as success (only a file that can't be opened
+  gives -1); a bad `vertex` just stops the reading, also returning 0,
+  with a partial icon.
+
+**Cause:** `load_image` takes `Fl_Shared_Image::get`'s image with
+`count()` 1 to hold rows of pixels, with no case for a bitmap's depth of
+0, and `load_fti` keeps no failure status.
+
+**Effect on pofltk:** `FileIcon.Load` of an `.fti` catches `Fl::error`
+for the call, and of anything else decodes through `load_file`, then
+does on the RGB pixels what `load_image` does. Bad data gives FALSE,
+and an icon left empty. An image of no RGB pixels, a bitmap, is FALSE.
+The runs differ slightly from `load_image`'s, whose count for an XPM is
+half ours: 68 here, 34 there, for `rb.xpm`. A partial `.fti` with a bad
+`vertex` isn't caught, since FLTK says nothing: it is TRUE, with what
+was read.
+
+**Confirmed:** programs calling FLTK's, under valgrind; `TestFileIcons`
+(2026-10-30).
+
+### 87. `Fl_BMP_Image` overruns the stack with a file's bytes
+
+**What happens:** a crafted BMP, or ICO, overruns a stack array with
+bytes from the file. A corrupted ICO crashed under valgrind. **This is a
+memory-safety bug in reading outside data**, worth reporting to FLTK.
+Also, an unknown depth leaves the array unwritten, the array's size
+overflows `int`, and a negative width isn't refused.
+
+**Cause:** `Fl_BMP_Image::load_bmp_` reads `colors_used` from the header
+and then that many entries into `uchar colormap[256][3]`, on its stack,
+with no check. `new uchar[width*height*bDepth]` is an `int` product.
+
+**Effect on pofltk:** every load in the shim (`Load`, `LoadData`, the
+ICO paths, `GetShared`, `FileIcon.Load`) passes `dib_ok` first, which
+checks the header's size, depth and color count. A bad header is FALSE.
+And since a size that passes can still fail to allocate, and
+`std::bad_alloc` must not cross `extern "C"`, the load calls catch it.
+What FLTK loads by itself, the file chooser's previews and
+`load_system_icons`' icons, doesn't come through the shim, and remains
+exposed.
+
+**Confirmed:** `test/images/colors.bmp`, `colors.ico`, `size.bmp` and
+`depth.bmp`; a fuzz of corrupted files under valgrind, with no invalid
+read or write once `dib_ok` was in (2026-10-30). A fuzz is not a proof.
+
+### 88. `Fl_GIF_Image` overruns its stack and heap on crafted files
+
+**What happens:** three ways, shown by crafted files under valgrind.
+**These are memory-safety bugs in reading outside data**, worth
+reporting to FLTK:
+- `loop.gif`: a first code after a clear equal to the free code makes a
+  cycle in the code table, and decoding overruns `OutCode` on the stack
+  until it crashes;
+- `zero.gif`: an image of width or height 0 gets `new uchar[0]`, and
+  `lzw_decode` writes past it on the heap;
+- `code.gif`: a code size byte over 8 is only warned about, and the
+  decoder reads uninitialized memory.
+
+In `Fl_Anim_GIF_Image`, a frame reaching outside the screen makes
+`memcpy(dst, src, xmax-xstart)` take a negative size, and
+`data(new_data, Height+2)` uses the image's height for the lines of the
+screen.
+
+**Cause:** `lzw_decode` starts with no old code, and when
+`CurCode == FreeCode` uses it regardless: `Prefix[F] = F`, and
+`while (i >= ColorMapSize)` follows that forever, writing
+`OutCode[4097]`. `Prefix` and `Suffix` aren't initialized. No check for
+a zero size or for a bad code size stops the load.
+
+**Effect on pofltk:** `gif_ok` and `lzw_ok` in the shim walk the file's
+blocks and codes before FLTK does, and refuse these. An animation's
+frames must fit its screen; such a GIF still `Load`s, as a still. What
+remains is a truncated GIF's pixels, which FLTK leaves uninitialized
+and uses as indexes of 256-entry tables: valgrind reports the
+uninitialized values, but no read or write out of bounds. pofltk can't
+prevent that without decoding the image itself. `Fl_XPM_Image` also
+reads past a line's end, inside its stack buffer, with its writes
+bounded. And as in 87, what FLTK loads by itself remains exposed.
+
+**Confirmed:** `test/images/loop.gif`, `zero.gif`, `code.gif` and
+`beyond.gif` before and after the fix; a fuzz of 694 corrupted files
+through every loader, under valgrind, with no invalid read or write
+(2026-10-30). A fuzz is not a proof.

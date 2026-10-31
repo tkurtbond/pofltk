@@ -292,7 +292,10 @@ int32_t ofl_widget_base_handle(intptr_t w, int32_t event) {
 void ofl_widget_copy_label(intptr_t w, const char *label) {
   Fl_Widget *wd = ofl::widget(w);
   bool was_multi = wd->labeltype() == _FL_MULTI_LABEL;
-  if (was_multi) wd->label(FL_NORMAL_LABEL, 0);
+  // a file icon's label holds the icon, not text, as a multi-label does
+  if (was_multi || wd->labeltype() == _FL_ICON_LABEL) {
+    wd->label(FL_NORMAL_LABEL, 0);
+  }
   Fl_Window *win = wd->as_window();
   if (win) {
     win->copy_label(ofl::label_text(label));
@@ -457,9 +460,11 @@ int32_t ofl_widget_labeltype(intptr_t w) {
 }
 
 // A multi-label's parts have their own types, so a widget showing one
-// keeps it. FlImages sets the types that make the label something else.
+// keeps it, and a file icon has a label that is no text. FlImages sets the
+// types that make the label something else.
 void ofl_widget_set_labeltype(intptr_t w, int32_t t) {
-  if (ofl::widget(w)->labeltype() == _FL_MULTI_LABEL) return;
+  Fl_Labeltype old = ofl::widget(w)->labeltype();
+  if (old == _FL_MULTI_LABEL || old == _FL_ICON_LABEL) return;
   ofl::widget(w)->labeltype(static_cast<Fl_Labeltype>(t));
 }
 

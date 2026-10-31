@@ -285,6 +285,16 @@ add("set", [("DontStart", "Fl_Anim_GIF_Image::DONT_START"),
             ("AnimDebug", "Fl_Anim_GIF_Image::DEBUG_FLAG")])
 section("how RGB images are scaled as they are drawn (SetScalingAlgorithm)")
 add("int", [("ScalingNearest", "FL_RGB_SCALING_NEAREST"), ("ScalingBilinear", "FL_RGB_SCALING_BILINEAR")])
+section("what a file icon is for (OpenFileIcon, FindFileIcon); IconAny, anything")
+add("int", [("Icon" + n, "Fl_File_Icon::" + k) for n, k in
+            [("Any", "ANY"), ("Plain", "PLAIN"), ("Fifo", "FIFO"), ("Device", "DEVICE"),
+             ("Link", "LINK"), ("Directory", "DIRECTORY")]])
+section("what is drawn in a file icon (FileIcon.Add): a Line, ClosedLine or Polygon\n"
+        "     is its vertices, then IconEnd; IconColor, as a color, is the color the\n"
+        "     icon is drawn with")
+add("int", [("IconEnd", "Fl_File_Icon::END"), ("IconLine", "Fl_File_Icon::LINE"),
+            ("IconClosedLine", "Fl_File_Icon::CLOSEDLINE"),
+            ("IconPolygon", "Fl_File_Icon::POLYGON"), ("IconColor", "(int)FL_ICON_COLOR")])
 
 module("FlTable")
 WORDS.update({"STARTPAGE": "StartPage", "ENDPAGE": "EndPage", "RC": "RC"})
@@ -315,7 +325,7 @@ HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_dr
            "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/Fl_Sys_Menu_Bar.H>\n#include <FL/fl_ask.H>\n"
            "#include <FL/Fl_Native_File_Chooser.H>\n"
            "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
-           "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n"
+           "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n"
            "#include <stdint.h>\n#include <stdio.h>\n")
 
 def oberon_set(v):

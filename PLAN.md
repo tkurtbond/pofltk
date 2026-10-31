@@ -1688,7 +1688,7 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
   `make test` on all six BSDs 1005; on an FLTK with neither Cairo nor
   Pango 1005, and on one without SVG 1005, with 2 skipped.
 
-### Phase 16: Images
+### Phase 16: Images `[done]`
 
 - **`FlImages.Bitmap`** (`Fl_Bitmap`) from bits: FLTK keeps the pointer
   unless `alloc_array` is set, so the shim copies and sets it.
@@ -1716,6 +1716,58 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
 - Ports: `Bitmap` (`test/bitmap.cxx`).
 - New example: `Icons`, an XBM, a generated bitmap, the sizes in an ICO,
   and a shared image on several buttons.
+
+Findings and decisions, 2026-10-30:
+
+- `doc/fltk-issues.md` 80 to 88. The two that matter beyond this binding
+  are 87 and 88: `Fl_BMP_Image` and `Fl_GIF_Image` overrun the stack and
+  heap on crafted files, in 1.4.5, and are worth reporting to FLTK.
+- **Outside data never halts, so it mustn't crash either.** The phase
+  found that only when a fuzz of the new formats crashed the old ones.
+  So the shim checks BMP and ICO headers (`dib_ok`), and walks a GIF's
+  blocks and LZW codes (`gif_ok`, `lzw_ok`), before FLTK's decoders see
+  them, and a header's claimed size can't throw through `extern "C"`.
+  The fuzz, 694 corrupted files through every loader under valgrind,
+  ends with no invalid read or write; what valgrind still reports is
+  uninitialised values, a truncated GIF's pixels used as table indexes,
+  and `Fl_XPM_Image` reading inside its own buffer. Only decoding the
+  files ourselves would stop those. The fuzz wasn't kept: crafted files
+  (`test/images/`) keep each case it found. A fuzz is no proof, and FLTK's own loading (the file chooser's
+  previews, `load_system_icons`) doesn't pass through the shim.
+- **`LoadData` of XBM works**, against the plan: `Fl_XBM_Image` was too
+  unreliable to use at all (81), so the shim parses XBM itself.
+- `Bitmap` is a `Kind` of its own. `OpenBitmap` copies its bits, and
+  `SetShape` or `ShareImage` of one halts (`Fl.Unsupported`): each wants
+  pixels.
+- `Shared`: one `Shared` holds one FLTK reference, `Close` is FLTK's
+  release, and `Copy` of one must be a `Shared` and is the pool's entry
+  (84). A `Shared` is always of the pool, so the `Open` procedures of
+  other images, and `Load`, don't take one. `GetShared` never animates.
+  `Scale` and the color changes reach every holder, and that is the
+  point of sharing, except where FLTK would change or delete what it
+  thinks is its copy, a tree's icons and a tile, which get a private
+  one.
+- `Reload`, `Find` and the rest stayed as planned, as `GetShared`,
+  `FindShared` and `ShareImage`, and the pool's `add_handler` as
+  `RegisterImages`, for FLTK's own loading alone: nothing here needed
+  more.
+- `FileIcon`: an icon lasts the program, as on FLTK's list, so there is
+  no `Close`, and a widget showing one is safe. `Clear` empties it.
+  `Label` sets a label type, so text set on the widget replaces it, and
+  it halts for a window, whose label is its title.
+  `load_system_icons` has a static guard; a test making icons changes
+  how an `Fl_File_Browser` lays out in that process, so they have a
+  test module of their own.
+- Tests: `TestImageFiles`, `TestShared`, `TestFileIcons`; five halt
+  tests. `Bitmap` matches FLTK's build exactly in all eight states of
+  its buttons.
+- `Icons` shows its bitmaps in their boxes, not behind their labels:
+  `FL_ALIGN_IMAGE_BACKDROP` draws an image straight in `draw_backdrop`
+  with no color set, so a bitmap comes out in the box's color, unseen.
+- Tested 2026-10-30: `test-headless` 1158 `ok` lines, `test-sway` 1154,
+  `valgrind-headless` 1059, `valgrind-sway` 1055 (every error summary 0);
+  `make test` on all six BSDs 1158; on an FLTK with neither Cairo nor
+  Pango 1158, and on one without SVG 1156, with 4 skipped.
 
 ### Phase 17: Choosers and help
 

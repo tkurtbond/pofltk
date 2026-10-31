@@ -1,0 +1,3 @@
+#define a_width 100000000
+#define a_height 100000000
+static char b[] = { 0x03 };

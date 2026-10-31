@@ -1,0 +1,4 @@
+#define rb_width 4
+#define rb_height 2
+static unsigned char rb_bits[] = {
+   0x03, 0x03 };

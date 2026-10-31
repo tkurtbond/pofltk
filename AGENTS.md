@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-10-30, Phases 0 to 15 of PLAN.md are done, and `README.md`
+As of 2026-10-30, Phases 0 to 16 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
@@ -84,8 +84,12 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   chooser is FLTK's and keys can answer it.
 - `src/FlImages.Mod`, `src/FlImages.cpp`: images (loaded by their
   contents, not their names, or from RGB pixels, which are copied),
-  widgets' images, image surfaces, and images on the clipboard. It
-  links `-lfltk_images`.
+  widgets' images, image surfaces, images on the clipboard, FLTK's
+  pool of shared images (`Shared`, the shim's `Pool`) and file icons
+  (`FileIcon`). It links `-lfltk_images`. Outside data goes through the
+  shim's checks before FLTK's decoders: `parse_xbm`, `dib_ok`, `gif_ok`
+  and `lzw_ok`, since FLTK's overrun on crafted files
+  (`doc/fltk-issues.md`, 81, 87, 88).
 - `src/FlBrowsers.cpp`'s tree: `Tr` is the tree's class, which hears
   a widget leave it (`on_remove`) and forgets a removed last-clicked
   item after each event (`handle`); `Mine` is an item the program
@@ -122,8 +126,12 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     many things a widget keeps (`Kept`, `Ref::keep`); and pipes
     (`Pipe`, `Write`, `Read`, `Close`), for `TestLoop`'s fd watches.
   - `images/`: one 4x2 image, red left and blue right, in each format
-    `TestImages` reads; and `anim.gif`, three frames of it, for
-    `TestAnimGIF`;
+    `TestImages` reads; `anim.gif`, three frames of it, for
+    `TestAnimGIF`; and for `TestImageFiles` and `TestFileIcons`, `rb.xbm`,
+    `rb.ico` (two sizes), `rbpng.ico`, `box.fti`, and files that must
+    fail to load: `not-xbm.h`, `short.xbm`, `huge.xbm`, `bad.fti`,
+    `colors.bmp`, `size.bmp`, `depth.bmp`, `colors.ico`, `loop.gif`,
+    `zero.gif`, `code.gif` and `beyond.gif`;
   - `names/`: empty files whose names each directory sort orders
     differently (`TestDialogs`, `TestBrowsers`).
 - `tools/gen-constants.py`: writes each module's constants and their
@@ -611,6 +619,28 @@ held only in C++ memory**.
   - Wayland has no selection buffer.
 - **Preferences** (`doc/fltk-issues.md`, 51): a group's `Fl_Preferences`
   outlives its node, deleted with the group or the database.
+- **Bitmaps, XBM and ICO** (`doc/fltk-issues.md`, 80 to 82): a bitmap's
+  `fail()` is always -1, so judge it by its data and size.
+  `Fl_XBM_Image` takes almost any text with two `#define`s, leaves
+  missing bits unset, and leaks its array: the shim parses XBM itself,
+  from a file or memory. `Fl_ICO_Image` in memory calls `fopen(NULL)`
+  for a PNG resource: the shim decodes that.
+- **Shared images** (`doc/fltk-issues.md`, 83, 84): `reload()` of a
+  scaled entry changes its data size, the pool's sort key.
+  `Fl_Shared_Image::copy` is the pool's own entry, and a tree or a
+  tiled image would gray or delete it, so they show a private copy. A
+  scaled entry holds a reference to its original.
+- **File icons** (`doc/fltk-issues.md`, 85, 86): `Fl_File_Icon::label`
+  sets no measure, so the icon is measured as text. `load_image`
+  crashes on an SVG or `notxbm.h`, `load` returns nothing, and
+  `load_fti` returns 0 on bad data: `FileIcon.Load` decodes through
+  `load_file`, and catches `Fl::error`.
+- **Crafted image files** (`doc/fltk-issues.md`, 87, 88):
+  `Fl_BMP_Image` trusts its color count, and `Fl_GIF_Image` follows a
+  cycle in its code table and writes past an empty image, overrunning
+  the stack and heap with a file's bytes. The shim refuses such files;
+  what FLTK loads by itself (the chooser's previews) stays exposed.
+  An animation's frames must fit its screen; such a GIF still `Load`s.
 - **Tables** (`doc/fltk-issues.md`, 52): `Fl_Table` hides `Fl_Group`'s
   `begin`, `end`, `children`, `child`, `add` and the rest, which reach
   the inner group holding the cells' widgets: Fl.cpp calls a table as

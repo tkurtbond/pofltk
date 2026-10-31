@@ -1,9 +1,10 @@
 MODULE FlImages; (* Images: loaded from files or memory, made from pixels, drawn offscreen; multi-labels *)
 
 (* An Image is a picture FLTK can draw: loaded from a PNG, JPEG, GIF, BMP,
-   XPM, PNM or SVG file (the format told by its contents), decoded from
-   bytes in memory, made from RGB pixels, or another image tiled. An
-   AnimGIF is an animated GIF, whose frames FLTK shows one after another
+   XPM, XBM, ICO, PNM or SVG file (the format told by its contents),
+   decoded from bytes in memory, made from RGB pixels or the bits of a
+   bitmap, or another image tiled. A Shared image is one of a pool, found
+   by its file's name. An AnimGIF is an animated GIF, whose frames FLTK shows one after another
    in its canvas widget. It is a resource the program
    owns, as a TextBuffer is: Close it when done. A widget showing it as
    its label keeps it until the widget is deleted or shows another, so
@@ -15,6 +16,10 @@ MODULE FlImages; (* Images: loaded from files or memory, made from pixels, drawn
 
    An image is drawn in a Draw method, as the rest of FlDraw is; or into
    a Surface, an image being drawn offscreen.
+
+   A FileIcon is a small picture of a kind of file, for file browsers and
+   labels. It is not an Image, and it lasts the program: nothing frees
+   one, since FLTK keeps its address wherever it shows.
 
    Bad data is not an error: a file that can't be read or decoded comes
    back as FALSE. An XPM file's colors should be written "#rrggbb": FLTK
@@ -40,6 +45,23 @@ CONST
   (* how RGB images are scaled as they are drawn (SetScalingAlgorithm) *)
   ScalingNearest* = 0;
   ScalingBilinear* = 1;
+
+  (* what a file icon is for (OpenFileIcon, FindFileIcon); IconAny, anything *)
+  IconAny* = 0;
+  IconPlain* = 1;
+  IconFifo* = 2;
+  IconDevice* = 3;
+  IconLink* = 4;
+  IconDirectory* = 5;
+
+  (* what is drawn in a file icon (FileIcon.Add): a Line, ClosedLine or Polygon
+     is its vertices, then IconEnd; IconColor, as a color, is the color the
+     icon is drawn with *)
+  IconEnd* = 0;
+  IconLine* = 2;
+  IconClosedLine* = 3;
+  IconPolygon* = 4;
+  IconColor* = -1;
 (* END generated constants *)
 
   (* what an image is (Image.Kind) *)
@@ -47,6 +69,7 @@ CONST
   Pixmap* = 1;  (* a palette: GIF, XPM *)
   Other* = 2;   (* a tiled image (OpenTiled) *)
   Animation* = 3;  (* an animated GIF (AnimGIF) *)
+  Bitmap* = 4;  (* bits drawn in the current color, the rest not drawn: XBM, OpenBitmap *)
 
 TYPE
   Image* = POINTER TO ImageDesc;
@@ -61,6 +84,27 @@ TYPE
      animation, and another Image never is (Fl.Unsupported). *)
   AnimGIF* = POINTER TO AnimGIFDesc;
   AnimGIFDesc* = RECORD (ImageDesc) END;
+
+  (* An image of FLTK's pool (Fl_Shared_Image), found by its file's name and
+     size: GetShared of a file already there shares its pixels. Each
+     Shared holds one of its references (RefCount), which widgets showing
+     it keep after Close, as for any Image. The last to let go takes it
+     out of the pool: Close is FLTK's release. A change to its pixels (Scale, ColorAverage,
+     Desaturate) reaches everyone sharing them. Every Image procedure takes one,
+     except the Open procedures of other images: a Shared is always of
+     the pool, and another Image never is (Fl.Unsupported). *)
+  Shared* = POINTER TO SharedDesc;
+  SharedDesc* = RECORD (ImageDesc) END;
+
+  (* A file icon (FLTK's Fl_File_Icon): lines and polygons on a square 10000
+     units a side, with 0, 0 at its bottom left, for files of a pattern.
+     FLTK's list of them, First and Next, holds them in the order last
+     made first; those FLTK made appear with no Open. *)
+  FileIcon* = POINTER TO FileIconDesc;
+  FileIconDesc* = RECORD
+    h: SYSTEM.ADDRESS;
+    next: FileIcon  (* every object made: a browser or label keeps the icon *)
+  END;
 
   (* A label of two parts, drawn side by side (FLTK's Fl_Multi_Label):
      each nothing, text, an image, or another multi-label, for more parts.
@@ -85,9 +129,13 @@ VAR
   openSurfaces-: INTEGER;  (* the same, for surfaces *)
   openMultiLabels-: INTEGER;  (* the same, for multi-labels *)
   current: Surface;        (* the surface last begun and not ended *)
+  icons: FileIcon;         (* the objects of file icons *)
 
 PROCEDURE ["C", "ofl_image_load"] CLoad(name: ARRAY OF CHAR): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_load_data"] CLoadData(data: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_image_ico"] CICO(name, data: SYSTEM.ADDRESS; n, id: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_image_ico_count"] CICOCount(name, data: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_image_bitmap"] CBitmap(bits: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_xpm"] CXPM(lines: ARRAY OF ARRAY OF CHAR; n, stride: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_rgb"] CRGB(bits: ARRAY OF CHAR; w, h, d, ld: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_close"] CClose(i: SYSTEM.ADDRESS);
@@ -136,6 +184,30 @@ PROCEDURE ["C", "ofl_surface_end"] CSurfaceEnd;
 PROCEDURE ["C", "ofl_surface_draw"] CSurfaceDraw(s, w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_surface_image"] CSurfaceImage(s: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_read_image"] CReadImage(x, y, w, h, alpha: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_shared_get"] CSharedGet(name: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_shared_find"] CSharedFind(name: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_shared_of_image"] CSharedOfImage(i: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_shared_count"] CSharedCount(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_shared_refcount"] CSharedRefCount(s: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_shared_original"] CSharedOriginal(s: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_shared_name"] CSharedName(s: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_shared_reload"] CSharedReload(s: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_register_images"] CRegisterImages;
+PROCEDURE ["C", "ofl_file_icon_new"] CIconNew(pattern: ARRAY OF CHAR; type: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_file_icon_free"] CIconFree(i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_file_icon_add"] CIconAdd(i: SYSTEM.ADDRESS; what, a, b: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_file_icon_clear"] CIconClear(i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_file_icon_load"] CIconLoad(i: SYSTEM.ADDRESS; name: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_file_icon_load_system"] CIconLoadSystem;
+PROCEDURE ["C", "ofl_file_icon_find"] CIconFind(name: ARRAY OF CHAR; type: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_file_icon_first"] CIconFirst(): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_file_icon_next"] CIconNext(i: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_file_icon_draw"] CIconDraw(i: SYSTEM.ADDRESS; x, y, w, h, color, active: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_file_icon_label"] CIconLabel(i, w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_file_icon_size"] CIconSize(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_file_icon_type"] CIconType(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_file_icon_pattern"] CIconPattern(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_file_browser_icon"] CFileBrowserIcon(b: SYSTEM.ADDRESS; line: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 
 PROCEDURE Int(b: BOOLEAN): SYSTEM.INT32;
 BEGIN IF b THEN RETURN 1 ELSE RETURN 0 END
@@ -165,7 +237,7 @@ END Opened;
 PROCEDURE New(i: Image);
 BEGIN
   ASSERT(i # NIL, Fl.NilArgument); ASSERT(i.h = 0, Fl.OpenedTwice);
-  ASSERT(~(i IS AnimGIF), Fl.Unsupported)
+  ASSERT(~(i IS AnimGIF) & ~(i IS Shared), Fl.Unsupported)
 END New;
 
 PROCEDURE NewAnim(a: Image);
@@ -173,6 +245,12 @@ BEGIN
   ASSERT(a # NIL, Fl.NilArgument); ASSERT(a.h = 0, Fl.OpenedTwice);
   ASSERT(a IS AnimGIF, Fl.Unsupported)
 END NewAnim;
+
+PROCEDURE NewShared(s: Image);
+BEGIN
+  ASSERT(s # NIL, Fl.NilArgument); ASSERT(s.h = 0, Fl.OpenedTwice);
+  ASSERT(s IS Shared, Fl.Unsupported)
+END NewShared;
 
 (* i's handle, halting if i is closed. *)
 PROCEDURE Hd(i: Image): SYSTEM.ADDRESS;
@@ -187,15 +265,53 @@ PROCEDURE Load*(i: Image; name-: ARRAY OF CHAR): BOOLEAN;
 BEGIN New(i); RETURN Opened(i, CLoad(name))
 END Load;
 
-(* Makes i the image in the first n bytes of data: a PNG, JPEG, GIF, BMP
-   or SVG file's contents (FLTK reads XPM and PNM from files alone), which
-   are decoded, not kept; FALSE, and i not open, if they can't be
-   decoded. *)
+(* Makes i the image in the first n bytes of data: a PNG, JPEG, GIF, BMP,
+   XBM, ICO or SVG file's contents (FLTK reads XPM and PNM from files
+   alone), which are decoded, not kept; FALSE, and i not open, if they
+   can't be decoded. Of an ICO, the largest image. *)
 PROCEDURE LoadData*(i: Image; data-: ARRAY OF CHAR; n: INTEGER): BOOLEAN;
 BEGIN
   New(i); ASSERT((n >= 0) & (n <= LEN(data)), Fl.IndexOutOfRange);
   RETURN Opened(i, CLoadData(data, n))
 END LoadData;
+
+(* Makes i image id of an ICO file, 0 its first, or -1 its largest. FALSE
+   if the file can't be read or decoded, or has no such image. *)
+PROCEDURE LoadICO*(i: Image; name-: ARRAY OF CHAR; id: INTEGER): BOOLEAN;
+BEGIN
+  New(i);
+  RETURN Opened(i, CICO(SYSTEM.ADR(name), 0, 0, id))
+END LoadICO;
+
+(* LoadICO of the first n bytes of data. *)
+PROCEDURE LoadICOData*(i: Image; data-: ARRAY OF CHAR; n, id: INTEGER): BOOLEAN;
+BEGIN
+  New(i); ASSERT((n >= 0) & (n <= LEN(data)), Fl.IndexOutOfRange);
+  RETURN Opened(i, CICO(0, SYSTEM.ADR(data), n, id))
+END LoadICOData;
+
+(* How many images an ICO file has; 0 if it isn't one. *)
+PROCEDURE ICOCount*(name-: ARRAY OF CHAR): INTEGER;
+BEGIN RETURN CICOCount(SYSTEM.ADR(name), 0, 0)
+END ICOCount;
+
+(* ICOCount of the first n bytes of data. *)
+PROCEDURE ICODataCount*(data-: ARRAY OF CHAR; n: INTEGER): INTEGER;
+BEGIN
+  ASSERT((n >= 0) & (n <= LEN(data)), Fl.IndexOutOfRange);
+  RETURN CICOCount(0, SYSTEM.ADR(data), n)
+END ICODataCount;
+
+(* Makes i a bitmap of w by h pixels from bits, which it copies: rows of
+   (w + 7) DIV 8 bytes, the lowest bit of a byte leftmost, as an XBM file
+   writes them. Its set bits are drawn in the color last set, and the
+   rest not at all, so it has no pixels to read. *)
+PROCEDURE OpenBitmap*(i: Image; bits-: ARRAY OF CHAR; w, h: INTEGER);
+BEGIN
+  New(i); ASSERT((w > 0) & (h > 0), Fl.IndexOutOfRange);
+  ASSERT(LEN(bits) DIV h >= (w + 7) DIV 8, Fl.IndexOutOfRange);
+  ASSERT(Opened(i, CBitmap(bits, w, h)))  (* out of memory *)
+END OpenBitmap;
 
 (* Makes i the pixmap in the first n of lines, which are copied: the
    strings of an XPM file, without their quotes. The first holds the
@@ -233,12 +349,17 @@ END OpenTiled;
 
 (* Makes copy a copy of i's data, at w by h pixels: scaled, with FLTK's
    own scaling. A copy of an AnimGIF is one, with no canvas, playing if i
-   has a frame shown, playing or not (doc/fltk-issues.md, 64). *)
+   has a frame shown, playing or not (doc/fltk-issues.md, 64). A copy of a
+   Shared must be a Shared, and is the pool's entry of that size, with a
+   reference of its own: of i's own size, the same image. *)
 PROCEDURE (i: Image) Copy*(copy: Image; w, h: INTEGER);
   VAR s: SYSTEM.ADDRESS;
 BEGIN
   s := Hd(i);
-  IF i IS AnimGIF THEN NewAnim(copy) ELSE New(copy) END;
+  IF i IS AnimGIF THEN NewAnim(copy)
+  ELSIF i IS Shared THEN NewShared(copy)
+  ELSE New(copy)
+  END;
   ASSERT((w > 0) & (h > 0), Fl.IndexOutOfRange);
   ASSERT(Opened(copy, CCopy(s, w, h)))  (* out of memory *)
 END Copy;
@@ -272,7 +393,7 @@ BEGIN RETURN CGet(Hd(i), 4)
 END DataH;
 
 (* Bytes a pixel, 1 to 4, as OpenRGB takes them; a Pixmap's as Pixel
-   reads it, 4. *)
+   reads it, 4; a Bitmap's, 0. *)
 PROCEDURE (i: Image) Depth*(): INTEGER;
 BEGIN RETURN CGet(Hd(i), 2)
 END Depth;
@@ -290,7 +411,7 @@ BEGIN CScale(Hd(i), w, h, Int(proportional), Int(expand))
 END Scale;
 
 (* Blends i's pixels with color c, a color of Fl's: weight 1 leaves them,
-   0 makes them c. *)
+   0 makes them c. A Bitmap has none, and stays as it is. *)
 PROCEDURE (i: Image) ColorAverage*(c: INTEGER; weight: REAL);
 BEGIN CChange(Hd(i), 0, c, weight)
 END ColorAverage;
@@ -325,7 +446,8 @@ BEGIN
   RETURN h
 END P;
 
-(* Pixel x, y of i's data, as Fl.RGB gives a color; gray, r = g = b. *)
+(* Pixel x, y of i's data, as Fl.RGB gives a color; gray, r = g = b. A
+   tiled image and a Bitmap have no pixels to read (Fl.ClosedResource). *)
 PROCEDURE (i: Image) Pixel*(x, y: INTEGER): INTEGER;
   VAR r, g, b, a: SYSTEM.INT32;
 BEGIN
@@ -341,7 +463,8 @@ BEGIN
   RETURN a
 END Alpha;
 
-(* Writes i to file name as a PNG; FALSE if it couldn't. *)
+(* Writes i to file name as a PNG; FALSE if it couldn't, as for an image
+   with no pixels to read. *)
 PROCEDURE (i: Image) SavePNG*(name-: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CSavePNG(Hd(i), name) # 0
 END SavePNG;
@@ -388,8 +511,8 @@ END SetIcon;
 (* Shapes win as i's pixels that aren't transparent, or for an image
    with no alpha, aren't black, scaled to win's size, and takes away its
    border; the rest of win is not drawn, and takes no clicks. win keeps a
-   copy of i. An image with no pixels to read, a tiled one, halts
-   (Fl.Unsupported). FLTK can't make win a rectangle again. *)
+   copy of i. An image with no pixels to read, a tiled one or a Bitmap,
+   halts (Fl.Unsupported). FLTK can't make win a rectangle again. *)
 PROCEDURE SetShape*(win: Fl.Window; i: Image);
 BEGIN ASSERT(CWindowShape(Fl.Live(win), Hd(i)) # 0, Fl.Unsupported)
 END SetShape;
@@ -807,5 +930,218 @@ BEGIN
   New(i); ASSERT((w > 0) & (h > 0), Fl.IndexOutOfRange);
   RETURN Opened(i, CReadImage(x, y, w, h, Int(alpha)))
 END ReadImage;
+
+(* Shared images *)
+
+(* Makes s the pool's image of file name, loading it if it isn't there, in
+   any format Load reads (a GIF as its first frame): at its own size if
+   w and h are 0, or else scaled to w by h, an entry of the pool of its
+   own, which holds a reference to that original. FALSE, and s not open, if it can't be loaded. *)
+PROCEDURE GetShared*(s: Shared; name-: ARRAY OF CHAR; w, h: INTEGER): BOOLEAN;
+BEGIN
+  NewShared(s);
+  ASSERT((w >= 0) & (h >= 0) & ((w = 0) = (h = 0)), Fl.IndexOutOfRange);
+  RETURN Opened(s, CSharedGet(name, w, h))
+END GetShared;
+
+(* GetShared of an image the pool has, loading nothing; FALSE if it
+   doesn't have it. *)
+PROCEDURE FindShared*(s: Shared; name-: ARRAY OF CHAR; w, h: INTEGER): BOOLEAN;
+BEGIN
+  NewShared(s);
+  ASSERT((w >= 0) & (h >= 0) & ((w = 0) = (h = 0)), Fl.IndexOutOfRange);
+  RETURN Opened(s, CSharedFind(name, w, h))
+END FindShared;
+
+(* Makes s a new entry of the pool, holding a copy of RGB image i, under a
+   name FLTK makes up (GetName). Any other kind of image halts
+   (Fl.Unsupported). *)
+PROCEDURE ShareImage*(s: Shared; i: Image);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Hd(i); NewShared(s);
+  h := CSharedOfImage(h); ASSERT(h # 0, Fl.Unsupported);
+  ASSERT(Opened(s, h))
+END ShareImage;
+
+(* How many images the pool has. *)
+PROCEDURE SharedCount*(): INTEGER;
+BEGIN RETURN CSharedCount()
+END SharedCount;
+
+(* How many references s's entry has, its holders and those of FLTK. *)
+PROCEDURE (s: Shared) RefCount*(): INTEGER;
+BEGIN RETURN CSharedRefCount(Hd(s))
+END RefCount;
+
+(* Whether s is the image at its file's own size, not one scaled from it. *)
+PROCEDURE (s: Shared) Original*(): BOOLEAN;
+BEGIN RETURN CSharedOriginal(Hd(s)) # 0
+END Original;
+
+(* The name s is found by. *)
+PROCEDURE (s: Shared) GetName*(VAR name: ARRAY OF CHAR);
+BEGIN CSharedName(Hd(s), name, SHORT(LEN(name)))
+END GetName;
+
+(* Reads s's file again, for everyone sharing it. FALSE if it can't be
+   read, and s is as it was. *)
+PROCEDURE (s: Shared) Reload*(): BOOLEAN;
+BEGIN RETURN CSharedReload(Hd(s)) # 0
+END Reload;
+
+(* Lets FLTK's own loading of images read more than BMP, GIF and XBM, for
+   what FLTK loads itself: the previews of its file chooser. *)
+PROCEDURE RegisterImages*;
+BEGIN CRegisterImages
+END RegisterImages;
+
+(* File icons *)
+
+(* The object of icon h, 0 for NIL, made if FLTK made the icon. *)
+PROCEDURE Object(h: SYSTEM.ADDRESS): FileIcon;
+  VAR i: FileIcon;
+BEGIN
+  IF h = 0 THEN RETURN NIL END;
+  i := icons;
+  WHILE (i # NIL) & (i.h # h) DO i := i.next END;
+  IF i = NIL THEN NEW(i); i.h := h; i.next := icons; icons := i END;
+  RETURN i
+END Object;
+
+PROCEDURE IconHd(i: FileIcon): SYSTEM.ADDRESS;
+BEGIN
+  ASSERT(i # NIL, Fl.NilArgument); ASSERT(i.h # 0, Fl.NotOpen);
+  RETURN i.h
+END IconHd;
+
+(* The icons the program made are freed as it ends, or valgrind would
+   report them; FLTK makes its own from data it holds to the end. *)
+PROCEDURE FinalizeFileIcon(obj: SYSTEM.PTR);
+  VAR i: FileIcon;
+BEGIN
+  i := SYSTEM.VAL(FileIcon, obj);
+  IF i.h # 0 THEN CIconFree(i.h); i.h := 0 END
+END FinalizeFileIcon;
+
+(* Makes i an empty icon for files whose names match pattern, of type
+   (IconAny or the rest), first on FLTK's list, so it is found before
+   any like it. *)
+PROCEDURE OpenFileIcon*(i: FileIcon; pattern-: ARRAY OF CHAR; type: INTEGER);
+BEGIN
+  ASSERT(i # NIL, Fl.NilArgument); ASSERT(i.h = 0, Fl.OpenedTwice);
+  ASSERT((type >= IconAny) & (type <= IconDirectory), Fl.IndexOutOfRange);
+  i.h := CIconNew(pattern, type); i.next := icons; icons := i;
+  GarbageCollectedHeap.RegisterFinalizer(i, FinalizeFileIcon)
+END OpenFileIcon;
+
+(* Starts a shape (IconLine, IconClosedLine or IconPolygon), or ends one
+   (IconEnd). *)
+PROCEDURE (i: FileIcon) Add*(op: INTEGER);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := IconHd(i);
+  ASSERT((op = IconEnd) OR (op = IconLine) OR (op = IconClosedLine) OR (op = IconPolygon),
+    Fl.IndexOutOfRange);
+  CIconAdd(h, 0, op, 0)
+END Add;
+
+(* The color of what follows: a color of Fl's, or IconColor. *)
+PROCEDURE (i: FileIcon) AddColor*(c: INTEGER);
+BEGIN CIconAdd(IconHd(i), 1, c, 0)
+END AddColor;
+
+(* A polygon outlined in color c, its vertices and IconEnd to follow. *)
+PROCEDURE (i: FileIcon) AddOutlinePolygon*(c: INTEGER);
+BEGIN CIconAdd(IconHd(i), 3, c, 0)
+END AddOutlinePolygon;
+
+(* A vertex of the current shape. *)
+PROCEDURE (i: FileIcon) AddVertex*(x, y: INTEGER);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := IconHd(i);
+  ASSERT((x >= 0) & (x <= 10000) & (y >= 0) & (y <= 10000), Fl.IndexOutOfRange);
+  CIconAdd(h, 2, x, y)
+END AddVertex;
+
+(* Empties i. *)
+PROCEDURE (i: FileIcon) Clear*;
+BEGIN CIconClear(IconHd(i))
+END Clear;
+
+(* Adds a picture to i, from file name: an SGI .fti file, or by its contents
+   an image Load reads, with pixels to read, each row its runs of one
+   color. FALSE if it can't be read, and for a .fti of bad text, i is
+   empty. *)
+PROCEDURE (i: FileIcon) Load*(name-: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CIconLoad(IconHd(i), name) # 0
+END Load;
+
+(* Has FLTK make icons for the kinds of file, from the desktop's icon
+   theme if it finds one, and always those of a plain file and a
+   directory. Once only, whatever the times called. *)
+PROCEDURE LoadSystemIcons*;
+BEGIN CIconLoadSystem
+END LoadSystemIcons;
+
+(* The first icon on the list matching file name and type (IconAny, for
+   FLTK to find what the file is), or NIL. *)
+PROCEDURE FindFileIcon*(name-: ARRAY OF CHAR; type: INTEGER): FileIcon;
+BEGIN
+  ASSERT((type >= IconAny) & (type <= IconDirectory), Fl.IndexOutOfRange);
+  RETURN Object(CIconFind(name, type))
+END FindFileIcon;
+
+(* The first icon on FLTK's list, or NIL. *)
+PROCEDURE FirstFileIcon*(): FileIcon;
+BEGIN RETURN Object(CIconFirst())
+END FirstFileIcon;
+
+(* The icon after i on FLTK's list, or NIL. *)
+PROCEDURE (i: FileIcon) Next*(): FileIcon;
+BEGIN RETURN Object(CIconNext(IconHd(i)))
+END Next;
+
+(* Draws i to fill w by h pixels at x, y, in color wherever it says
+   IconColor, in a Draw method; dimmed unless active. *)
+PROCEDURE (i: FileIcon) Draw*(x, y, w, h, color: INTEGER; active: BOOLEAN);
+BEGIN CIconDraw(IconHd(i), x, y, w, h, color, Int(active))
+END Draw;
+
+(* Widget w shows i as its label, filling it, until it is given another
+   (SetLabel, SetMultiLabel). A window has only text as a label
+   (Fl.Unsupported). *)
+PROCEDURE (i: FileIcon) Label*(w: Fl.Widget);
+  VAR h, wh: SYSTEM.ADDRESS;
+BEGIN
+  h := IconHd(i); wh := Fl.Live(w);
+  ASSERT(~(w IS Fl.Window), Fl.Unsupported);
+  CIconLabel(h, wh)
+END Label;
+
+(* How many numbers i holds, 0 when it is empty. *)
+PROCEDURE (i: FileIcon) Size*(): INTEGER;
+BEGIN RETURN CIconSize(IconHd(i))
+END Size;
+
+PROCEDURE (i: FileIcon) Type*(): INTEGER;
+BEGIN RETURN CIconType(IconHd(i))
+END Type;
+
+PROCEDURE (i: FileIcon) GetPattern*(VAR pattern: ARRAY OF CHAR);
+BEGIN CIconPattern(IconHd(i), pattern, SHORT(LEN(pattern)))
+END GetPattern;
+
+(* Line of file browser b shows icon i, or none if i is NIL, in place of
+   the icon the browser found for it. *)
+PROCEDURE SetFileIcon*(b: FlBrowsers.FileBrowser; line: INTEGER; i: FileIcon);
+  VAR h, ih: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(b); ASSERT((line >= 1) & (line <= b.Count()), Fl.IndexOutOfRange);
+  ih := 0;
+  IF i # NIL THEN ih := IconHd(i) END;
+  CFileBrowserIcon(h, line, ih)
+END SetFileIcon;
 
 END FlImages.

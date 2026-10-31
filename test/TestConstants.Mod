@@ -483,6 +483,17 @@ BEGIN
   Same(ORD(FlImages.AnimDebug), "Fl_Anim_GIF_Image::DEBUG_FLAG");
   Same(FlImages.ScalingNearest, "FL_RGB_SCALING_NEAREST");
   Same(FlImages.ScalingBilinear, "FL_RGB_SCALING_BILINEAR");
+  Same(FlImages.IconAny, "Fl_File_Icon::ANY");
+  Same(FlImages.IconPlain, "Fl_File_Icon::PLAIN");
+  Same(FlImages.IconFifo, "Fl_File_Icon::FIFO");
+  Same(FlImages.IconDevice, "Fl_File_Icon::DEVICE");
+  Same(FlImages.IconLink, "Fl_File_Icon::LINK");
+  Same(FlImages.IconDirectory, "Fl_File_Icon::DIRECTORY");
+  Same(FlImages.IconEnd, "Fl_File_Icon::END");
+  Same(FlImages.IconLine, "Fl_File_Icon::LINE");
+  Same(FlImages.IconClosedLine, "Fl_File_Icon::CLOSEDLINE");
+  Same(FlImages.IconPolygon, "Fl_File_Icon::POLYGON");
+  Same(FlImages.IconColor, "(int)FL_ICON_COLOR");
   Same(FlTable.ContextNone, "Fl_Table::CONTEXT_NONE");
   Same(FlTable.ContextStartPage, "Fl_Table::CONTEXT_STARTPAGE");
   Same(FlTable.ContextEndPage, "Fl_Table::CONTEXT_ENDPAGE");
@@ -502,6 +513,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 483), "each of 483 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 494), "each of 494 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

@@ -27,6 +27,7 @@
 #include <FL/Fl_Tree.H>
 #include <FL/Fl_Table_Row.H>
 #include <FL/Fl_Anim_GIF_Image.H>
+#include <FL/Fl_File_Icon.H>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -503,6 +504,17 @@ const Entry entries[] = {
   {"Fl_Anim_GIF_Image::DEBUG_FLAG", (int32_t)(Fl_Anim_GIF_Image::DEBUG_FLAG)},
   {"FL_RGB_SCALING_NEAREST", (int32_t)(FL_RGB_SCALING_NEAREST)},
   {"FL_RGB_SCALING_BILINEAR", (int32_t)(FL_RGB_SCALING_BILINEAR)},
+  {"Fl_File_Icon::ANY", (int32_t)(Fl_File_Icon::ANY)},
+  {"Fl_File_Icon::PLAIN", (int32_t)(Fl_File_Icon::PLAIN)},
+  {"Fl_File_Icon::FIFO", (int32_t)(Fl_File_Icon::FIFO)},
+  {"Fl_File_Icon::DEVICE", (int32_t)(Fl_File_Icon::DEVICE)},
+  {"Fl_File_Icon::LINK", (int32_t)(Fl_File_Icon::LINK)},
+  {"Fl_File_Icon::DIRECTORY", (int32_t)(Fl_File_Icon::DIRECTORY)},
+  {"Fl_File_Icon::END", (int32_t)(Fl_File_Icon::END)},
+  {"Fl_File_Icon::LINE", (int32_t)(Fl_File_Icon::LINE)},
+  {"Fl_File_Icon::CLOSEDLINE", (int32_t)(Fl_File_Icon::CLOSEDLINE)},
+  {"Fl_File_Icon::POLYGON", (int32_t)(Fl_File_Icon::POLYGON)},
+  {"(int)FL_ICON_COLOR", (int32_t)((int)FL_ICON_COLOR)},
   {"Fl_Table::CONTEXT_NONE", (int32_t)(Fl_Table::CONTEXT_NONE)},
   {"Fl_Table::CONTEXT_STARTPAGE", (int32_t)(Fl_Table::CONTEXT_STARTPAGE)},
   {"Fl_Table::CONTEXT_ENDPAGE", (int32_t)(Fl_Table::CONTEXT_ENDPAGE)},

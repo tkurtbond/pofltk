@@ -1,0 +1,3 @@
+#define rb_width 4
+#define rb_height 2
+static char b[] = { 0x03 };
