@@ -320,6 +320,21 @@ CHECKS = [
     ("Fl.RGB(0, 0, 255)", "fl_rgb_color(0, 0, 255)"),
 ]
 
+module("FlTerminal")
+WORDS.update({"LF": "Lf", "CR": "Cr", "CRLF": "CrLf"})
+section("what the text looks like (Terminal.SetTextAttrib)")
+add("set", [(camel(k), "Fl_Terminal::" + k) for k in
+            "NORMAL BOLD DIM ITALIC UNDERLINE INVERSE STRIKEOUT".split()])
+section("what a carriage return and a line feed do (Terminal.SetOutputTranslate)")
+add("set", [("Out" + camel(k), "Fl_Terminal::" + k) for k in
+            "OFF CR_TO_LF LF_TO_CR LF_TO_CRLF".split()])
+section("when text is drawn (Terminal.SetRedrawStyle)")
+add("int", [("NoRedraw", "Fl_Terminal::NO_REDRAW"), ("RateLimited", "Fl_Terminal::RATE_LIMITED"),
+            ("PerWrite", "Fl_Terminal::PER_WRITE")])
+section("the horizontal scrollbar (Terminal.SetHScrollbarStyle)")
+add("int", [("Scrollbar" + camel(k), "Fl_Terminal::SCROLLBAR_" + k) for k in
+            "OFF AUTO ON".split()])
+
 HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_draw.H>\n"
            "#include <FL/Fl_Button.H>\n#include <FL/Fl_Chart.H>\n#include <FL/Fl_Clock.H>\n#include <FL/Fl_Counter.H>\n#include <FL/Fl_Dial.H>\n"
            "#include <FL/Fl_Input_.H>\n#include <FL/Fl_Slider.H>\n#include <FL/Fl_Valuator.H>\n"
@@ -328,7 +343,7 @@ HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_dr
            "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/Fl_Sys_Menu_Bar.H>\n#include <FL/fl_ask.H>\n"
            "#include <FL/Fl_Native_File_Chooser.H>\n#include <FL/Fl_File_Chooser.H>\n"
            "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
-           "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n"
+           "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n#include <FL/Fl_Terminal.H>\n"
            "#include <stdint.h>\n#include <stdio.h>\n")
 
 def oberon_set(v):

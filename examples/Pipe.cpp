@@ -7,7 +7,11 @@
 extern "C" {
 
 intptr_t ofl_pipe_open(const char *cmd) {
-  return reinterpret_cast<intptr_t>(popen(cmd, "r"));
+  FILE *f = popen(cmd, "r");
+  // stdio would read lines ahead, which Fl.WatchFd can't see: they would
+  // wait for the command's next output.
+  if (f != 0) setvbuf(f, 0, _IONBF, 0);
+  return reinterpret_cast<intptr_t>(f);
 }
 
 int32_t ofl_pipe_fd(intptr_t f) {

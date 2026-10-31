@@ -1580,3 +1580,91 @@ unless FLTK's own loading is what wanted it.
 **Confirmed:** `TestImageHandlers`, through both ways in (2026-10-30);
 `FileChooser`'s PDF and PostScript previews, 0 pixels different from
 FLTK's own program.
+
+## 96. An `Fl_Terminal` made smaller leaves its cursor off the grid, and writes there
+
+**What happens:** `display_rows()`, `display_columns()`, the margins, a
+font or a resize can make the screen smaller, and the cursor stays
+where it was. `display_rows(3)` with the cursor at row 13 left it at
+row 24 of a 14-row grid; `display_columns(20)` left it at column 45;
+`ESC[s`, a shrink and `ESC[u` restored row 9, column 39 on a grid of 3
+by 15. The next character is written outside the row. A fuzz of random
+setters and output gave invalid writes in `Utf8Char::text_utf8_`, through
+`print_char`, or killed valgrind outright, depending on the seed.
+
+**Cause:** the setters and `resize` change the ring and don't clamp
+`cursor_`. Only `cursor_row(int)` and `cursor_col(int)` clamp, and
+nothing touches the place in `EscapeSeq` an escape sequence saved.
+`print_char` doesn't check.
+
+**Effect on pofltk:** `Term::fit` in `FlTerminal.cpp` puts the cursor,
+and the saved place, back on the screen after every setter and resize.
+It reaches `Fl_Terminal::escseq`, which is private, by an explicit
+instantiation, as `FlBrowsers.cpp` does for `Fl_Tree::_lastselect`.
+
+**Confirmed:** eight seeds of one fuzz, and six of a wider one (1500
+steps, with selection by mouse, margins, fonts and scrollbars), all 0
+invalid under valgrind with `fit`, on Xvfb (2026-10-30); `TestShrink`.
+
+## 97. `Fl_Terminal`'s saved cursor isn't restored from column 1
+
+**What happens:** a position saved at column 1 isn't restored, by
+`restore_cursor` or by `ESC[u`.
+
+**Cause:** `EscapeSeq::restore_cursor` tests `col != 1`, a slip for -1
+(`src/Fl_Terminal.cxx`).
+
+**Effect on pofltk:** `Term::restore`, for `RestoreCursor`, reads the
+saved place through the same function and sets the cursor itself.
+`ESC[u` in a program's text can't be helped.
+
+**Confirmed:** a scratch program; `TestCursor` (2026-10-30).
+
+## 98. `Fl_Terminal::error_char` overruns a cell, or recurses without end
+
+**What happens:** `error_char` keeps its pointer. Given more than 4
+bytes, it overruns the cell it is written to: into the next cells,
+inside the ring's block, which is why valgrind says nothing, and past
+the block at the last cell. Given a control character, with
+`show_unknown(true)`, an unknown byte is a stack overflow:
+`error_char("\x01")` and an append of `\x02` died with SIGSEGV.
+
+**Cause:** `handle_unknown_char(row, col)` calls `text_utf8(error_char_,
+strlen(error_char_), ...)`, which `memcpy`s into `text_[4]` unchecked.
+`handle_unknown_char()` calls `print_char`, which sends a control
+character to `handle_ctrl`, which calls `handle_unknown_char`.
+
+**Effect on pofltk:** the shim keeps a copy, and refuses anything but
+one printable UTF-8 character of 1 to 4 bytes: `SetErrorChar` halts 78.
+
+**Confirmed:** scratch programs (rc 139 for the recursion); `TestUtf8`,
+`HaltTerminalErrorChar` (2026-10-30).
+
+## 99. Smaller pitfalls of `Fl_Terminal`
+
+- **`print_char(text)` with no length** takes it from the first byte,
+  and reads past the end of a cut character (valgrind is silent:
+  partial loads). The shim passes `strlen`.
+- **`print_char`, `plot_char`, the cursor's moves and the clears don't
+  redraw**: `display_modified` is private. The shim calls
+  `append_ascii("")` after them, which obeys `redraw_style`.
+- **`cursor_up` and the others with a count** make a count of 0 into 1.
+  `Move` in `FlTerminal.Mod` does nothing below 1.
+- **Sizes aren't checked**: `textsize(-5)` is a division by zero
+  (SIGFPE), `display_columns(0)` is taken, `history_rows(-1)` gives a
+  history of -1. `display_rows(0)` and below snap back. `FlTerminal`
+  halts 78 on all of these, and on more cells than `MaxCells`, since
+  a failed allocation would throw through Oberon.
+- **`display_rows(n)` never sticks**: the height decides.
+  `display_columns(n)` sticks if it is larger than the width allows.
+- **`clear()`, `clear(color)` and `clear_screen_home()` push the screen
+  into the history**, as `ESC[2J` does; `clear_screen(false)` doesn't.
+  `clear(FL_RED)` leaves `color()`.
+- **A cut UTF-8 character** waits for its rest through anything else
+  written: `C3`, `x`, `A9` gives "x" then "é". A byte that starts a
+  long form, as `FF` does, waits too, and shows nothing, whatever
+  `show_unknown` says; only a stray continuation byte is unknown.
+- **The constructor with a font** defers it to the first draw. The one
+  with 8 arguments drops its history size; it isn't bound.
+
+**Confirmed:** scratch programs on Xvfb, and `TestTerminal` (2026-10-30).

@@ -171,6 +171,7 @@ END Hello.
 | `FlPreferences` | `Preferences`: FLTK's settings databases |
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
 | `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
+| `FlTerminal` | `Terminal`: a screen of text for a program's output, with a history and ANSI colors |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which
 flattens FLTK to C functions; `src/pofltk.h` is what they share.

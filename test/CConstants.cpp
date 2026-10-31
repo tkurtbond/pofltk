@@ -29,6 +29,7 @@
 #include <FL/Fl_Table_Row.H>
 #include <FL/Fl_Anim_GIF_Image.H>
 #include <FL/Fl_File_Icon.H>
+#include <FL/Fl_Terminal.H>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -531,6 +532,23 @@ const Entry entries[] = {
   {"Fl_Table_Row::SELECT_NONE", (int32_t)(Fl_Table_Row::SELECT_NONE)},
   {"Fl_Table_Row::SELECT_SINGLE", (int32_t)(Fl_Table_Row::SELECT_SINGLE)},
   {"Fl_Table_Row::SELECT_MULTI", (int32_t)(Fl_Table_Row::SELECT_MULTI)},
+  {"Fl_Terminal::NORMAL", (int32_t)(Fl_Terminal::NORMAL)},
+  {"Fl_Terminal::BOLD", (int32_t)(Fl_Terminal::BOLD)},
+  {"Fl_Terminal::DIM", (int32_t)(Fl_Terminal::DIM)},
+  {"Fl_Terminal::ITALIC", (int32_t)(Fl_Terminal::ITALIC)},
+  {"Fl_Terminal::UNDERLINE", (int32_t)(Fl_Terminal::UNDERLINE)},
+  {"Fl_Terminal::INVERSE", (int32_t)(Fl_Terminal::INVERSE)},
+  {"Fl_Terminal::STRIKEOUT", (int32_t)(Fl_Terminal::STRIKEOUT)},
+  {"Fl_Terminal::OFF", (int32_t)(Fl_Terminal::OFF)},
+  {"Fl_Terminal::CR_TO_LF", (int32_t)(Fl_Terminal::CR_TO_LF)},
+  {"Fl_Terminal::LF_TO_CR", (int32_t)(Fl_Terminal::LF_TO_CR)},
+  {"Fl_Terminal::LF_TO_CRLF", (int32_t)(Fl_Terminal::LF_TO_CRLF)},
+  {"Fl_Terminal::NO_REDRAW", (int32_t)(Fl_Terminal::NO_REDRAW)},
+  {"Fl_Terminal::RATE_LIMITED", (int32_t)(Fl_Terminal::RATE_LIMITED)},
+  {"Fl_Terminal::PER_WRITE", (int32_t)(Fl_Terminal::PER_WRITE)},
+  {"Fl_Terminal::SCROLLBAR_OFF", (int32_t)(Fl_Terminal::SCROLLBAR_OFF)},
+  {"Fl_Terminal::SCROLLBAR_AUTO", (int32_t)(Fl_Terminal::SCROLLBAR_AUTO)},
+  {"Fl_Terminal::SCROLLBAR_ON", (int32_t)(Fl_Terminal::SCROLLBAR_ON)},
   {"fl_gray_ramp(0)", (int32_t)(fl_gray_ramp(0))},
   {"fl_gray_ramp(23)", (int32_t)(fl_gray_ramp(23))},
   {"fl_color_cube(0, 0, 0)", (int32_t)(fl_color_cube(0, 0, 0))},

@@ -8,15 +8,14 @@ MODULE FileChooser; (* FLTK's test/file_chooser.cxx: every way of asking a file 
 
    The chooser previews PDF and PostScript with Ghostscript, if it is
    installed, through image handlers; they leave .preview.ppm and
-   .preview.ps in the home directory, as FLTK's program does.
+   .preview.ps in the home directory, as FLTK's program does. *)
 
-   FLTK's program writes its log to an Fl_Terminal, which isn't bound
-   yet (PLAN.md, Phase 18): this one's is a browser. *)
-
-IMPORT Args, Strings, Fl, FlBrowsers, FlButtons, FlDialogs, FlImages, FlInputs, FlMenus, Pipe;
+IMPORT Args, Strings, Fl, FlBrowsers, FlButtons, FlDialogs, FlImages, FlInputs, FlMenus, FlTerminal, Pipe;
 
 CONST
   height = 120;  (* of the log *)
+  ESC = 1BX;
+  LF = 0AX;
 
 TYPE
   Chooser = POINTER TO RECORD (FlDialogs.FileChooserDesc) END;
@@ -28,7 +27,7 @@ TYPE
 VAR
   fc: Chooser;
   win: Fl.DoubleWindow;
-  tty: FlBrowsers.Browser;
+  tty: FlTerminal.Terminal;
   filter: FlInputs.Input;
   files: FlBrowsers.FileBrowser;
   encodings: Fl.Group;        (* the extra widgets, kept once made *)
@@ -36,12 +35,13 @@ VAR
   preview: FlImages.Image;    (* the last the handlers made *)
 
 PROCEDURE Log(prefix-, s-: ARRAY OF CHAR);
-  VAR line: ARRAY 2200 OF CHAR;
-BEGIN
-  COPY(prefix, line); Strings.Append(s, line);
-  tty.Add(line);
-  tty.SetBottomLine(tty.Count())
+BEGIN tty.Append(prefix); tty.Append(s); tty.Append(LF)
 END Log;
+
+(* Appends a sequence setting the text's color. *)
+PROCEDURE Sgr(code-: ARRAY OF CHAR);
+BEGIN tty.Append(ESC); tty.Append("["); tty.Append(code); tty.Append("m")
+END Sgr;
 
 (* Appends s to cmd, in quotes the shell keeps it in. *)
 PROCEDURE Quote(s-: ARRAY OF CHAR; VAR cmd: ARRAY OF CHAR);
@@ -131,7 +131,7 @@ PROCEDURE (c: Chooser) Callback*;
 BEGIN
   Log("fc_callback", "");
   IF ~c.Value(s) THEN s := "(null)" END;
-  Log("    filename = ", s)
+  tty.Append('    filename = "'); tty.Append(s); Log('"', "")
 END Callback;
 
 PROCEDURE (b: Show) Callback*;
@@ -151,9 +151,11 @@ BEGIN
       ok := FlDialogs.FilenameRelative(s, relative);
       Digits(i, line); Strings.Append("/", line);
       Digits(count, number); Strings.Append(number, line);
-      Strings.Append(") Picked: '", line);
-      Log(line, s);
-      Log("     Relative: ", relative);
+      Strings.Append(") ", line);
+      tty.Append(line); Sgr("32");
+      tty.Append("Picked: '"); tty.Append(s); tty.Append("'"); tty.Append(LF);
+      tty.Append("     Relative: '"); tty.Append(relative); tty.Append("'");
+      Sgr("0"); tty.Append(LF);
       FlImages.AddFile(files, relative, FlImages.FindFileIcon(s, FlImages.IconPlain));
       INC(i)
     END;
@@ -210,7 +212,9 @@ BEGIN
   FlImages.AddHandler(PSCheck);
 
   NEW(win); Fl.OpenDoubleWindow(win, 400, 215 + height, "File Chooser Test");
-  NEW(tty); FlBrowsers.OpenBrowser(tty, 0, 215, 400, height, "");
+  NEW(tty); FlTerminal.OpenTerminal(tty, 0, 215, 400, height, "");
+  tty.SetAnsi(TRUE);
+  tty.SetDisplayColumns(100);  (* wider than the window, for long names *)
 
   (* limits resizing to the filter *)
   NEW(grp); Fl.OpenGroup(grp, 0, 10, 400, 25, "");

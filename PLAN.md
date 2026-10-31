@@ -252,11 +252,11 @@ Programmer errors halt, as in polibfyaml. poc's `ASSERT(x, n)` prints
 | 71 | a widget opened twice, or a tree item added twice (`Fl.OpenedTwice`) |
 | 72 | a NIL argument where a widget or timer is required (`Fl.NilArgument`) |
 | 73 | a closed resource used, or one missing where it is needed: a closed `TextBuffer`, a display with no buffer, a removed `TreeItem`, a closed `Image` or `Surface`, a closed or deleted `Preferences`, a closed `FileChooser` or `HelpDialog` (`Fl.ClosedResource`) |
-| 74 | an index out of range: group child, grid row or column, browser line, menu item, chart entry, a file chooser's filter (`Fl.IndexOutOfRange`) |
+| 74 | an index out of range: group child, grid row or column, browser line, menu item, chart entry, a file chooser's filter, a terminal's xterm color, attributes, styles, flags or plotted cell (`Fl.IndexOutOfRange`) |
 | 75 | `RepeatTimeout` outside its own timer's `Fire`, `HandleDefault` outside the event dispatch (`Fl.NotFiring`) |
 | 76 | a widget that must be a group's child isn't: a grid's cell, a flex's fixed size, a tab or wizard page, a tile's size range (`Fl.NotAChild`) |
 | 77 | a `Begin` and `End` out of order: an image surface's `End` that doesn't match the last `Begin`; a help view's page set in `Link` about an image (`Fl.OutOfOrder`) |
-| 78 | an argument a call can't take: a multi-label for a window, a multi-label put in itself, a label type that needs an image, a file descriptor's conditions empty or unknown; a tree's root replaced; a window shaped by an image with no pixels to read (a tiled one); an `AnimGIF` opened as another image, or another image as one; an animation's frame set while it plays (`Fl.Unsupported`) |
+| 78 | an argument a call can't take: a multi-label for a window, a multi-label put in itself, a label type that needs an image, a file descriptor's conditions empty or unknown; a tree's root replaced; a window shaped by an image with no pixels to read (a tiled one); an `AnimGIF` opened as another image, or another image as one; an animation's frame set while it plays; a terminal's size, text size or error character it can't take (`Fl.Unsupported`) |
 
 Bad data from outside the program is never a halt: an image that fails
 to load, a file chooser cancelled. Those come back as `BOOLEAN` results.
@@ -1840,7 +1840,7 @@ Findings and decisions, 2026-10-30:
   `make test` on all six BSDs 1281; on an FLTK with neither Cairo nor
   Pango 1281, and on one without SVG 1279, with 4 skipped.
 
-### Phase 18: The terminal
+### Phase 18: The terminal `[done]`
 
 **`FlTerminal`**, a new module, with one `Terminal` type for
 `Fl_Terminal`, a group whose scrollbars are FLTK's. Its header has
@@ -1876,6 +1876,35 @@ widget's own earlier drawing (`doc/fltk-issues.md`, 69).
   ported.
 - New example: `Console`, a terminal with colored ANSI output from an
   input line, using `Pipe`.
+
+Done 2026-10-30:
+
+- `FlTerminal`, with `Terminal`, and the shim's `Term`. The cursor's
+  protected moves are public through `using`, and `display_modified`,
+  private, is reached by `append_ascii("")`.
+- Found (`doc/fltk-issues.md`, 96 to 99): the worst is a real heap write,
+  a cursor left off a smaller grid, which a fuzz under valgrind found
+  and `Term::fit` stops. `error_char` past a cell, or a control
+  character there, is refused (98).
+- The sizes halt 78 rather than being clamped: each is a programmer's
+  error, and FLTK's answers to them are a SIGFPE or a broken history.
+  `MaxCells` bounds rows and history by columns, so a size can't throw
+  `bad_alloc` through Oberon.
+- `Text` with `below` returns every row of history and screen; without
+  it, up to the cursor's row. Each row ends in a line feed. An empty
+  terminal is one empty line.
+- `examples/Pipe.cpp` no longer buffers: `Console` showed one line of
+  three until the command wrote again, because stdio had read the rest
+  and `Fl.WatchFd` can't see that. `AddFdAndPopen` was exposed to it too.
+- `FileChooser`'s log is now a terminal, as FLTK's is.
+- Checked against FLTK's builds under Xvfb: `FileChooser`, 0 pixels
+  differ, before and after picking a file, log included; `SimpleTerminal`,
+  16, all in the clock's seconds digit. `Console` was driven with
+  `xdotool`: colors, errors, a failing command, output as it comes.
+- Tested 2026-10-30: `test-headless` 1449 `ok` lines, `test-sway` 1445,
+  `valgrind-headless` 1333, `valgrind-sway` 1329 (every error summary 0);
+  `make test` on all six BSDs 1449; on an FLTK with neither Cairo nor
+  Pango 1449, and on one without SVG 1447, with 4 skipped.
 
 ### Phase 19: Printing and the file surfaces
 

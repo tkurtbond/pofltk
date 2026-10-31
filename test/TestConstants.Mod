@@ -4,7 +4,7 @@ MODULE TestConstants; (* pofltk's constants are FLTK's *)
    value the installed FLTK's headers give (CConstants). A failure means
    FLTK's headers changed: run the script again, and see what moved. *)
 
-IMPORT SYSTEM, Out, Fl, FlDraw, FlButtons, FlValuators, FlLayout, FlMenus, FlDialogs, FlText, FlBrowsers, FlImages, FlTable, Check, CConstants;
+IMPORT SYSTEM, Out, Fl, FlDraw, FlButtons, FlValuators, FlLayout, FlMenus, FlDialogs, FlText, FlBrowsers, FlImages, FlTable, FlTerminal, Check, CConstants;
 
 VAR checked, wrong: INTEGER;
 
@@ -509,6 +509,23 @@ BEGIN
   Same(FlTable.SelectNone, "Fl_Table_Row::SELECT_NONE");
   Same(FlTable.SelectSingle, "Fl_Table_Row::SELECT_SINGLE");
   Same(FlTable.SelectMulti, "Fl_Table_Row::SELECT_MULTI");
+  Same(ORD(FlTerminal.Normal), "Fl_Terminal::NORMAL");
+  Same(ORD(FlTerminal.Bold), "Fl_Terminal::BOLD");
+  Same(ORD(FlTerminal.Dim), "Fl_Terminal::DIM");
+  Same(ORD(FlTerminal.Italic), "Fl_Terminal::ITALIC");
+  Same(ORD(FlTerminal.Underline), "Fl_Terminal::UNDERLINE");
+  Same(ORD(FlTerminal.Inverse), "Fl_Terminal::INVERSE");
+  Same(ORD(FlTerminal.Strikeout), "Fl_Terminal::STRIKEOUT");
+  Same(ORD(FlTerminal.OutOff), "Fl_Terminal::OFF");
+  Same(ORD(FlTerminal.OutCrToLf), "Fl_Terminal::CR_TO_LF");
+  Same(ORD(FlTerminal.OutLfToCr), "Fl_Terminal::LF_TO_CR");
+  Same(ORD(FlTerminal.OutLfToCrLf), "Fl_Terminal::LF_TO_CRLF");
+  Same(FlTerminal.NoRedraw, "Fl_Terminal::NO_REDRAW");
+  Same(FlTerminal.RateLimited, "Fl_Terminal::RATE_LIMITED");
+  Same(FlTerminal.PerWrite, "Fl_Terminal::PER_WRITE");
+  Same(FlTerminal.ScrollbarOff, "Fl_Terminal::SCROLLBAR_OFF");
+  Same(FlTerminal.ScrollbarAuto, "Fl_Terminal::SCROLLBAR_AUTO");
+  Same(FlTerminal.ScrollbarOn, "Fl_Terminal::SCROLLBAR_ON");
   Same(Fl.GrayRamp(0), "fl_gray_ramp(0)");
   Same(Fl.GrayRamp(23), "fl_gray_ramp(23)");
   Same(Fl.ColorCube(0, 0, 0), "fl_color_cube(0, 0, 0)");
@@ -517,6 +534,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 498), "each of 498 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 515), "each of 515 constants and values is FLTK's");
   Check.Summary
 END TestConstants.
