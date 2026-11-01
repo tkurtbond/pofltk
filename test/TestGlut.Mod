@@ -2,7 +2,10 @@ MODULE TestGlut; (* FlGlut: FLTK's GLUT emulation *)
 
 IMPORT Fl, FlGl, FlGlut, Check, Probe;
 
-CONST Limit = 500; (* of waits, so that valgrind has time *)
+CONST
+  Limit = 500;  (* of waits, so that valgrind has time *)
+  FontW = 200;  (* the area FontDisplay draws in *)
+  FontH = 100;
 
 VAR
   win: FlGlut.Window;       (* a window with an object, for Probe *)
@@ -15,6 +18,8 @@ VAR
   motions, passive, entries, entered, visible, invisible, idles, timer,
   picked, menuState, menuStatus, picks, hiding, rethinking, dying: INTEGER;
   answerPick: BOOLEAN;
+  fontDraws: INTEGER;
+  pixels: ARRAY 3 * FontW * FontH OF CHAR;
 
 PROCEDURE Display;
   VAR p: ARRAY 4 OF CHAR;
@@ -113,6 +118,91 @@ BEGIN
     ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEscape, {}, 1BX)
   END
 END Answer;
+
+(* How many pixels of the area FontDisplay draws in are lit. *)
+PROCEDURE Lit(): INTEGER;
+  VAR i, c: INTEGER;
+BEGIN
+  FlGl.Flush;
+  FlGl.ReadPixels(0, 0, FontW, FontH, pixels);
+  c := 0;
+  FOR i := 0 TO FontW * FontH - 1 DO
+    IF ORD(pixels[3 * i]) > 100 THEN INC(c) END
+  END;
+  RETURN c
+END Lit;
+
+PROCEDURE Blank;
+BEGIN
+  FlGl.ClearColor(0.0, 0.0, 0.0, 1.0);
+  FlGl.Clear(FlGl.ColorBufferBit);
+  FlGl.Color3f(1.0, 1.0, 1.0);
+  FlGl.LoadIdentity;
+  FlGl.Ortho(0.0D0, FontW, 0.0D0, FontH, -1.0D0, 1.0D0);
+  FlGl.DrawTextAt("", 40.0, 50.0);   (* sets the raster position *)
+  FlGl.Translatef(40.0, 50.0, 0.0);
+  FlGl.Scalef(0.25, 0.25, 1.0)
+END Blank;
+
+(* Its checks need a context, so they are made here, once. *)
+PROCEDURE FontDisplay;
+  VAR f, one: INTEGER; s: ARRAY 8 OF CHAR;
+BEGIN
+  IF fontDraws > 0 THEN RETURN END;
+  INC(fontDraws);
+  FlGl.Viewport(0, 0, FontW, FontH);
+  FOR f := FlGlut.Bitmap9By15 TO FlGlut.BitmapHelvetica18 DO
+    Blank;
+    Check.Check(FlGlut.BitmapHeight(f) > 0, "a bitmap font's height");
+    Check.Check(FlGlut.BitmapWidth(f, "A") > 0, "a character's width");
+    Check.Check(FlGlut.BitmapLength(f, "AB") > FlGlut.BitmapWidth(f, "A"), "a string's length");
+    Check.Check(FlGlut.BitmapLength(f, "") = 0, "an empty string's");
+    FlGlut.BitmapString(f, "AB");
+    Check.Check(Lit() > 0, "BitmapString draws")
+  END;
+  f := FlGlut.BitmapTimesRoman24;
+  Check.Check(FlGlut.BitmapHeight(f) > FlGlut.BitmapHeight(FlGlut.BitmapTimesRoman10), "its sizes differ");
+  Blank;
+  FlGlut.BitmapCharacter(f, "A");
+  one := Lit();
+  Check.Check(one > 0, "BitmapCharacter draws");
+  FlGlut.BitmapCharacter(f, "A");
+  Check.Check(Lit() > one, "and moves on");
+
+  (* text with no width, which FLTK can't draw *)
+  Blank;
+  FlGlut.BitmapCharacter(f, 0X);
+  FlGlut.BitmapCharacter(f, 0AX);
+  s[0] := 0AX; s[1] := 0X;
+  FlGlut.BitmapString(f, s);
+  s[0] := 0E2X; s[1] := 80X; s[2] := 8BX; s[3] := 0X;   (* a zero-width space *)
+  FlGlut.BitmapString(f, s);
+  FlGlut.BitmapString(f, "");
+  FlGl.Font(Fl.Helvetica, 14);
+  FlGl.DrawText(s);
+  FlGl.DrawTextAt(s, 40.0, 50.0);
+  FlGl.DrawTextIn(s, 0, 0, FontW, FontH, {});
+  Check.Check(TRUE, "text with no width doesn't crash");
+  s[3] := 0AX; s[4] := "B"; s[5] := 0X;
+  Blank;
+  FlGl.DrawTextIn(s, 0, 0, FontW, FontH, {});
+  Check.Check(Lit() > 0, "and DrawTextIn draws the line after it");
+
+  Blank;
+  FlGlut.StrokeString(FlGlut.StrokeRoman, "AB");
+  Check.Check(Lit() > 0, "StrokeString draws");
+  Blank;
+  FlGlut.StrokeCharacter(FlGlut.StrokeMonoRoman, "A");
+  one := Lit();
+  Check.Check(one > 0, "StrokeCharacter draws");
+  FlGlut.StrokeCharacter(FlGlut.StrokeMonoRoman, "A");
+  Check.Check(Lit() > one, "and moves on");
+  Blank;
+  FlGlut.StrokeCharacter(FlGlut.StrokeRoman, 0C8X);
+  FlGlut.StrokeString(FlGlut.StrokeRoman, "");
+  Check.Check(Lit() = 0, "a character no stroke font has draws nothing");
+  Check.Check(FlGl.GetError() = 0, "and GL has no complaint")
+END FontDisplay;
 
 PROCEDURE Waits;
 BEGIN Fl.Wait(0.02D0)
@@ -377,6 +467,34 @@ BEGIN
   ok := Probe.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1)
 END Menus;
 
+PROCEDURE Fonts;
+  VAR w, i: INTEGER; s: ARRAY 8 OF CHAR;
+BEGIN
+  (* the stroke fonts are data, and need no window *)
+  Check.Check(FlGlut.StrokeWidth(FlGlut.StrokeRoman, "A") = 80, "a stroke character's width");
+  Check.Check(FlGlut.StrokeWidth(FlGlut.StrokeMonoRoman, "A") = 105, "a monospaced one's");
+  Check.Check(FlGlut.StrokeWidth(FlGlut.StrokeRoman, 0C8X) = 0, "one it hasn't");
+  Check.Check(FlGlut.StrokeLength(FlGlut.StrokeRoman, "AB") = 164, "a string's length");
+  Check.Check(FlGlut.StrokeLength(FlGlut.StrokeMonoRoman, "AB") = 210, "a monospaced one's");
+  Check.Check(FlGlut.StrokeLength(FlGlut.StrokeRoman, "") = 0, "an empty one's");
+  s[0] := "A"; s[1] := "B"; s[2] := 0AX; s[3] := "A"; s[4] := 0X;
+  Check.Check(FlGlut.StrokeLength(FlGlut.StrokeRoman, s) = 164, "its longest line");
+  Check.Check(ENTIER(FlGlut.StrokeHeight(FlGlut.StrokeRoman)) = 152, "a stroke font's height");
+  Check.Check(ENTIER(FlGlut.StrokeHeight(FlGlut.StrokeMonoRoman)) = 152, "the other's");
+
+  FlGlut.InitDisplayMode(FlGlut.Rgb + FlGlut.Double);
+  FlGlut.InitWindowSize(FontW, FontH);
+  w := FlGlut.CreateWindow("fonts");
+  FlGlut.DisplayFunc(FontDisplay);
+  fontDraws := 0;
+  FlGlut.PostRedisplay;
+  i := 0;
+  WHILE (fontDraws = 0) & (i < Limit) DO Waits; INC(i) END;
+  Check.Check(fontDraws > 0, "the fonts were drawn");
+  FlGlut.DestroyWindow(w);
+  Waits
+END Fonts;
+
 PROCEDURE Timers;
   VAR i: INTEGER;
 BEGIN
@@ -398,6 +516,7 @@ BEGIN
   Events;
   Menus;
   Timers;
+  Fonts;
   win.Delete;
   Fl.Wait(0.0D0);
   Check.Summary

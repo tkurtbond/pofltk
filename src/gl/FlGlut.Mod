@@ -28,9 +28,13 @@ MODULE FlGlut; (* FLTK's GLUT emulation: windows, menus and callbacks in GLUT's 
    MainLoop returns when the last window closes, unlike GLUT's, since it
    is FLTK's Run.
 
-   GLUT's fonts, its shapes (glutSolidCube and the rest), and
-   glutGetProcAddress aren't bound, as FlGl binds only a part of GL: draw
-   with FlGl, or from a C++ part.
+   GLUT's fonts are numbers here, not addresses. A bitmap font is one of
+   FLTK's, drawn at GL's raster position, which FlGl.DrawTextAt with "" sets;
+   a stroke font is lines, drawn at the origin, a capital 100 units tall,
+   so scale it. Only the stroke fonts' measures work outside a drawing.
+
+   GLUT's shapes (glutSolidCube and the rest) and glutGetProcAddress aren't
+   bound, as FlGl binds only a part of GL: draw with FlGl, or from a C++ part.
 
    The C++ part is FlGlut.cpp. *)
 
@@ -168,6 +172,17 @@ CONST
   ActiveAlt* = 524288;
 (* END generated constants *)
 
+  (* GLUT's fonts, by pofltk's numbers for them *)
+  Bitmap9By15* = 0;
+  Bitmap8By13* = 1;
+  BitmapTimesRoman10* = 2;
+  BitmapTimesRoman24* = 3;
+  BitmapHelvetica10* = 4;
+  BitmapHelvetica12* = 5;
+  BitmapHelvetica18* = 6;
+  StrokeRoman* = 7;
+  StrokeMonoRoman* = 8;
+
 TYPE
   (* A GLUT window as a widget: Open it, with its parent group current, and
      it is GLUT's current window to set callbacks on after MakeCurrent. *)
@@ -196,6 +211,17 @@ PROCEDURE ["C", "ofl_glut_init_window_size"] CInitWindowSize(w, h: SYSTEM.INT32)
 PROCEDURE ["C", "ofl_glut_main_loop"] CMainLoop;
 PROCEDURE ["C", "ofl_glut_create_window"] CCreateWindow(title: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_create_subwindow"] CCreateSubWindow(win, x, y, w, h: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_ready"] CReady(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_bitmap_character"] CBitmapCharacter(font, c: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_glut_bitmap_height"] CBitmapHeight(font: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_bitmap_length"] CBitmapLength(font: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_bitmap_string"] CBitmapString(font: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_glut_bitmap_width"] CBitmapWidth(font, c: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_stroke_character"] CStrokeCharacter(font, c: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_glut_stroke_height"] CStrokeHeight(font: SYSTEM.INT32): LONGREAL;
+PROCEDURE ["C", "ofl_glut_stroke_length"] CStrokeLength(font: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_stroke_string"] CStrokeString(font: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_glut_stroke_width"] CStrokeWidth(font, c: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_alive"] CAlive(win: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_destroy_window"] CDestroyWindow(win: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_glut_post_redisplay"] CPostRedisplay;
@@ -606,5 +632,76 @@ END MenuStateFunc;
 PROCEDURE MenuStatusFunc*(f: MenuStatusProc);
 BEGIN CMenuStatusFunc(f)
 END MenuStatusFunc;
+
+(* Fonts *)
+
+(* Each bitmap call sets FLTK's font, so needs a GL context, as FlGl's text
+   does. *)
+PROCEDURE CheckBitmap(font: INTEGER);
+BEGIN
+  ASSERT((font >= Bitmap9By15) & (font <= BitmapHelvetica18), Fl.IndexOutOfRange);
+  ASSERT(CReady() # 0, Fl.OutOfOrder)
+END CheckBitmap;
+
+PROCEDURE CheckStroke(font: INTEGER);
+BEGIN ASSERT((font >= StrokeRoman) & (font <= StrokeMonoRoman), Fl.IndexOutOfRange)
+END CheckStroke;
+
+(* c at the raster position, which moves past it, by a multiple of 4 pixels,
+   so characters drawn one by one sit further apart than BitmapString's
+   (doc/fltk-issues.md, 135). c past 7FX is a byte of UTF-8 alone: use
+   BitmapString for those. *)
+PROCEDURE BitmapCharacter*(font: INTEGER; c: CHAR);
+BEGIN CheckBitmap(font); CBitmapCharacter(font, ORD(c))
+END BitmapCharacter;
+
+PROCEDURE BitmapHeight*(font: INTEGER): INTEGER;
+BEGIN CheckBitmap(font); RETURN CBitmapHeight(font)
+END BitmapHeight;
+
+PROCEDURE BitmapLength*(font: INTEGER; s-: ARRAY OF CHAR): INTEGER;
+BEGIN CheckBitmap(font); RETURN CBitmapLength(font, s)
+END BitmapLength;
+
+(* s, in UTF-8, at the raster position. *)
+PROCEDURE BitmapString*(font: INTEGER; s-: ARRAY OF CHAR);
+BEGIN CheckBitmap(font); CBitmapString(font, s)
+END BitmapString;
+
+(* The width of the character numbered ORD(c) in Unicode. *)
+PROCEDURE BitmapWidth*(font: INTEGER; c: CHAR): INTEGER;
+BEGIN CheckBitmap(font); RETURN CBitmapWidth(font, ORD(c))
+END BitmapWidth;
+
+(* c at the origin, translating the matrix past it. A stroke font's
+   characters end at 7FX; any other draws nothing. *)
+PROCEDURE StrokeCharacter*(font: INTEGER; c: CHAR);
+BEGIN
+  CheckStroke(font);
+  ASSERT(CReady() # 0, Fl.OutOfOrder);
+  CStrokeCharacter(font, ORD(c))
+END StrokeCharacter;
+
+PROCEDURE StrokeHeight*(font: INTEGER): REAL;
+BEGIN CheckStroke(font); RETURN SHORT(CStrokeHeight(font))
+END StrokeHeight;
+
+(* The width of the longest line of s. *)
+PROCEDURE StrokeLength*(font: INTEGER; s-: ARRAY OF CHAR): INTEGER;
+BEGIN CheckStroke(font); RETURN CStrokeLength(font, s)
+END StrokeLength;
+
+(* s at the origin, translating the matrix past it; a 0AX goes back to the
+   line's start and down a line. *)
+PROCEDURE StrokeString*(font: INTEGER; s-: ARRAY OF CHAR);
+BEGIN
+  CheckStroke(font);
+  ASSERT(CReady() # 0, Fl.OutOfOrder);
+  CStrokeString(font, s)
+END StrokeString;
+
+PROCEDURE StrokeWidth*(font: INTEGER; c: CHAR): INTEGER;
+BEGIN CheckStroke(font); RETURN CStrokeWidth(font, ORD(c))
+END StrokeWidth;
 
 END FlGlut.

@@ -6,6 +6,7 @@
 #include "../pofltk.h"
 
 #include <FL/Fl_Gl_Window.H>
+#include <FL/fl_draw.H>
 #include <FL/gl.h>
 #include <FL/platform.H>
 
@@ -58,6 +59,19 @@ bool ready() {
 }
 
 float f(double d) { return static_cast<float>(d); }
+
+// gl_draw makes a texture as wide as its text, and text with no width, as a
+// line feed or a zero-width space, crashes in making it
+// (doc/fltk-issues.md, 134).
+void draw_some(const char *s, int n) {
+  if (gl_width(s, n) > 0) gl_draw(s, n);
+}
+
+// gl_draw_invert in gl_draw.cxx, which gl_draw gives fl_draw for each line.
+void draw_line(const char *s, int n, int x, int y) {
+  glRasterPos2i(x, -y);
+  draw_some(s, n);
+}
 
 }  // namespace
 
@@ -213,15 +227,21 @@ void ofl_gl_measure(const char *s, int32_t *w, int32_t *h) {
   *h = ch;
 }
 
-void ofl_gl_draw(const char *s) { gl_draw(s); }
+void ofl_gl_draw(const char *s) { draw_some(s, strlen(s)); }
+
+// For FlGlut.cpp: whether gl_draw can take these n bytes in the current font.
+int32_t ofl_gl_has_width(const char *s, int32_t n) {
+  return gl_width(s, n) > 0;
+}
 
 void ofl_gl_draw_at(const char *s, double x, double y) {
-  gl_draw(s, f(x), f(y));
+  glRasterPos2f(f(x), f(y));
+  draw_some(s, strlen(s));
 }
 
 void ofl_gl_draw_in(const char *s, int32_t x, int32_t y, int32_t w, int32_t h,
                     int32_t align) {
-  gl_draw(s, x, y, w, h, static_cast<Fl_Align>(align));
+  fl_draw(s, x, -y - h, w, h, static_cast<Fl_Align>(align), draw_line, NULL, 0);
 }
 
 void ofl_gl_draw_image(const char *data, int32_t x, int32_t y, int32_t w,

@@ -2356,3 +2356,51 @@ drawing, aren't checked, and `Line`'s comment forbids them.
 **Confirmed:** the outer image was wrong on NetBSD's FLTK and on one
 built for plain X11 with neither Cairo nor Pango, not on Cairo's, and
 valgrind shows the invalid write there, 2026-10-31.
+
+## 134. `gl_draw` of text with no width
+
+**What happens:** `gl_draw` of text that measures 0 wide crashes: a
+segmentation fault on X11, a division by zero (`SIGFPE`) under Wayland.
+That is `0X`, U+200B, and in most fonts a line feed, a carriage return
+and a soft hyphen, as a string or through `glutBitmapCharacter`, and a
+line of such text in a box with `gl_draw(s, x, y, w, h, align)`. A
+combining mark, 7 wide, and `01X`, 15 wide, are fine, and so is a box
+with a line feed alone. On plain Xlib, with neither Cairo nor Pango, `0X`
+has a width, and draws.
+
+**Cause:** `gl_texture_fifo::compute_texture` in `gl_draw.cxx` takes the
+texture's width as `ceil(fl_width(...))`, which is 0, and
+`alpha_mask_for_string` then makes an `Fl_Image_Surface(0, h)`, whose
+`image()` crashes.
+
+**Effect on pofltk:** `FlGl.cpp`'s `draw_some` draws text only if
+`gl_width` gives it a width, and `draw_line` does that for each line of
+`DrawTextIn`, in place of `gl_draw`'s own `gl_draw_invert`. `FlGlut.cpp`
+asks the same before `glutBitmapCharacter` and `glutBitmapString`
+(`drawable`). So `FlGl.DrawText`, `DrawTextAt` and `DrawTextIn`, which
+all had this crash, are covered too (`TestGlut`).
+
+**Confirmed:** by a C++ program on Xvfb and sway, and by `TestGlut` with
+the checks removed, which segfaults on Xvfb, 2026-10-31.
+
+## 135. `glutBitmapCharacter` moves by its texture, and takes a byte
+
+**What happens:** each `glutBitmapCharacter` moves the raster position
+by the width of the texture `gl_draw` made, a multiple of 4, not by the
+character's. Two `A`s 17 wide moved it from 50 to 90, where the string
+`"AA"` moved it to 86, so characters drawn one at a time sit further
+apart than `glutBitmapWidth` says. It also takes its number as a raw
+byte, cut from the `int`, so 321 and -191 draw `A`, and `E9X` is one
+byte of bad UTF-8, where `glutBitmapWidth` takes the same number as a
+Unicode character (`gl_width(uchar)`) and gives 13.
+
+**Cause:** `gl_draw.cxx`: `gl_texture_fifo::display_texture` adds the
+texture's width to the raster position, and `glutBitmapCharacter` in
+`glut_font.cxx` passes `gl_draw` a one-byte string.
+
+**Effect on pofltk:** `BitmapCharacter` takes a `CHAR`, so nothing is
+cut, and its comment sends text with spacing that matters, and anything
+past `7FX`, to `BitmapString`.
+
+**Confirmed:** by a C++ program that read `GL_CURRENT_RASTER_POSITION`,
+and `TestGlut`, on Xvfb and sway, 2026-10-31.

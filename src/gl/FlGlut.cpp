@@ -22,8 +22,29 @@
 #include <vector>
 
 extern int ofl_gl_drawing;  // FlGl.cpp
+extern "C" int32_t ofl_gl_has_width(const char *s, int32_t n);  // FlGl.cpp
 
 namespace {
+
+// By FlGlut's numbers for them, bitmap fonts first.
+void *const fonts[] = {
+    GLUT_BITMAP_9_BY_15,        GLUT_BITMAP_8_BY_13,
+    GLUT_BITMAP_TIMES_ROMAN_10, GLUT_BITMAP_TIMES_ROMAN_24,
+    GLUT_BITMAP_HELVETICA_10,   GLUT_BITMAP_HELVETICA_12,
+    GLUT_BITMAP_HELVETICA_18,   GLUT_STROKE_ROMAN,
+    GLUT_STROKE_MONO_ROMAN};
+
+const unsigned char *bytes(const char *s) {
+  return reinterpret_cast<const unsigned char *>(s);
+}
+
+// Whether glutBitmapCharacter or glutBitmapString can draw these bytes
+// (doc/fltk-issues.md, 134). The font must be set to measure them.
+bool drawable(int32_t font, const char *s, int n) {
+  Fl_Glut_Bitmap_Font *f = static_cast<Fl_Glut_Bitmap_Font *>(fonts[font]);
+  gl_font(f->font, f->size);
+  return ofl_gl_has_width(s, n);
+}
 
 // MAXWINDOWS and MAXMENUS in glut_compatibility.cxx, whose number 32 is what
 // any window or menu past the 31st shares: so the 31 before it are all.
@@ -488,6 +509,49 @@ void ofl_glut_overlay_display_func(void (*f)()) {
   if (!glut_window) return;
   overlay_of[glut_window->number] = f;
   glutOverlayDisplayFunc(f ? run_overlay : 0);
+}
+
+// Fonts
+
+void ofl_glut_bitmap_character(int32_t font, int32_t c) {
+  char a = static_cast<char>(c);
+  if (drawable(font, &a, 1)) glutBitmapCharacter(fonts[font], c);
+}
+
+int32_t ofl_glut_bitmap_height(int32_t font) {
+  return glutBitmapHeight(fonts[font]);
+}
+
+int32_t ofl_glut_bitmap_length(int32_t font, const char *s) {
+  return glutBitmapLength(fonts[font], bytes(s));
+}
+
+void ofl_glut_bitmap_string(int32_t font, const char *s) {
+  if (drawable(font, s, strlen(s))) glutBitmapString(fonts[font], bytes(s));
+}
+
+int32_t ofl_glut_bitmap_width(int32_t font, int32_t c) {
+  return glutBitmapWidth(fonts[font], c);
+}
+
+void ofl_glut_stroke_character(int32_t font, int32_t c) {
+  glutStrokeCharacter(fonts[font], c);
+}
+
+double ofl_glut_stroke_height(int32_t font) {
+  return glutStrokeHeight(fonts[font]);
+}
+
+int32_t ofl_glut_stroke_length(int32_t font, const char *s) {
+  return glutStrokeLength(fonts[font], bytes(s));
+}
+
+void ofl_glut_stroke_string(int32_t font, const char *s) {
+  glutStrokeString(fonts[font], bytes(s));
+}
+
+int32_t ofl_glut_stroke_width(int32_t font, int32_t c) {
+  return glutStrokeWidth(fonts[font], c);
 }
 
 }  // extern "C"

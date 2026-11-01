@@ -202,7 +202,7 @@ END Hello.
 | `FlPrint` | `Printer`, and files: `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile`; what `FlDraw` draws goes to the one begun |
 | `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |
 | `FlGl` | `GlWindow`, FLTK's text and rectangles in GL, and the part of GL its programs use; in its own library, `pofltk-gl` |
-| `FlGlut` | FLTK's GLUT, with numbers checked and strings copied; `Window`, a GLUT window as a widget among others; in `pofltk-gl` |
+| `FlGlut` | FLTK's GLUT and its fonts, with numbers checked and strings copied; `Window`, a GLUT window as a widget among others; in `pofltk-gl` |
 | `FlCairo` | `CairoWindow`, a double window drawn with cairo on any FLTK, and the part of cairo FLTK's programs use; in its own library, `pofltk-cairo` |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which

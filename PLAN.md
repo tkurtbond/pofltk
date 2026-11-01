@@ -2501,6 +2501,33 @@ it queues in the widget's `Ref`, queues nothing a queued group will
 delete, and outside a dispatch runs the queue (`Fl::do_widget_deletion`)
 before deleting. `TestDelete` has the four cases.
 
+### GLUT's fonts `[done]`
+
+On 2026-10-31, at the user's request, the last of `glut.H` that Phase 21
+left out but for its shapes and `glutGetProcAddress`:
+- **`FlGlut`** binds `BitmapCharacter`, `BitmapHeight`, `BitmapLength`,
+  `BitmapString`, `BitmapWidth` and the five `Stroke` ones. A font is a
+  number (`Bitmap9By15` to `StrokeMonoRoman`), not GLUT's address, so a
+  bad one halts with `Fl.IndexOutOfRange`; drawing, and a bitmap font's
+  measures, without a current GL window halt with `Fl.OutOfOrder`. The
+  stroke fonts' measures need no window.
+- **A crash in `FlGl` came with it** (`doc/fltk-issues.md`, 134): text with
+  no width crashes `gl_draw`, as `FlGl.DrawText`, `DrawTextAt` and
+  `DrawTextIn` could since Phase 21. The shim draws only what has a width,
+  and `DrawTextIn` now draws its lines itself. `TestGlut` segfaults with
+  those checks removed.
+- **`BitmapCharacter`** takes a `CHAR`, and its characters sit further
+  apart than `BitmapString`'s (`doc/fltk-issues.md`, 135).
+- **Decided:** no new example, none being asked for, and FLTK's own tests
+  and examples use none of these fonts. GLUT's shapes stay unbound.
+- **Tested:** `make test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway` and the FLTK with neither Cairo nor Pango, after the last
+  change; the six BSDs and the other FLTK variants before it, the removal
+  of one `TestGlut` check. That check, `BitmapWidth(f, 0X) = 0`, failed on
+  plain Xlib, where `0X` has a width. Core-profile GL is untested:
+  `glutInitDisplayMode` gave a compatibility context here. The counts are
+  in AGENTS.md.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was
@@ -2530,3 +2557,15 @@ written:
 - ~~**How much of `fl_draw.H` to bind before it's needed**~~. Decided
   in Phase 2: all of the common calls, so a custom widget seldom has to
   wait for one; offscreen drawing comes with images.
+
+Still open, to look into, from binding GLUT's fonts (2026-10-31):
+
+- **GLUT's fonts on a core-profile GL context.** Untested:
+  `glutInitDisplayMode` with `FL_OPENGL3` still gave a compatibility
+  context here (`GLUT_3_2_CORE_PROFILE` isn't in FLTK's headers), so what
+  the fonts do on a core context is unknown. Find a way to get one first.
+- **GLUT's shapes and `glutGetProcAddress`.** Unbound, as FlGl binds only
+  a part of GL (`FlGlut`'s module comment); a program draws with FlGl or
+  from a C++ part. Whether they are worth binding is undecided.
+- **An example of GLUT's fonts.** There is none, none having been asked
+  for, and FLTK's own tests and examples use none of these fonts.

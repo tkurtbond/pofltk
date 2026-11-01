@@ -765,6 +765,14 @@ held only in C++ memory**.
   free in `Fl::flush`. Any event makes its window current. Windows past
   the 31st share number 32. `glutSwapBuffers` in a display function does
   nothing. `glutMainLoop` is `Fl::run`, and returns.
+- **GL text** (`doc/fltk-issues.md`, 134, 135): `gl_draw` of text with no
+  width crashes in making its texture: a line feed, `0X`, U+200B, and so
+  `glutBitmapCharacter` of them, on both back ends, so the shim draws only
+  what has a width. `glutBitmapCharacter` moves the raster position by the
+  texture's width, a multiple of 4, not the character's, and it takes a
+  raw byte where `glutBitmapWidth` takes a character. GLUT font numbers
+  are cut to a byte. A stroke capital is 100 units tall, and the stroke
+  measures need no window.
 - **Cairo** (`doc/fltk-issues.md`, 114): `Fl_Cairo_Window` is only in
   an FLTK built for it, and under Wayland its context is FLTK's own, so
   one `cairo_restore` too many stops the window for good. `fl_wl_gc()` is
@@ -918,7 +926,14 @@ None at present.
   skipped, with neither Cairo nor Pango; 2056, 19 skipped, with no SVG,
   printing or GL; 2212 with no Forms; 2158 with no GL; 2272 with no GLEW;
   2230 with no cairo; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
-  2274 on Xvfb and 2264 on sway.
+  2274 on Xvfb and 2264 on sway. After GLUT's fonts, 2333, 2323 (3
+  skipped), 2133 and 2124 (2 skipped) here; and 2323, 3 skipped, with
+  neither Cairo nor Pango. The other runs, made with one more check, which
+  that FLTK showed depended on the back end: 2334 on NetBSD and FreeBSD
+  and 2326, 1 skipped, on OpenBSD; 2056, 19 skipped, with no SVG, printing
+  or GL; 2272 with no Forms; 2158 with no GL; 2332 with no GLEW; 2290 with
+  no cairo; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2334 on Xvfb
+  and 2324 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

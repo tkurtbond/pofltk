@@ -125,7 +125,7 @@ endif
 
 # FlGl and FlGlut need libfltk_gl and GL, likewise (PLAN.md, Phase 21).
 GLTESTS := TestGl TestGlConstants TestGlut TestGlutConstants
-GLHALTS := HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72
+GLHALTS := HaltGlutBitmapFont:74 HaltGlutStrokeFont:74 HaltGlutBitmapText:77 HaltGlutStrokeText:77 HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72
 GLEXAMPLES := Cube GlOverlay GlutTest GlutCube
 GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
 # fltk-config says which GL libraries, on some systems. A static FLTK with
