@@ -1523,7 +1523,8 @@ BEGIN RETURN CHas(feature) # 0
 END Has;
 
 (* FLTK's look: "none" (or "base"), "plastic", "gtk+", "gleam" or "oxy".
-   FALSE if FLTK doesn't know name; the look is then "none". *)
+   TRUE if the look is now a scheme. FALSE for "none", "base" or "", and
+   for a name FLTK doesn't know, which also leaves the look "none". *)
 PROCEDURE SetScheme*(name-: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CSetScheme(name) # 0
 END SetScheme;
