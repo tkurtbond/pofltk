@@ -1,7 +1,7 @@
 MODULE MenuBar; (* FLTK's test/menubar.cxx: every kind of menu item, in a menu bar, a menu button, a choice and a pop-up *)
 
-(* What FLTK's test writes to its terminal goes to standard error, until
-   pofltk has Fl_Terminal; the window keeps the room for it. Its macOS
+(* What FLTK's test writes to its terminal goes to standard error, not
+   to an FlTerminal; the window keeps the room for one. Its macOS
    system menu bar is left out, as FLTK's is on other systems. Items are
    added one by one, not from a table: a label added twice at one place
    is the same item, so an item that shares its label is added under a

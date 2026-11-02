@@ -5,8 +5,8 @@ MODULE Cube; (* FLTK's test/cube.cxx: two spinning cubes in GL windows, a wire o
    or reset the count. The left window has a button in it, drawn by its
    Draw's call of the window's own.
 
-   FLTK's program takes the time with Fl::now, which pofltk has yet to
-   bind; this one takes it from Platform. *)
+   FLTK's program takes the time with Fl::now; this one takes it from
+   Platform. *)
 
 IMPORT Fl, FlButtons, FlDialogs, FlGl, FlLayout, FlMenus, FlPrint, FlValuators, OutStr, Out, Platform;
 

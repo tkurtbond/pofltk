@@ -1,9 +1,9 @@
 MODULE PixmapBrowser; (* FLTK's test/pixmap_browser.cxx: shows an image file, and prints the window or saves it as SVG *)
 
 (* The chooser's FilePicked hook shows each file as the user moves over it.
-   A directory shows as a document, not a folder, since fl_filename_isdir
-   isn't bound yet (PLAN.md, Phase 23). FLTK's -8 asks for fewer colors,
-   and does nothing here. *)
+   A directory shows as a document, not the folder FLTK's shows, as this
+   doesn't test for one (FlDialogs.FilenameIsDir). FLTK's -8 asks for
+   fewer colors, and does nothing here. *)
 
 IMPORT Args, Out, Fl, FlButtons, FlDialogs, FlImages, FlPrint;
 

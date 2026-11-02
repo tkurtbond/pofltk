@@ -1,7 +1,7 @@
 MODULE InputChoice; (* FLTK's test/input_choice.cxx: an input choice beside a choice, in a group *)
 
-(* What FLTK's test writes to its terminal goes to standard error, until
-   pofltk has Fl_Terminal; the window keeps the room for it. *)
+(* What FLTK's test writes to its terminal goes to standard error, not
+   to an FlTerminal; the window keeps the room for one. *)
 
 IMPORT Err, Fl, FlButtons, FlInputs, FlMenus;
 

@@ -2,13 +2,14 @@ MODULE Device; (* a subset of FLTK's test/device.cxx: a window of drawings, copi
 
 (* FLTK's window draws with every kind of primitive, and GO copies the
    window, a subwindow or a group to an image surface, a printer or a file.
-   Left out for now, as what they need isn't bound (PLAN.md, Phase 23):
-   Fl_Copy_Surface, fl_capture_window and Fl_Image_Surface::mask from the
-   choices, the custom dash patterns, and the sheared triangle and circle,
-   which need fl_mult_matrix. fl_line of three points and fl_xyline of two
-   segments, which fl_line_style's friends aren't bound for, are drawn
-   segment by segment. FLTK's PostScript device asks for a file with its
-   own dialog; here the program asks, and opens the file. *)
+   Left out, as what they need isn't bound: Fl_Copy_Surface and
+   Fl_Image_Surface::mask from the choices, and the custom dash patterns.
+   Also left out, though FlImages.CaptureWindow and FlDraw.MultMatrix could
+   now do them: fl_capture_window from the choices, and the sheared
+   triangle and circle. fl_line of three points and fl_xyline of two
+   segments aren't bound, so those are drawn segment by segment. FLTK's
+   PostScript device asks for a file with its own dialog; here the program
+   asks, and opens the file. *)
 
 IMPORT Fl, FlButtons, FlDialogs, FlDraw, FlImages, FlPrint, FlValuators, MathL;
 
