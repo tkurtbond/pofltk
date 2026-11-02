@@ -6,7 +6,8 @@ TYPE
 VAR w: Window; i: INTEGER;
 
 PROCEDURE (w: Window) Draw*;
-BEGIN w.SetMode(FlGl.Rgb + FlGl.Double)
+  VAR ok: BOOLEAN;
+BEGIN ok := w.SetMode(FlGl.Rgb + FlGl.Double)
 END Draw;
 
 BEGIN

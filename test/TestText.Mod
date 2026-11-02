@@ -250,7 +250,7 @@ BEGIN
   (* an editor *)
   b.SetText("");
   e.SetBuffer(b);
-  e.TakeFocus;
+  ok := e.TakeFocus();
   ok := Probe.Key(Fl.EvKeyDown, ORD("a"), {}, "a");
   ok := Probe.Key(Fl.EvKeyDown, ORD("b"), {}, "b");
   ok := Probe.Key(Fl.EvKeyDown, Fl.KeyBackSpace, {}, 08X);

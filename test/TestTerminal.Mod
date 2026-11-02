@@ -476,7 +476,7 @@ BEGIN
   t.SetRedrawRate(0.01D0);
   t.Delete;
   i := 0;
-  WHILE i < 5 DO Fl.Check; INC(i) END;
+  WHILE i < 5 DO ok := Fl.Check(); INC(i) END;
   Check.Check(~t.IsOpen(), "deleted with a redraw waiting");
   Close
 END TestPending;

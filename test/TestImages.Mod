@@ -469,11 +469,11 @@ BEGIN
   n := FlImages.openImages;
   NEW(j); ASSERT(FlImages.OpenXPM(j, xpm, 5));
   FlImages.SetCursor(shaped, j, 3, 1);
-  shaped.Show; Fl.Check;
+  shaped.Show; ok := Fl.Check();
   FlImages.SetCursor(shaped, j, 0, 0);
   j.Scale(16, 8, FALSE, TRUE);
   FlImages.SetCursor(shaped, j, 15, 7); j.Close;
-  Fl.Check;
+  ok := Fl.Check();
   shaped.SetCursor(Fl.CursorDefault);
   Check.Check(FlImages.openImages = n, "SetCursor, in a window shown and not, keeps nothing of the image");
   shaped.Delete;

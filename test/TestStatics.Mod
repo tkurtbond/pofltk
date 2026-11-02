@@ -120,7 +120,7 @@ BEGIN
 END GreenBox;
 
 PROCEDURE TestBoxes;
-  VAR win: Fl.Window; box: Fl.Box; c, d: INTEGER;
+  VAR win: Fl.Window; box: Fl.Box; c, d: INTEGER; ok: BOOLEAN;
 BEGIN
   Check.Check(Fl.BoxFilled(Fl.UpFrame) = Fl.UpBox, "BoxFilled of a frame");
   Check.Check(Fl.BoxDown(Fl.UpBox) = Fl.DownBox, "BoxDown");
@@ -156,11 +156,11 @@ BEGIN
   Fl.GetSystemColors;
   Fl.OwnColormap;
   Check.Check(Fl.Visual(Fl.VisualRgb), "there is an RGB visual");
-  Fl.SetScheme("gtk+");
+  ok := Fl.SetScheme("gtk+");
   Check.Check(Fl.IsScheme("gtk+"), "IsScheme");
   Check.Check(~Fl.IsScheme("plastic"), "IsScheme of another");
   Check.Check(Fl.ReloadScheme(), "ReloadScheme");
-  Fl.SetScheme("base")
+  ok := Fl.SetScheme("base")
 END TestBoxes;
 
 PROCEDURE TestFonts;
