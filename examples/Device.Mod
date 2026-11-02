@@ -1,15 +1,12 @@
 MODULE Device; (* a subset of FLTK's test/device.cxx: a window of drawings, copied to a surface of the user's choice *)
 
 (* FLTK's window draws with every kind of primitive, and GO copies the
-   window, a subwindow or a group to an image surface, a printer or a file.
-   Left out, as what they need isn't bound: Fl_Copy_Surface and
-   Fl_Image_Surface::mask from the choices, and the custom dash patterns.
-   Also left out, though FlImages.CaptureWindow and FlDraw.MultMatrix could
-   now do them: fl_capture_window from the choices, and the sheared
-   triangle and circle. fl_line of three points and fl_xyline of two
-   segments aren't bound, so those are drawn segment by segment. FLTK's
-   PostScript device asks for a file with its own dialog; here the program
-   asks, and opens the file. *)
+   window, a subwindow or a group to an image surface, the clipboard, a
+   printer or a file, captures it from the screen, or shows it through a
+   mask. fl_line of three points and fl_xyline of two segments aren't
+   bound, so those are drawn segment by segment. FLTK's PostScript device
+   asks for a file with its own dialog; here the program asks, and opens
+   the file. *)
 
 IMPORT Fl, FlButtons, FlDialogs, FlDraw, FlImages, FlPrint, FlValuators, MathL;
 
@@ -17,7 +14,8 @@ CONST
   imageSide = 80;
   bitmapSide = 75;  (* FLTK's pixmaps/sorceress.xbm *)
 
-  imageSurface = 0; printer = 1; postScript = 2; pdf = 3; svg = 4;
+  imageSurface = 0; printer = 1; postScript = 2; pdf = 3; svg = 4; capture = 5;
+  copy = 6; mask = 7;
 
 TYPE
   Clipping = POINTER TO RECORD (Fl.BoxDesc) END;
@@ -76,7 +74,7 @@ BEGIN
 END Draw;
 
 PROCEDURE (b: Primitives) Draw*;
-  VAR x, y, d: INTEGER;
+  VAR x, y, d: INTEGER; dashes: ARRAY 4 OF INTEGER;
 BEGIN
   b.Draw^;
   x := b.X(); y := b.Y();
@@ -96,6 +94,9 @@ BEGIN
   FlDraw.XYLine(x + 5, y + 61, x + 48);
   FlDraw.LineStyle(FlDraw.DashDotDot, 0);
   FlDraw.XYLine(x + 5, y + 64, x + 48);
+  dashes[0] := 7; dashes[1] := 3; dashes[2] := 7; dashes[3] := 2;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 0, dashes);
+  FlDraw.XYLine(x + 5, y + 67, x + 48);
   FlDraw.LineStyle(FlDraw.Solid, 0);
 
   FlDraw.Line(x + 5, y + 72, x + 25, y + 95);
@@ -215,6 +216,7 @@ BEGIN
 END Bent;
 
 PROCEDURE (b: LineStyles) Draw*;
+  VAR dashes: ARRAY 6 OF INTEGER;
 BEGIN
   b.Draw^;
   FlDraw.PushMatrix;
@@ -237,6 +239,17 @@ BEGIN
   Bent(Fl.Red, FlDraw.DashDotDot + FlDraw.CapSquare + FlDraw.JoinBevel, 30);
   Bent(Fl.Green, FlDraw.DashDotDot + FlDraw.CapRound + FlDraw.JoinRound, 20);
 
+  dashes[0] := 10; dashes[1] := 3; dashes[2] := 4;
+  dashes[3] := 2; dashes[4] := 2; dashes[5] := 1;
+  FlDraw.SetColor(Fl.Blue);
+  FlDraw.LineStyleDashes(FlDraw.Solid, 5, dashes);
+  FlDraw.BeginLine;
+  FlDraw.Vertex(10, 10);
+  FlDraw.Vertex(190, 10);
+  FlDraw.Vertex(190, 190);
+  FlDraw.EndLine;
+  FlDraw.LineStyle(FlDraw.Solid, 0);
+
   FlDraw.PopMatrix;
   FlDraw.SetColor(Fl.Black)
 END Draw;
@@ -246,6 +259,33 @@ BEGIN
   b.Draw^;
   FlDraw.PushMatrix;
   FlDraw.Translate(b.X(), b.Y());
+
+  FlDraw.PushMatrix;
+  FlDraw.MultMatrix(1, 3, 0, 1, 0, -20);
+  FlDraw.SetColor(Fl.Green);
+  FlDraw.BeginPolygon;
+  FlDraw.Vertex(10, 10);
+  FlDraw.Vertex(100, -80);
+  FlDraw.Vertex(100, -190);
+  FlDraw.EndPolygon;
+
+  FlDraw.SetColor(Fl.Red);
+  FlDraw.LineStyle(FlDraw.DashDot, 7);
+  FlDraw.BeginLoop;
+  FlDraw.Vertex(10, 10);
+  FlDraw.Vertex(100, -80);
+  FlDraw.Vertex(100, -190);
+  FlDraw.EndLoop;
+  FlDraw.LineStyle(FlDraw.Solid, 0);
+
+  FlDraw.SetColor(Fl.Blue);
+  FlDraw.LineStyle(FlDraw.Solid, 3);
+  FlDraw.BeginLoop;
+  FlDraw.Circle(60, -50, 30);
+  FlDraw.EndLoop;
+  FlDraw.LineStyle(FlDraw.Solid, 0);
+  FlDraw.PopMatrix;
+
   FlDraw.Scale(1.8D0, 1);
 
   FlDraw.SetColor(Fl.Yellow);
@@ -299,13 +339,26 @@ BEGIN
   b.DrawLabel
 END Draw;
 
-(* The window an image surface's copy is shown in. *)
+(* The window a copy is shown in. *)
 PROCEDURE (c: Copy) Callback*;
 BEGIN c.image.Close; c.Delete
 END Callback;
 
+(* Shows i with a yellow margin, and closes it when the window closes. *)
+PROCEDURE ShowCopy(i: FlImages.Image; margin: INTEGER; title: ARRAY OF CHAR);
+  VAR c: Copy; b: Fl.Box;
+BEGIN
+  NEW(c); c.image := i;
+  Fl.OpenWindow(c, i.W() + 2 * margin, i.H() + 2 * margin, title);
+  c.SetColor(Fl.Yellow);
+  NEW(b); Fl.OpenBox(b, margin, margin, i.W(), i.H(), "");
+  FlImages.SetImage(b, i);
+  c.End;
+  c.Show
+END ShowCopy;
+
 PROCEDURE ToImage;
-  VAR s: FlImages.Surface; c: Copy; b: Fl.Box; w, h: INTEGER; decorated: BOOLEAN;
+  VAR s: FlImages.Surface; i: FlImages.Image; w, h: INTEGER; decorated: BOOLEAN;
 BEGIN
   decorated := (target IS Fl.Window) & (target.Parent() = NIL);
   IF decorated THEN
@@ -320,15 +373,79 @@ BEGIN
   ELSE s.DrawWidget(target, 0, 0)
   END;
   s.End;
-  NEW(c); NEW(c.image); s.GetImage(c.image);
+  NEW(i); s.GetImage(i);
   s.Close;
-  Fl.OpenWindow(c, c.image.W() + 10, c.image.H() + 10, "Image surface");
-  c.SetColor(Fl.Yellow);
-  NEW(b); Fl.OpenBox(b, 5, 5, c.image.W(), c.image.H(), "");
-  FlImages.SetImage(b, c.image);
-  c.End;
-  c.Show
+  ShowCopy(i, 5, "Image surface")
 END ToImage;
+
+(* What the screen shows of the target, from the window it is in. *)
+PROCEDURE ToCapture;
+  VAR win: Fl.Widget; i: FlImages.Image; x, y: INTEGER;
+BEGIN
+  win := target; x := 0; y := 0;
+  IF ~(target IS Fl.Window) THEN
+    x := target.X(); y := target.Y();
+    REPEAT win := win.Parent() UNTIL win IS Fl.Window
+  END;
+  NEW(i);
+  IF FlImages.CaptureWindow(i, win(Fl.Window), x, y, target.W(), target.H()) THEN
+    ShowCopy(i, 5, "fl_capture_window()")
+  END
+END ToCapture;
+
+(* Puts the target on the clipboard, as an image, for another program to
+   paste. Closing the surface does it, so nothing here shows. *)
+PROCEDURE ToCopy;
+  VAR s: FlImages.CopySurface;
+BEGIN
+  NEW(s);
+  IF (target IS Fl.Window) & (target.Parent() = NIL) THEN
+    FlImages.OpenCopySurface(s, target(Fl.Window).DecoratedW(), target(Fl.Window).DecoratedH());
+    s.Begin;
+    s.DrawDecoratedWindow(target(Fl.Window), 0, 0)
+  ELSE
+    FlImages.OpenCopySurface(s, target.W() + 10, target.H() + 20);
+    s.Begin;
+    FlDraw.SetColor(Fl.Yellow); FlDraw.RectF(0, 0, target.W() + 10, target.H() + 20);
+    s.DrawWidget(target, 5, 10)
+  END;
+  s.End;
+  s.Close
+END ToCopy;
+
+(* The target through a white ellipse on yellow, and a window also through
+   a ring with FLTK's name in it. *)
+PROCEDURE ToMask;
+  VAR
+    s: FlImages.Surface; m, i: FlImages.Image;
+    w, h, mini, dx, dy, textW, textH: INTEGER;
+BEGIN
+  w := target.W(); h := target.H();
+  NEW(s); FlImages.OpenSurface(s, w, h);
+  s.Begin;
+  FlDraw.SetColor(Fl.Black); FlDraw.RectF(0, 0, w, h);
+  FlDraw.SetColor(Fl.White); FlDraw.Pie(0, 0, w, h, 0.0D0, 360.0D0);
+  IF (target IS Fl.Window) & (target.Parent() = NIL) THEN
+    IF w < h THEN mini := w * 66 DIV 100 ELSE mini := h * 66 DIV 100 END;
+    FlDraw.SetColor(Fl.Black);
+    FlDraw.Pie(w DIV 2 - mini DIV 2, h DIV 2 - mini DIV 2, mini, mini, 0.0D0, 360.0D0);
+    FlDraw.SetColor(Fl.White);
+    FlDraw.SetFont(Fl.TimesBold, 120);
+    FlDraw.TextExtents("FLTK", dx, dy, textW, textH);
+    FlDraw.Text("FLTK", w DIV 2 - textW DIV 2, h DIV 2 + textH DIV 2)
+  END;
+  NEW(m); s.GetImage(m);
+  FlDraw.SetColor(Fl.Yellow); FlDraw.RectF(0, 0, w, h);
+  s.End;
+  s.Mask(m);
+  m.Close;
+  s.Begin;
+  s.DrawWidget(target, 0, 0);
+  NEW(i); s.GetImage(i);
+  s.End;
+  s.Close;
+  ShowCopy(i, 0, "Fl_Image_Surface::mask()")
+END ToMask;
 
 (* One page, of the target as large as it fits, in the middle. *)
 PROCEDURE ToPage(d: FlPrint.PagedDevice);
@@ -447,6 +564,9 @@ BEGIN
   | postScript: ToPostScript
   | pdf: ToPDF
   | svg: ToSVG
+  | capture: ToCapture
+  | copy: ToCopy
+  | mask: ToMask
   END
 END Callback;
 
@@ -754,10 +874,13 @@ BEGIN
   w3.SetBoxType(Fl.DownBox);
   NEW(g); Fl.OpenGroup(g, 0, 0, w3.W(), w3.H(), "");
   AddOperation(5, 4, imageSurface, "Fl_Image_Surface");
+  AddOperation(170, 4, copy, "Fl_Copy_Surface");
   AddOperation(5, 17, printer, "Fl_Printer");
   AddOperation(170, 17, postScript, "Fl_PostScript_File_Device");
   AddOperation(5, 30, pdf, "Fl_PDF_File_Surface");
   AddOperation(170, 30, svg, "Fl_SVG_File_Surface");
+  AddOperation(5, 43, capture, "fl_capture_window()");
+  AddOperation(170, 43, mask, "Fl_Image_Surface::mask()");
   g.End;
 
   NEW(g); Fl.OpenGroup(g, 0, 0, w3.W(), w3.H(), "");

@@ -1502,41 +1502,67 @@ void ofl_menu_item_label(intptr_t mn, int32_t i, int32_t kind, intptr_t p) {
   m->redraw();
 }
 
-// Image surfaces: drawing into an image, offscreen.
+// Surfaces: drawing into an image, offscreen, or for the clipboard. A
+// handle is the Fl_Widget_Surface of either; FlImages' Surface always
+// holds an Fl_Image_Surface.
+
+static Fl_Widget_Surface *surface(intptr_t s) {
+  return reinterpret_cast<Fl_Widget_Surface *>(s);
+}
+
+static Fl_Image_Surface *image_surface(intptr_t s) {
+  return static_cast<Fl_Image_Surface *>(surface(s));
+}
 
 intptr_t ofl_surface_new(int32_t w, int32_t h) {
-  return reinterpret_cast<intptr_t>(new Fl_Image_Surface(w, h));
+  return reinterpret_cast<intptr_t>(
+      static_cast<Fl_Widget_Surface *>(new Fl_Image_Surface(w, h)));
 }
 
-void ofl_surface_close(intptr_t s) {
-  delete reinterpret_cast<Fl_Image_Surface *>(s);
+// The display must be open: X11's clipboard is written with it
+// (doc/fltk-issues.md, 49).
+intptr_t ofl_copy_new(int32_t w, int32_t h) {
+  fl_open_display();
+  return reinterpret_cast<intptr_t>(
+      static_cast<Fl_Widget_Surface *>(new Fl_Copy_Surface(w, h)));
 }
+
+// An Fl_Copy_Surface writes the clipboard as it is deleted.
+void ofl_surface_close(intptr_t s) { delete surface(s); }
 
 // Makes the surface where drawing goes, or the one before it again.
 void ofl_surface_begin(intptr_t s) {
-  Fl_Surface_Device::push_current(reinterpret_cast<Fl_Image_Surface *>(s));
+  Fl_Surface_Device::push_current(surface(s));
 }
 
 void ofl_surface_end() { Fl_Surface_Device::pop_current(); }
 
 // Whether drawing goes to it now: FlPrint's surfaces nest with these.
 int32_t ofl_surface_current(intptr_t s) {
-  return reinterpret_cast<Fl_Image_Surface *>(s)->is_current() ? 1 : 0;
+  return surface(s)->is_current() ? 1 : 0;
 }
 
 // Draws widget w with its top left at x, y.
 void ofl_surface_draw(intptr_t s, intptr_t w, int32_t x, int32_t y) {
-  reinterpret_cast<Fl_Image_Surface *>(s)->draw(ofl::widget(w), x, y);
+  surface(s)->draw(ofl::widget(w), x, y);
 }
 
 void ofl_surface_decorated(intptr_t s, intptr_t w, int32_t x, int32_t y) {
-  reinterpret_cast<Fl_Image_Surface *>(s)->draw_decorated_window(
-      ofl::widget(w)->as_window(), x, y);
+  surface(s)->draw_decorated_window(ofl::widget(w)->as_window(), x, y);
 }
 
 // What has been drawn, as a new image.
 intptr_t ofl_surface_image(intptr_t s) {
-  return make(reinterpret_cast<Fl_Image_Surface *>(s)->image());
+  return make(image_surface(s)->image());
+}
+
+// 0 if i isn't 3 bytes a pixel, which FLTK takes as such and overruns
+// (doc/fltk-issues.md, 137).
+int32_t ofl_surface_mask(intptr_t s, intptr_t i) {
+  Fl_RGB_Image *m = img(i)->rgb();
+  if (!m || m->d() != 3) return 0;
+  image_surface(s)->mask(m);
+  return 1;
 }
 
 // The size of what is drawn on; 0 if nothing is, or it can't be told.

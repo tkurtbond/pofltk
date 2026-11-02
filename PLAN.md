@@ -1679,6 +1679,8 @@ Widgets with no new lifetime problem, and FLTK's plain small types.
   `FL_SUBMENU_POINTER` isn't bound, so `&Huge`'s items are added.
 - `InputChoice` and `MenuBar` write to `Err` what FLTK's write to an
   `Fl_Terminal`, and keep the window's size. Phase 18 finishes them.
+  (Done 2026-11-02: both write to an `FlTerminal`, and match FLTK's
+  builds exactly, terminal included.)
   `ColorChooser` leaves out FLTK's argument naming an X11 visual, since
   `Fl::visual` and `Fl::own_colormap` aren't bound.
 - The ports match FLTK's builds under Xvfb: `Overlay` and `ColorChooser`
@@ -1979,7 +1981,13 @@ Done 2026-10-31:
 - `Device` leaves out what isn't bound: `Fl_Copy_Surface`,
   `fl_capture_window`, `Fl_Image_Surface::mask`, custom dash patterns and
   `fl_mult_matrix`'s shear. `PixmapBrowser` shows a directory as a
-  document until `fl_filename_isdir` is bound.
+  document until `fl_filename_isdir` is bound. (Done 2026-11-02: `Device`
+  has the capture and the shear, leaving out `Fl_Copy_Surface`,
+  `Fl_Image_Surface::mask` and custom dashes, and differs from FLTK's only
+  in those two choices and the clock's hands; `PixmapBrowser` shows a
+  directory as a folder, 0 pixels differing. `Fl_Copy_Surface`,
+  `Fl_Image_Surface::mask` and the dashes followed the same day; see
+  "Copy surfaces, masks and dashes".)
 - Checked against FLTK's builds under Xvfb: `PixmapBrowser` 0 pixels differ,
   with an image and with a missing file. `Device` differs only in the
   choices and drawings left out, and the clock's hands. Its image surface,
@@ -2527,6 +2535,31 @@ left out but for its shapes and `glutGetProcAddress`:
   plain Xlib, where `0X` has a width. Core-profile GL is untested:
   `glutInitDisplayMode` gave a compatibility context here. The counts are
   in AGENTS.md.
+
+### Copy surfaces, masks and dashes `[done]`
+
+The three things `Device` still left out, bound 2026-11-02.
+
+- `FlDraw.LineStyleDashes(style, width, dashes)` takes lengths as an
+  `ARRAY OF INTEGER`, ended by 0 or the array's end, not a string of
+  bytes. FLTK's `char *` would make an Oberon program build a string
+  with `CHR`, and its limits are the shim's to keep: lengths 1 to 127
+  and at most `MaxDashes`, 255 (`doc/fltk-issues.md`, 136).
+- `FlImages.WidgetSurface` is new, the base of `Surface` and of the new
+  `CopySurface`, as `FlPrint`'s is named: `Begin`, `End`, `Close`,
+  `DrawWidget` and `DrawDecoratedWindow` are FLTK's `Fl_Widget_Surface`,
+  and `GetImage` and `Mask` are `Surface`'s alone. Existing code doesn't
+  change. The handle is kept as an `Fl_Widget_Surface *`, and only
+  `image_surface` casts it down.
+- `Surface.Mask` halts on what FLTK would misread or lose, and `masked`
+  remembers a mask not yet taken by `GetImage` (137).
+- `CopySurface.Close` is the copy, since FLTK's destructor is. So a
+  surface lost is written to the clipboard when collected (138).
+- `Device` has both operations and FLTK's two dashed lines. FLTK's
+  width 5 line wasn't in `Device`'s list of what it left out, and the
+  comparison found it. It now differs from FLTK's under Xvfb only in the
+  clock's hands, with the mask of the window, group and sub-window. A
+  copy shows nothing, so `TestClipboard` pastes it back.
 
 ## Open questions
 

@@ -93,6 +93,13 @@ void ofl_draw_line_style(int32_t style, int32_t width) {
   fl_line_style(style, width);
 }
 
+// FLTK copies the pattern, into 256 bytes, unchecked
+// (doc/fltk-issues.md, 136): LineStyleDashes checks its length.
+void ofl_draw_line_style_dashes(int32_t style, int32_t width,
+                                const char *dashes) {
+  fl_line_style(style, width, const_cast<char *>(dashes));
+}
+
 // Shapes, in integer coordinates, untransformed
 
 void ofl_draw_point(int32_t x, int32_t y) { fl_point(x, y); }

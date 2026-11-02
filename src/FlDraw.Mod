@@ -62,6 +62,8 @@ CONST
   OrientSE* = 7;
 (* END generated constants *)
 
+  MaxDashes* = 255;  (* the most lengths in a LineStyleDashes pattern *)
+
 TYPE
   (* A symbol's drawing (AddSymbol): a procedure of a module, not one nested
      in a procedure, since FLTK keeps it for good. *)
@@ -115,6 +117,7 @@ PROCEDURE ["C", "ofl_draw_color"] CColor(c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_rgb"] CRGB(r, g, b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_get_color"] CGetColor(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_draw_line_style"] CLineStyle(style, width: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_line_style_dashes"] CLineStyleDashes(style, width: SYSTEM.INT32; dashes: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_draw_point"] CPoint(x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_line"] CLine(x, y, x1, y1: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_rect"] CRect(x, y, w, h: SYSTEM.INT32);
@@ -235,6 +238,25 @@ END Color;
 PROCEDURE LineStyle*(style, width: INTEGER);
 BEGIN CLineStyle(style, width)
 END LineStyle;
+
+(* LineStyle with a dash pattern of your own, for style's cap and join:
+   the lengths in pixels of dash, gap, dash and so on, repeating, from 1
+   to 127 each, ended by a 0 or the array's end, MaxDashes at most. Other
+   values halt (Fl.IndexOutOfRange): FLTK takes them as bytes, overruns
+   past 255 of them, and draws nothing for a length past 127. No lengths
+   is LineStyle. The pattern is copied, and doesn't grow with width.
+   FLTK's OpenGL drawing ignores it. *)
+PROCEDURE LineStyleDashes*(style, width: INTEGER; dashes-: ARRAY OF INTEGER);
+  VAR c: ARRAY MaxDashes + 1 OF CHAR; i: INTEGER;
+BEGIN
+  i := 0;
+  WHILE (i < LEN(dashes)) & (dashes[i] # 0) DO
+    ASSERT((i < MaxDashes) & (dashes[i] > 0) & (dashes[i] <= 127), Fl.IndexOutOfRange);
+    c[i] := CHR(dashes[i]); INC(i)
+  END;
+  c[i] := 0X;
+  CLineStyleDashes(style, width, c)
+END LineStyleDashes;
 
 (* Shapes *)
 

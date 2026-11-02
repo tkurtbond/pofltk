@@ -2404,3 +2404,77 @@ past `7FX`, to `BitmapString`.
 
 **Confirmed:** by a C++ program that read `GL_CURRENT_RASTER_POSITION`,
 and `TestGlut`, on Xvfb and sway, 2026-10-31.
+
+## 136. `fl_line_style`'s dash patterns
+
+**What happens:** a pattern of 256 or more lengths overruns: 300 aborts
+with `*** strcpy_chk: buffer overflow detected ***` where the C library
+is fortified, and elsewhere writes past the driver's array. On Cairo a
+negative length, or 200 where `char` is signed, draws no line at all,
+with no error. The lengths are pixels, not multiples of the width, as
+the `FL_DASH` styles' are. FLTK's OpenGL drawing ignores a pattern.
+
+**Cause:** `Fl_Cairo_Graphics_Driver::line_style` and
+`Fl_PostScript_Graphics_Driver::line_style` `strcpy` the pattern into
+`linedash_[256]`, unchecked. The pattern is a `char *`, ended by 0, of
+signed lengths on x86. Xlib's `XSetDashes` copies, and SVG `fl_strdup`s,
+with no limit. `Fl_OpenGL_Graphics_Driver_line_style.cxx` says it "does
+not support custom patterns". A pattern of one value acts as that value
+twice.
+
+**Effect on pofltk:** `FlDraw.LineStyleDashes` takes an `ARRAY OF
+INTEGER`, ended by 0 or by the array's end, and halts with
+`Fl.IndexOutOfRange` on a length outside 1 to 127 or on more than
+`MaxDashes`, 255, of them (`HaltDashValue`, `HaltDashLong`). No lengths
+is a plain `LineStyle`. Its comment gives the pixels and OpenGL.
+
+**Confirmed:** by a C++ program on Xvfb and sway, under valgrind, and
+`TestDrawMore` and `TestPrint`, which reads SVG's `stroke-dasharray`,
+2026-11-02. An FLTK with neither Cairo nor Pango draws the same rows.
+
+## 137. `Fl_Image_Surface::mask`
+
+**What happens:** a mask of depth 1 is read past its end, and a mask
+that isn't depth 3 is against FLTK's documentation, though depth 4 works
+on Cairo. A second `mask` with no `image()` between loses the first's
+state: valgrind finds 872 bytes definitely lost on X11, and a cairo
+surface on Wayland. FLTK's documentation forbids a `mask` while the
+surface is current, which runs, unchecked.
+
+**Cause:** `calc_cairo_mask` in `Fl_Cairo_Graphics_Driver.cxx` and
+`Fl_Image_Surface_Driver::RGB3_to_RGB1` read 3 bytes a pixel whatever
+the depth. `mask()` in each driver makes a new `shape_data_` without
+looking at the one there, and only `image()` or the destructor frees
+it, the latter just the current one. On Xlib without Cairo `image()`
+mixes the two through `copy_with_mask`, by the mean of a mask pixel's
+red, green and blue. FLTK keeps no pointer to the mask; a mask of
+another size is scaled, into a copy.
+
+**Effect on pofltk:** `Surface.Mask` halts with `Fl.Unsupported` on a
+mask not of 3 bytes a pixel (`HaltMaskDepth`), and with `Fl.OutOfOrder`
+on a surface begun (`HaltMaskBegun`) or masked with no `GetImage` since
+(`HaltMaskTwice`), the surface remembering which. `Close` with no
+`GetImage` is safe. On Cairo the edge is soft by a pixel or so.
+
+**Confirmed:** by a C++ program on Xvfb and sway, under valgrind,
+`TestImages`, and `Device` against FLTK's own `device`, 2026-11-02, and
+on an FLTK with neither Cairo nor Pango, where `TestImages` under
+valgrind has no errors.
+
+## 138. `Fl_Copy_Surface` has no way to abandon a copy
+
+**What happens:** deleting the surface writes the clipboard, whatever
+was drawn, or nothing. There is no way to leave the clipboard as it was
+once a surface is made.
+
+**Cause:** the destructors of `Fl_Xlib_Copy_Surface_Driver` and
+`Fl_Wayland_Copy_Surface_Driver` do the copy; `Fl_Copy_Surface` has no
+other method to send it, or to cancel it. On X11 the copy needs the
+display open, as `Fl::copy` does (49).
+
+**Effect on pofltk:** `FlImages.CopySurface`'s `Close` is when the copy
+happens, its comment says so, and a surface lost and finalized writes
+the clipboard too. `OpenCopySurface` opens the display first.
+
+**Confirmed:** by a C++ program, and `TestClipboard`, which pastes the
+pixels back, on Xvfb and sway, 2026-11-02.

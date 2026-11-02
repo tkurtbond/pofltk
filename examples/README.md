@@ -72,11 +72,12 @@ its children, keeping their order.
 that reports what was picked.
 
 **MenuBar** shows every kind of menu item, in a menu bar, a menu button, a
-choice and a pop-up.
+choice and a pop-up, with what is picked written to a terminal.
 
 **MenuWithImages** shows menu items with images, alone or beside their text.
 
-**InputChoice** shows an input choice beside a plain choice.
+**InputChoice** shows an input choice beside a plain choice, with what they do
+written to a terminal.
 
 ## Text
 
@@ -230,8 +231,9 @@ frame, with keys for its speed and direction.
 **SaveAs** shows one procedure drawing a picture in the window and in a
 PostScript, EPS, PDF or SVG file.
 
-**Device** shows a window of drawings copied to an image surface, a printer or
-a file, of the user's choice.
+**Device** shows a window of drawings copied to an image surface, the clipboard,
+a printer or a file, captured from the screen, or shown through a mask, as the
+user chooses.
 
 ## Plugins
 

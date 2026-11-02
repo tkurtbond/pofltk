@@ -113,6 +113,53 @@ END Read;
 
 (* A window never shown isn't visible, so FLTK draws nothing. Once shown,
    its frame's size depends on the window system: look at its far corner. *)
+(* s filled with color. *)
+PROCEDURE Fill(s: FlImages.Surface; color: INTEGER);
+BEGIN s.Begin; FlDraw.SetColor(color); FlDraw.RectF(0, 0, 40, 40); s.End
+END Fill;
+
+(* m made a mask of size by size pixels, black to the left of the middle
+   and white to its right, or the other way round. *)
+PROCEDURE HalfMask(m: FlImages.Image; size: INTEGER; whiteRight: BOOLEAN);
+  VAR s: FlImages.Surface;
+BEGIN
+  NEW(s); FlImages.OpenSurface(s, size, size);
+  s.Begin;
+  IF whiteRight THEN FlDraw.SetColor(Fl.Black) ELSE FlDraw.SetColor(Fl.White) END;
+  FlDraw.RectF(0, 0, size, size);
+  IF whiteRight THEN FlDraw.SetColor(Fl.White) ELSE FlDraw.SetColor(Fl.Black) END;
+  FlDraw.RectF(size DIV 2, 0, size DIV 2, size);
+  s.End;
+  s.GetImage(m); s.Close
+END HalfMask;
+
+(* The edge of a mask is soft, so these look well away from it. *)
+PROCEDURE Masks;
+  VAR s: FlImages.Surface; m, j: FlImages.Image;
+BEGIN
+  NEW(s); FlImages.OpenSurface(s, 40, 40);
+  Fill(s, Fl.Red);
+  NEW(m); HalfMask(m, 40, TRUE);
+  s.Mask(m); m.Close;  (* FLTK doesn't keep it *)
+  Fill(s, Fl.Blue);
+  NEW(j); s.GetImage(j);
+  Check.Check((j.Pixel(5, 20) = red) & (j.Pixel(35, 20) = blue), "Mask: drawing shows where it is white");
+  j.Close;
+
+  NEW(m); HalfMask(m, 20, FALSE);
+  s.Mask(m); m.Close;
+  Fill(s, Fl.Green);
+  NEW(j); s.GetImage(j);
+  Check.Check((j.Pixel(5, 20) = Fl.RGB(0, 255, 0)) & (j.Pixel(35, 20) = blue),
+    "a next mask after GetImage, of another size");
+  j.Close;
+
+  NEW(m); HalfMask(m, 40, TRUE);
+  s.Mask(m); m.Close;
+  s.Close;  (* a mask never used *)
+  Check.Check(~s.IsOpen(), "Close with a mask not used")
+END Masks;
+
 PROCEDURE CheckDecorated;
   VAR w: Fl.Window; s: FlImages.Surface; j: FlImages.Image; dw, dh: INTEGER;
 BEGIN
@@ -432,6 +479,7 @@ BEGIN
   t.Begin; t.Close;
   Check.Check(~t.IsOpen() & (FlImages.openSurfaces = 1), "Close ends a surface begun");
   s.Close; s.Close;
+  Masks;
 
   (* Tiled images *)
   RedBlue; NEW(tile); FlImages.OpenRGB(tile, bits, 4, 2, 3, 0);

@@ -89,7 +89,8 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   widgets' images, image surfaces, images on the clipboard, FLTK's
   pool of shared images (`Shared`, the shim's `Pool`) and file icons
   (`FileIcon`), and the program's image handlers (`AddHandler`,
-  `ask_handlers`, `load_shared`). It links `-lfltk_images`. Outside data goes through the
+  `ask_handlers`, `load_shared`). `WidgetSurface` is `Surface`'s and
+  `CopySurface`'s base. It links `-lfltk_images`. Outside data goes through the
   shim's checks before FLTK's decoders: `parse_xbm`, `dib_ok`, `gif_ok`
   and `lzw_ok`, since FLTK's overrun on crafted files
   (`doc/fltk-issues.md`, 81, 87, 88).
@@ -835,6 +836,12 @@ held only in C++ memory**.
     copies at its size; Wayland keeps a copy and doesn't check; both do
     nothing for a window not shown.
   - A program's own copies don't trigger a clipboard notice.
+- **Dashes, masks and copies** (`doc/fltk-issues.md`, 136 to 138): a
+  dash pattern of 256 lengths overruns on Cairo and PostScript, and a
+  negative one or one past 127 draws nothing; lengths are pixels, and
+  OpenGL ignores them. `Fl_Image_Surface::mask` reads 3 bytes a pixel
+  whatever the depth, and a second one with no `image()` leaks. Deleting
+  an `Fl_Copy_Surface` writes the clipboard, with no way to abandon it.
 - **Printing** (`doc/fltk-issues.md`, 100 to 103): text with no font
   set crashes on PostScript, PDF and EPS. A Cairo error makes
   `Fl_PostScript_File_Device::end_job` write to a closed file and close
@@ -933,7 +940,12 @@ None at present.
   and 2326, 1 skipped, on OpenBSD; 2056, 19 skipped, with no SVG, printing
   or GL; 2272 with no Forms; 2158 with no GL; 2332 with no GLEW; 2290 with
   no cairo; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2334 on Xvfb
-  and 2324 on sway.
+  and 2324 on sway. After copy surfaces, masks and dashes, 2356, 2346 (3
+  skipped), 2151 and 2142 (2 skipped) here; 2356 on NetBSD and FreeBSD and
+  2348, 1 skipped, on OpenBSD; 2346, 3 skipped, with neither Cairo nor
+  Pango; 2078, 19 skipped, with no SVG, printing or GL; 2294 with no
+  Forms; 2181 with no GL; 2354 with no GLEW; 2312 with no cairo; and on a
+  Wayland FLTK without `FLTK_HAVE_CAIRO`, 2356 on Xvfb and 2346 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

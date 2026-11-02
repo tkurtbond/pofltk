@@ -110,9 +110,14 @@ BEGIN s := ""; FlPrint.Error(s); RETURN s[0] # 0X
 END Reason;
 
 PROCEDURE Draw;
+  VAR dashes: ARRAY 2 OF INTEGER;
 BEGIN
   FlDraw.SetColor(Fl.Blue); FlDraw.Rect(10, 10, 100, 50);
-  FlDraw.Text("text", 20, 30)
+  FlDraw.Text("text", 20, 30);
+  dashes[0] := 7; dashes[1] := 3;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 1, dashes);
+  FlDraw.XYLine(10, 70, 100);
+  FlDraw.LineStyle(FlDraw.Solid, 0)
 END Draw;
 
 (* So much that a file's buffer must be written before it is closed. *)
@@ -244,7 +249,8 @@ BEGIN
     Check.Check(Read(svg) > 0, "the file exists");
     Check.Check(Has("<svg") & Has("</svg>"), "SVG");
     Check.Check(Has(">text<"), "with its text");
-    Check.Check(Has('font-family="Times"') & Has('font-size="24"'), "in the font set")
+    Check.Check(Has('font-family="Times"') & Has('font-size="24"'), "in the font set");
+    Check.Check(Has("stroke-dasharray:7.000,3.000"), "LineStyleDashes")
   END
 END TestSVG;
 

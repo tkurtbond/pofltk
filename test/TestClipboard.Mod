@@ -1,6 +1,6 @@
 MODULE TestClipboard; (* Fl's clipboard, and FlImages' images on it *)
 
-IMPORT Fl, FlInputs, FlImages, Check, Probe;
+IMPORT Fl, FlDraw, FlInputs, FlImages, Check, Probe;
 
 TYPE
   (* Keeps what is pasted into it: the text, or the image if take. *)
@@ -28,6 +28,7 @@ VAR
   s: ARRAY 64 OF CHAR;
   n: INTEGER;
   ok: BOOLEAN;
+  lost: FlImages.CopySurface;
 
 PROCEDURE (r: Receiver) Handle*(event: INTEGER): BOOLEAN;
   VAR ok: BOOLEAN;
@@ -51,6 +52,55 @@ BEGIN
   END;
   RETURN d.Handle^(event)
 END Handle;
+
+(* Drawing on a CopySurface and pasting it back: red, with a blue box
+   drawn at its right. *)
+PROCEDURE CopySurfaces;
+  VAR c: FlImages.CopySurface; t: FlImages.Surface; b: Fl.Box; w: Fl.Window; j: FlImages.Image;
+BEGIN
+  Fl.Copy("before", Fl.Clipboard);
+  NEW(c); FlImages.OpenCopySurface(c, 8, 6);
+  Check.Check(c.IsOpen() & (FlImages.openSurfaces = 1), "OpenCopySurface");
+  NEW(w); Fl.OpenWindow(w, 8, 6, ""); w.End;
+  NEW(b); Fl.OpenBox(b, 0, 0, 4, 6, ""); b.SetBoxType(Fl.FlatBox); b.SetColor(Fl.Blue);
+  c.Begin;
+  FlDraw.SetColor(Fl.Red); FlDraw.RectF(0, 0, 8, 6);
+  c.DrawWidget(b, 4, 0);
+  c.End;
+  Check.Check(~Fl.ClipboardHasImage(), "the clipboard isn't written until Close");
+  c.Close; c.Close;
+  Check.Check(~c.IsOpen() & (FlImages.openSurfaces = 0), "Close");
+  Check.Check(Fl.ClipboardHasImage(), "Close puts it on the clipboard");
+  r.take := TRUE;
+  Fl.PasteImage(r);
+  Check.Check((r.img # NIL) & (r.img.DataW() = 8) & (r.img.DataH() = 6)
+    & (r.img.Pixel(1, 3) = Fl.RGB(255, 0, 0)) & (r.img.Pixel(6, 3) = Fl.RGB(0, 0, 255)),
+    "and pastes as drawn");
+  r.img.Close; r.img := NIL; r.take := FALSE;
+
+  (* Copy surfaces and image surfaces nest. *)
+  NEW(t); FlImages.OpenSurface(t, 2, 2);
+  NEW(c); FlImages.OpenCopySurface(c, 2, 2);
+  t.Begin; c.Begin; FlDraw.SetColor(Fl.Red); FlDraw.RectF(0, 0, 2, 2); c.End;
+  FlDraw.SetColor(Fl.Blue); FlDraw.RectF(0, 0, 2, 2); t.End;
+  NEW(j); t.GetImage(j);
+  Check.Check(j.Pixel(1, 1) = Fl.RGB(0, 0, 255), "they nest with image surfaces");
+  j.Close; t.Close;
+  c.Begin; c.Close;
+  Check.Check(~c.IsOpen(), "Close ends one begun");
+
+  (* A window, with its title bar where FLTK can get at it. *)
+  w.Show; w.WaitForExpose;
+  NEW(c); FlImages.OpenCopySurface(c, w.DecoratedW(), w.DecoratedH());
+  c.Begin; c.DrawDecoratedWindow(w, 0, 0); c.End; c.Close;
+  Check.Check(Fl.ClipboardHasImage(), "DrawDecoratedWindow");
+  w.Hide;
+  b.Delete; w.Delete;
+
+  (* Left to the finalizer, when the program ends. *)
+  NEW(lost); FlImages.OpenCopySurface(lost, 2, 2);
+  lost := NIL
+END CopySurfaces;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 100, 100, "TestClipboard");
@@ -110,6 +160,7 @@ BEGIN
   Fl.PasteImage(r);
   Check.Check(r.pastes = n + 4, "an image not taken, refused or accepted");
   i.Close;
+  CopySurfaces;
 
   (* Drag and drop, as the window system sends it while the user drags:
      FLTK's routing, from Fl::handle, decides which widget gets which. In

@@ -193,7 +193,7 @@ END Hello.
 | `FlDialogs` | messages, questions, input, colors, file choosers, `NativeFileChooser`, `FileChooser`; directories listed, names made relative |
 | `FlText` | `TextBuffer`, `TextDisplay`, `TextEditor`, styles |
 | `FlBrowsers` | `Browser` and its kinds, `CheckBrowser`, `FileBrowser`, `Tree`, `TreeItem` (FLTK's, or the program's own, which draw themselves; widgets in items) |
-| `FlImages` | `Image` (loaded, decoded, from pixels or bits, or tiled), `AnimGIF` (animated GIFs), `Shared` (FLTK's pool), handlers for more formats (`AddHandler`), `FileIcon`, `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing) |
+| `FlImages` | `Image` (loaded, decoded, from pixels or bits, or tiled), `AnimGIF` (animated GIFs), `Shared` (FLTK's pool), handlers for more formats (`AddHandler`), `FileIcon`, `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing, through a mask), `CopySurface` (drawing onto the clipboard) |
 | `FlPreferences` | `Preferences`: FLTK's settings databases; `Plugin`, `PluginManager`: objects found by class and name, and libraries loaded to add them |
 | `FlTable` | `Table`, `TableRow`: cells the program draws |
 | `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
@@ -241,7 +241,7 @@ once. A widget a tree item shows (`TreeItem.SetWidget`) is
 deleted with the item.
 
 **Resources.** `TextBuffer`, `Image`, `MultiLabel`, `Surface`,
-`Preferences` and `NativeFileChooser` belong to the program: `Close`
+`CopySurface`, `Preferences` and `NativeFileChooser` belong to the program: `Close`
 them when done (`Close` is idempotent, and the collector closes one lost
 without it). A widget using one keeps it, so closing a buffer a display
 shows, or an image a box, a browser line or a menu item shows, is safe.

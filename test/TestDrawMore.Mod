@@ -244,6 +244,48 @@ BEGIN
   RETURN n
 END Ink;
 
+(* How many separate runs of ink row y has in the capture. *)
+PROCEDURE Runs(y: INTEGER): INTEGER;
+  VAR x, n: INTEGER; before: BOOLEAN;
+BEGIN
+  n := 0; before := FALSE;
+  FOR x := 0 TO Size - 1 DO
+    IF Probe.Pixel(x, y) # white THEN
+      IF ~before THEN INC(n) END;
+      before := TRUE
+    ELSE before := FALSE
+    END
+  END;
+  RETURN n
+END Runs;
+
+(* Lines 50 long, from y 10 down: dashes 5 long and 5 apart, a pattern
+   its 0 ends, no pattern, the first pattern at width 3, and back to no
+   pattern with one of MaxDashes lengths drawn between. *)
+PROCEDURE Dashes(c: Fl.Box);
+  VAR d: ARRAY 3 OF INTEGER; none: ARRAY 1 OF INTEGER; all: ARRAY 300 OF INTEGER; i: INTEGER;
+BEGIN
+  FlDraw.SetColor(Fl.White); FlDraw.RectF(0, 0, Size, Size);
+  FlDraw.SetColor(Fl.Black);
+  d[0] := 5; d[1] := 5; d[2] := 5;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 1, d);
+  FlDraw.XYLine(5, 10, 54);
+  d[0] := 10; d[1] := 20; d[2] := 0;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 1, d);
+  FlDraw.XYLine(5, 20, 54);
+  none[0] := 0;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 1, none);
+  FlDraw.XYLine(5, 30, 54);
+  d[0] := 5; d[1] := 5; d[2] := 0;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 3, d);
+  FlDraw.XYLine(5, 40, 54);
+  FOR i := 0 TO LEN(all) - 1 DO all[i] := 0 END;
+  FOR i := 0 TO FlDraw.MaxDashes - 1 DO all[i] := 1 + i MOD 127 END;
+  FlDraw.LineStyleDashes(FlDraw.Solid, 1, all);
+  FlDraw.LineStyle(FlDraw.Solid, 0);
+  FlDraw.XYLine(5, 50, 54)
+END Dashes;
+
 PROCEDURE Four(a, b, c, d: INTEGER): BOOLEAN;
 BEGIN
   RETURN (Probe.Pixel(5, 5) = a) & (Probe.Pixel(6, 5) = b)
@@ -281,6 +323,13 @@ BEGIN
   Check.Check((Probe.Pixel(36, 36) = black) & (Probe.Pixel(30, 30) # black), "DrawRadio");
   Probe.Release;
   Check.Check(Run(OddShapes), "capture shapes of no size or less");
+  Probe.Release;
+  Check.Check(Run(Dashes), "capture dashed lines");
+  Check.Check(Runs(10) = 5, "LineStyleDashes: its pattern");
+  Check.Check(Runs(20) = 2, "a 0 ends it");
+  Check.Check(Runs(30) = 1, "no lengths is a solid line");
+  Check.Check(Runs(40) = 5, "dashes don't grow with the width");
+  Check.Check(Runs(50) = 1, "the longest pattern, then LineStyle");
   Probe.Release;
 
   Check.Check(Run(Arrows), "capture arrows of every kind and direction");

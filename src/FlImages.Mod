@@ -15,7 +15,8 @@ MODULE FlImages; (* Images: loaded from files or memory, made from pixels, drawn
    (Fl.ClosedResource).
 
    An image is drawn in a Draw method, as the rest of FlDraw is; or into
-   a Surface, an image being drawn offscreen.
+   a Surface, an image being drawn offscreen, or a CopySurface, drawing
+   for the clipboard.
 
    A FileIcon is a small picture of a kind of file, for file browsers and
    labels. It is not an Image, and it lasts the program: nothing frees
@@ -127,20 +128,30 @@ TYPE
     h: SYSTEM.ADDRESS
   END;
 
-  (* An image being drawn: between Begin and End, FlDraw's drawing goes
-     into it, offscreen. *)
-  Surface* = POINTER TO SurfaceDesc;
-  SurfaceDesc* = RECORD
+  (* Something drawn on offscreen: between Begin and End, FlDraw's
+     drawing goes into it. *)
+  WidgetSurface* = POINTER TO WidgetSurfaceDesc;
+  WidgetSurfaceDesc* = RECORD
     h: SYSTEM.ADDRESS;
-    below: Surface;  (* the surface begun before this one *)
+    below: WidgetSurface;  (* the surface begun before this one *)
     begun: BOOLEAN
   END;
+
+  (* An image being drawn. *)
+  Surface* = POINTER TO SurfaceDesc;
+  SurfaceDesc* = RECORD (WidgetSurfaceDesc)
+    masked: BOOLEAN  (* FLTK holds a mask GetImage hasn't used *)
+  END;
+
+  (* Drawing for the clipboard, put there by Close. *)
+  CopySurface* = POINTER TO CopySurfaceDesc;
+  CopySurfaceDesc* = RECORD (WidgetSurfaceDesc) END;
 
 VAR
   openImages-: INTEGER;    (* images made and not yet closed or finalized *)
   openSurfaces-: INTEGER;  (* the same, for surfaces *)
   openMultiLabels-: INTEGER;  (* the same, for multi-labels *)
-  current: Surface;        (* the surface last begun and not ended *)
+  current: WidgetSurface;  (* the surface last begun and not ended *)
   icons: FileIcon;         (* the objects of file icons *)
   handlers: HandlerLink;   (* in the order they were added *)
 
@@ -201,6 +212,8 @@ PROCEDURE ["C", "ofl_surface_current"] CSurfaceCurrent(s: SYSTEM.ADDRESS): SYSTE
 PROCEDURE ["C", "ofl_surface_draw"] CSurfaceDraw(s, w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_surface_decorated"] CSurfaceDecorated(s, w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_surface_image"] CSurfaceImage(s: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_surface_mask"] CSurfaceMask(s, m: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_copy_new"] CCopyNew(w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_read_image"] CReadImage(x, y, w, h, alpha: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_image_capture"] CCapture(win: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_shared_get"] CSharedGet(name: ARRAY OF CHAR; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -914,38 +927,55 @@ END SetItemMultiLabel;
 
 (* Surfaces *)
 
-PROCEDURE CloseSurface(s: Surface);
+PROCEDURE CloseSurface(s: WidgetSurface);
 BEGIN
   IF s.h # 0 THEN CSurfaceClose(s.h); s.h := 0; DEC(openSurfaces) END
 END CloseSurface;
 
 PROCEDURE FinalizeSurface(obj: SYSTEM.PTR);
-BEGIN CloseSurface(SYSTEM.VAL(Surface, obj))
+BEGIN CloseSurface(SYSTEM.VAL(WidgetSurface, obj))
 END FinalizeSurface;
 
 (* s's handle, halting if it is closed. *)
-PROCEDURE S(s: Surface): SYSTEM.ADDRESS;
+PROCEDURE S(s: WidgetSurface): SYSTEM.ADDRESS;
 BEGIN
   ASSERT(s # NIL, Fl.NilArgument); ASSERT(s.h # 0, Fl.ClosedResource);
   RETURN s.h
 END S;
+
+PROCEDURE Opening(s: WidgetSurface; h: SYSTEM.ADDRESS);
+BEGIN
+  s.h := h; s.begun := FALSE; INC(openSurfaces);
+  GarbageCollectedHeap.RegisterFinalizer(s, FinalizeSurface)
+END Opening;
 
 (* Makes s a surface of w by h pixels, white. *)
 PROCEDURE OpenSurface*(s: Surface; w, h: INTEGER);
 BEGIN
   ASSERT(s # NIL, Fl.NilArgument); ASSERT(s.h = 0, Fl.OpenedTwice);
   ASSERT((w > 0) & (h > 0), Fl.IndexOutOfRange);
-  s.h := CSurfaceNew(w, h); s.begun := FALSE; INC(openSurfaces);
-  GarbageCollectedHeap.RegisterFinalizer(s, FinalizeSurface)
+  s.masked := FALSE;
+  Opening(s, CSurfaceNew(w, h))
 END OpenSurface;
 
-PROCEDURE (s: Surface) IsOpen*(): BOOLEAN;
+(* Makes s a surface of w by h pixels, for the clipboard. Close puts what
+   was drawn on the clipboard, as an image, with no window needed. FLTK
+   has no way to give one up: a CopySurface lost without Close is written
+   to the clipboard when it is collected, or the program ends. *)
+PROCEDURE OpenCopySurface*(s: CopySurface; w, h: INTEGER);
+BEGIN
+  ASSERT(s # NIL, Fl.NilArgument); ASSERT(s.h = 0, Fl.OpenedTwice);
+  ASSERT((w > 0) & (h > 0), Fl.IndexOutOfRange);
+  Opening(s, CCopyNew(w, h))
+END OpenCopySurface;
+
+PROCEDURE (s: WidgetSurface) IsOpen*(): BOOLEAN;
 BEGIN RETURN s.h # 0
 END IsOpen;
 
 (* Sends drawing to s, until End. Surfaces nest: End ends the last one
    begun, and drawing goes to the one before. *)
-PROCEDURE (s: Surface) Begin*;
+PROCEDURE (s: WidgetSurface) Begin*;
   VAR h: SYSTEM.ADDRESS;
 BEGIN
   h := S(s); ASSERT(~s.begun, Fl.OutOfOrder);
@@ -954,7 +984,7 @@ END Begin;
 
 (* Sends drawing back where it went before Begin. s must be the surface
    last begun. *)
-PROCEDURE (s: Surface) End*;
+PROCEDURE (s: WidgetSurface) End*;
   VAR h: SYSTEM.ADDRESS;
 BEGIN
   h := S(s); ASSERT(s.begun & (current = s) & (CSurfaceCurrent(h) # 0), Fl.OutOfOrder);
@@ -962,7 +992,7 @@ BEGIN
 END End;
 
 (* Ends s if it is begun, and frees it; idempotent. *)
-PROCEDURE (s: Surface) Close*;
+PROCEDURE (s: WidgetSurface) Close*;
 BEGIN
   IF s.begun THEN s.End END;
   CloseSurface(s)
@@ -970,14 +1000,14 @@ END Close;
 
 (* Draws w and its children, as FLTK would on the screen, with w's top
    left at x, y; between Begin and End. *)
-PROCEDURE (s: Surface) DrawWidget*(w: Fl.Widget; x, y: INTEGER);
+PROCEDURE (s: WidgetSurface) DrawWidget*(w: Fl.Widget; x, y: INTEGER);
   VAR h: SYSTEM.ADDRESS;
 BEGIN h := S(s); ASSERT(s.begun, Fl.OutOfOrder); CSurfaceDraw(h, Fl.Live(w), x, y)
 END DrawWidget;
 
 (* Draws w, with its title bar where the window system lets FLTK get at
    it, with its top left at x, y; between Begin and End. *)
-PROCEDURE (s: Surface) DrawDecoratedWindow*(w: Fl.Window; x, y: INTEGER);
+PROCEDURE (s: WidgetSurface) DrawDecoratedWindow*(w: Fl.Window; x, y: INTEGER);
   VAR h: SYSTEM.ADDRESS;
 BEGIN h := S(s); ASSERT(s.begun, Fl.OutOfOrder); CSurfaceDecorated(h, Fl.Live(w), x, y)
 END DrawDecoratedWindow;
@@ -985,8 +1015,27 @@ END DrawDecoratedWindow;
 (* Makes i an image of what has been drawn on s. *)
 PROCEDURE (s: Surface) GetImage*(i: Image);
   VAR h: SYSTEM.ADDRESS;
-BEGIN h := S(s); New(i); ASSERT(Opened(i, CSurfaceImage(h)))  (* out of memory *)
+BEGIN
+  h := S(s); New(i); ASSERT(Opened(i, CSurfaceImage(h)));  (* out of memory *)
+  s.masked := FALSE
 END GetImage;
+
+(* What is drawn on s from now on shows only through m, an image of 3
+   bytes a pixel scaled to s's size, usually a Surface's: fully where m
+   is white, not where it is black, in part between, where what s had
+   before stays. GetImage gives the two together, and a next Mask may
+   follow it. The edge between them is soft, by a pixel or so, on Cairo.
+   s must not be begun, and there can't be two Masks with no GetImage
+   between (Fl.OutOfOrder), since FLTK loses the first; m can't be of
+   another depth (Fl.Unsupported). FLTK doesn't keep m. *)
+PROCEDURE (s: Surface) Mask*(m: Image);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := S(s); ASSERT(m # NIL, Fl.NilArgument);
+  ASSERT(~s.begun & ~s.masked, Fl.OutOfOrder);
+  ASSERT(CSurfaceMask(h, Hd(m)) # 0, Fl.Unsupported);
+  s.masked := TRUE
+END Mask;
 
 (* Makes i an image of the w by h pixels at x, y of what is being drawn
    on, a Surface begun or a window in its Draw, as much of them as is on
