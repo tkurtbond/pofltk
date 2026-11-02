@@ -1,14 +1,14 @@
 MODULE InputChoice; (* FLTK's test/input_choice.cxx: an input choice beside a choice, in a group *)
 
-(* What FLTK's test writes to its terminal goes to standard error, not
-   to an FlTerminal; the window keeps the room for one. *)
+IMPORT Fl, FlButtons, FlInputs, FlMenus, FlTerminal, OutStr;
 
-IMPORT Err, Fl, FlButtons, FlInputs, FlMenus;
-
-CONST terminalHeight = 150;
+CONST
+  terminalHeight = 150;
+  LF = 0AX;
 
 VAR
   win: Fl.DoubleWindow;
+  tty: FlTerminal.Terminal;
   activeGroup: Fl.Group;
   in: FlInputs.InputChoice;
   choice: FlMenus.Choice;
@@ -20,14 +20,14 @@ VAR
 PROCEDURE ActiveCB(w: Fl.Widget);
 BEGIN
   IF active.Value() THEN
-    activeGroup.Activate; Err.String("activate group")
+    activeGroup.Activate; tty.Append("activate group")
   ELSE
-    activeGroup.Deactivate; Err.String("deactivate group")
+    activeGroup.Deactivate; tty.Append("deactivate group")
   END;
-  Err.Ln;
+  tty.Append(LF);
   activeGroup.Redraw;
   IF active.Changed() THEN
-    Err.String("Callback: changed() is set"); Err.Ln;
+    tty.Append("Callback: changed() is set"); tty.Append(LF);
     active.SetChanged(FALSE)
   END
 END ActiveCB;
@@ -36,16 +36,20 @@ PROCEDURE InputChoiceCB(w: Fl.Widget);
   VAR s: ARRAY 256 OF CHAR;
 BEGIN
   in.Value(s);
-  Err.String("Fl_Input_Choice value='"); Err.String(s); Err.String("'"); Err.Ln
+  tty.Append("Fl_Input_Choice value='"); tty.Append(s); tty.Append("'"); tty.Append(LF)
 END InputChoiceCB;
 
 PROCEDURE ChoiceCB(w: Fl.Widget);
+  VAR s: ARRAY 16 OF CHAR;
 BEGIN
-  Err.String("Fl_Choice       value='"); Err.Int(choice.Value(), 0); Err.String("'"); Err.Ln
+  s := ""; OutStr.Int(choice.Value(), 0, s);
+  tty.Append("Fl_Choice       value='"); tty.Append(s); tty.Append("'"); tty.Append(LF)
 END ChoiceCB;
 
 BEGIN
   NEW(win); Fl.OpenDoubleWindow(win, 300, 200 + terminalHeight, "input_choice");
+
+  NEW(tty); FlTerminal.OpenTerminal(tty, 0, 200, win.W(), terminalHeight, "");
 
   (* this group can be activated and deactivated: *)
   NEW(activeGroup); Fl.OpenGroup(activeGroup, 0, 0, 300, 120, "");

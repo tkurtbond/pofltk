@@ -1,22 +1,22 @@
 MODULE MenuBar; (* FLTK's test/menubar.cxx: every kind of menu item, in a menu bar, a menu button, a choice and a pop-up *)
 
-(* What FLTK's test writes to its terminal goes to standard error, not
-   to an FlTerminal; the window keeps the room for one. Its macOS
-   system menu bar is left out, as FLTK's is on other systems. Items are
-   added one by one, not from a table: a label added twice at one place
-   is the same item, so an item that shares its label is added under a
-   label of its own and then renamed. A menu given items one by one has
-   no value at first, where FLTK's table gives it its first item, which
-   a menu button shows under the mouse. *)
+(* FLTK's macOS system menu bar is left out, as FLTK's is on other
+   systems. Items are added one by one, not from a table: a label added
+   twice at one place is the same item, so an item that shares its label
+   is added under a label of its own and then renamed. A menu given items
+   one by one has no value at first, where FLTK's table gives it its
+   first item, which a menu button shows under the mouse. *)
 
-IMPORT Err, Out, Fl, FlDialogs, FlMenus, FlValuators, OutStr;
+IMPORT Out, Fl, FlDialogs, FlMenus, FlTerminal, FlValuators, OutStr;
 
 CONST
   terminalHeight = 120;
   width = 700;
+  LF = 0AX;
 
 VAR
   win: Fl.DoubleWindow;
+  tty: FlTerminal.Terminal;
   scheme: FlMenus.SchemeChoice;
   menubar: FlMenus.MenuBar;
   mb1, mb: FlMenus.MenuButton;
@@ -35,13 +35,13 @@ PROCEDURE TestCB(w: Fl.Widget);
   VAR m: FlMenus.Menu; i, key: INTEGER; state: SET; s: ARRAY 256 OF CHAR;
 BEGIN
   m := w(FlMenus.Menu); i := m.Value();
-  IF i < 0 THEN Err.String("NULL")
+  IF i < 0 THEN tty.Append("NULL")
   ELSE
-    m.ItemLabel(i, s); Err.String(s);
+    m.ItemLabel(i, s); tty.Append(s);
     m.ItemShortcut(i, key, state);
-    IF key # 0 THEN Fl.ShortcutLabel(key, state, s); Err.String(" - "); Err.String(s) END
+    IF key # 0 THEN Fl.ShortcutLabel(key, state, s); tty.Append(" - "); tty.Append(s) END
   END;
-  Err.Ln
+  tty.Append(LF)
 END TestCB;
 
 PROCEDURE QuitCB(w: Fl.Widget);
@@ -200,6 +200,7 @@ END LinespacingCB;
 BEGIN
   NEW(win); Fl.OpenDoubleWindow(win, width, 400 + terminalHeight, "menubar");
   NEW(scheme); FlMenus.OpenSchemeChoice(scheme, 300, 50, 100, 25, "&scheme");
+  NEW(tty); FlTerminal.OpenTerminal(tty, 0, 400, width, terminalHeight, "");
   win.action := WindowCB;
   NEW(menubar); FlMenus.OpenMenuBar(menubar, 0, 0, width, 30, "");
   Table(menubar);

@@ -1,9 +1,7 @@
 MODULE PixmapBrowser; (* FLTK's test/pixmap_browser.cxx: shows an image file, and prints the window or saves it as SVG *)
 
 (* The chooser's FilePicked hook shows each file as the user moves over it.
-   A directory shows as a document, not the folder FLTK's shows, as this
-   doesn't test for one (FlDialogs.FilenameIsDir). FLTK's -8 asks for
-   fewer colors, and does nothing here. *)
+   FLTK's -8 asks for fewer colors, and does nothing here. *)
 
 IMPORT Args, Out, Fl, FlButtons, FlDialogs, FlImages, FlPrint;
 
@@ -35,6 +33,13 @@ PROCEDURE LoadFile(n-: ARRAY OF CHAR);
 BEGIN
   FlImages.SetImage(box, NIL);
   IF img # NIL THEN img.Close; img := NIL END;
+  IF FlDialogs.FilenameIsDir(n) THEN
+    box.SetLabel("@fileopen");  (* show a generic folder *)
+    box.SetLabelSize(64);
+    box.SetLabelColor(Fl.Light2);
+    box.Redraw;
+    RETURN
+  END;
   NEW(img);
   IF FlImages.GetShared(img, n, 0, 0) THEN
     box.SetLabelSize(14);
