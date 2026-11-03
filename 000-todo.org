@@ -2,3 +2,7 @@
 pofltk's valgrind shim may miss leaks from new, since the replacement
 allocator reports the same frame for every program; that's your other
 repo, so I'm only reporting it.
+
+pofltk's test/vg-check.sh has the same operator new gap that FLTKAda's
+copy had, so it probably misses leaks from new in pofltk's shim. I
+haven't checked it there.
