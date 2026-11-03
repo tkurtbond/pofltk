@@ -62,17 +62,17 @@ differ between poc's size models.
 Install it once as a poc library:
 
 ```sh
-make install    # into $(POC_OBERON_LIBRARIES)/pofltk
+make install    # into $(POCLIBDIR), ~/.local/lib/poc
 make uninstall
 ```
 
-`POC_OBERON_LIBRARIES` defaults to `/usr/local/sw/versions/oberon/poc/lib`.
-The library records its C++ parts and its link flags (`-lfltk_images
--lfltk`). A program then needs only the library path:
+`POCLIBDIR` defaults to `$(PREFIX)/lib/poc`, and `PREFIX` to `~/.local`.
+`make install` installs the library with and without debug information
+(`-g`). The library records its C++ parts and its link flags
+(`-lfltk_images -lfltk`). A program then needs only the library path:
 
 ```sh
-poc -OC -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk \
-    -o Hello Hello.Mod
+poc -OC -library-path ~/.local/lib/poc -o Hello Hello.Mod
 ```
 
 A library records the poc that built it, and another poc refuses it:
@@ -80,29 +80,23 @@ run `make install` again after upgrading poc.
 
 `FlForms` needs FLTK's Forms library, so it is a library of its own,
 `pofltk-forms`, beside `pofltk`. `make install` writes it if this FLTK
-has Forms (`make test` says if it doesn't). Only a program using it
-needs the second path, and is linked with `-lfltk_forms`:
-
-```sh
-poc -OC -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk \
-    -library-path /usr/local/sw/versions/oberon/poc/lib/pofltk-forms \
-    -o Forms Forms.Mod
-```
+has Forms (`make test` says if it doesn't). The same library path finds
+it, and only a program using it is linked with `-lfltk_forms`.
 
 `FlGl` and `FlGlut`, the same way, are `pofltk-gl`, if this FLTK has
-OpenGL: such a program adds that library's path, and is linked with
-`-lfltk_gl` and GL.
+OpenGL: only a program using them is linked with `-lfltk_gl` and GL.
 
 `FlCairo` is `pofltk-cairo`, if this system has cairo, whatever FLTK was
-built with: such a program adds that library's path, and is linked with
-cairo.
+built with: only a program using it is linked with cairo.
 
 A library records what FLTK offered as it was built: run `make install`
 again after rebuilding FLTK with other options.
 
-A poc library is also a shared object, so `make install` needs an FLTK
-that can go into one: shared libraries do, and static ones built without
-`-fPIC` fail to link. `make` and `make test` work with either.
+A poc library is also a shared object, which an FLTK of static libraries
+can't go into. Where `fltk-config`'s directory has no `libfltk.so`, the
+makefile gives poc `-no-shared-library`, which needs poc 0.11.0, and the
+libraries are archives alone. `POC_LIBRARY_FLAGS=` tries the shared link
+regardless.
 
 ## Example
 

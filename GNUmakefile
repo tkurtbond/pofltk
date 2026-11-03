@@ -1,26 +1,36 @@
 # pofltk -- Oberon-2 binding to FLTK 1.4 for poc, the Peaseblossom Oberon
 # Compiler.  See AGENTS.md and PLAN.md.
 #
-# poc builds a program from its main module's source, finding the modules
-# it imports on the import path (src/, plus test/), and compiles every one
-# of them again on each build; a module's C++ part, src/<Module>.cpp, is
-# compiled by clang++ and linked with it, and a program with one is linked
-# by clang++. What it writes - each module's .sym, .ll and .o, and the
-# programs - goes into $(BUILD), so make must not build two at once.
+# The binding is built as the poc library pofltk (-OC), in $(BUILD)/lib,
+# recording -lfltk_images -lfltk in its manifest; a module's C++ part,
+# src/<Module>.cpp, is compiled by clang++ and goes in it. Each optional
+# part of FLTK that needs a library of its own has a poc library of its
+# own, importing pofltk, as pofltk-forms does, so only a program using it
+# is linked with FLTK's. The tests and examples are built on those
+# libraries, so they test what make install installs. A program with a
+# C++ part is linked by clang++. What poc writes for a program - each
+# module's .sym, .ll and .o, and the program - goes into $(BUILD), so make
+# must not build two at once.
 #
-# make install builds the poc library pofltk (-OC) in
-# $(POC_OBERON_LIBRARIES)/pofltk, recording -lfltk_images -lfltk in its
-# manifest, so a program using it needs only -library-path: no FLTK or C++
-# flags. Each optional part of FLTK that needs a library of its own has a
-# poc library of its own, importing pofltk, as pofltk-forms does, so only
-# a program using it is linked with FLTK's: make install builds those
-# FLTK has.
-# Both need poc 0.4.1: C++ parts, libraries that record link flags, and
-# ORD of a SET under -OC.
+# make install copies the libraries FLTK has into $(POCLIBDIR),
+# ~/.local/lib/poc by default, with and without debug information. poc
+# puts each in <triple>/<variant>/ there. A program using them needs only
+# -library-path $(POCLIBDIR): no FLTK or C++ flags.
+# All this needs poc 0.4.1: C++ parts, libraries that record link flags,
+# and ORD of a SET under -OC.
 
 POC      ?= poc
+PREFIX ?= $(HOME)/.local
+POCLIBDIR ?= $(PREFIX)/lib/poc
 # The size model: decided in PLAN.md; never mix models.
 POCFLAGS := -OC
+MODELS := OC
+VARIANTS := $(MODELS) $(addsuffix -g,$(MODELS))
+
+# An installed library on POC_LIBRARY_PATH would be taken in place of this
+# checkout's source, or would stop the build if another poc wrote it.
+unexport POC_LIBRARY_PATH
+
 VALGRIND ?= valgrind --leak-check=full --show-leak-kinds=all --errors-for-leak-kinds=none --error-exitcode=99 --suppressions=$(CURDIR)/test/poc-gc.supp
 # Seconds a test may run before it counts as hung.
 TIMEOUT  ?= 60
@@ -28,7 +38,13 @@ EXAMPLETIME ?= 3
 
 BUILD := build
 
-FLTK_CONFIG ?= fltk-config
+# Where it isn't on PATH, a system with its own FLTK has it under
+# /usr/local/sw/versions/fltk.
+FLTK_CONFIG ?= $(firstword $(shell command -v fltk-config 2>/dev/null) \
+                 $(wildcard /usr/local/sw/versions/fltk/*/bin/fltk-config))
+ifeq ($(strip $(FLTK_CONFIG)),)
+  $(error no fltk-config on PATH or in /usr/local/sw/versions/fltk; give FLTK_CONFIG=...)
+endif
 # Only the -I and -D flags: the rest of --cxxflags is the distribution's
 # own build flags (Fedora's -specs=... hardening files among them). Not
 # -I/usr/include, which is searched anyway, and which ahead of the C++
@@ -47,6 +63,10 @@ FLTK_CONFIG_H := $(shell $(FLTK_CONFIG) --includedir)/FL/fl_config.h
 HAVE_FORMS    := $(shell grep -q 'define FLTK_HAVE_FORMS 1' $(FLTK_CONFIG_H) && echo yes)
 FLTK_LIBDIR   := $(dir $(firstword $(shell $(FLTK_CONFIG) --libs)))
 HAVE_GL       := $(if $(wildcard $(FLTK_LIBDIR)libfltk_gl.*),yes)
+# A library's shared object can't hold an FLTK of static libraries, and a
+# library with one can't need a library without, so this goes to all four.
+# POC_LIBRARY_FLAGS= tries the shared link regardless.
+POC_LIBRARY_FLAGS ?= $(if $(wildcard $(FLTK_LIBDIR)libfltk.so*),,-no-shared-library)
 # X11's own directories, which fltk-config leaves out: needed where X11
 # is outside the compiler's search path (OpenBSD's /usr/X11R6), empty
 # where it is not or pkg-config isn't there.
@@ -59,6 +79,11 @@ POC_VERSION := $(shell $(POC) -version | sed -n 's/^poc \([0-9.]*\).*/\1/p')
 # The case patterns are written (pattern) so make sees balanced parentheses.
 ifeq ($(shell case "$(POC_VERSION)" in (0.[0-3].*|0.4.0) echo old;; esac),old)
   $(error pofltk needs poc 0.4.1 or later (C++ parts, libraries' link flags, ORD of a SET); $(POC) is $(POC_VERSION))
+endif
+ifneq ($(filter -no-shared-library,$(POC_LIBRARY_FLAGS)),)
+  ifeq ($(shell case "$(POC_VERSION)" in (0.[0-9].*|0.10.*) echo old;; esac),old)
+    $(error this FLTK is static, which needs poc 0.11.0 or later (-no-shared-library); $(POC) is $(POC_VERSION))
+  endif
 endif
 
 MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs FlText FlBrowsers FlImages FlPreferences FlTable FlHelp FlTerminal FlPrint FlUtf8
@@ -74,18 +99,24 @@ EXAMPLESRC := $(EXAMPLECXX:%=examples/%.Mod) $(EXAMPLECXX:%=examples/%.cpp)
 CFLAGS := $(foreach f,$(FLTK_CXXFLAGS) $(X11_CXXFLAGS) $(CXXFLAGS),-c-flag $(f))
 LINK   := $(CFLAGS) $(foreach f,$(X11_LIBS) $(FLTK_LIBS),-link $(f))
 
-# Each library in its own directory under POC_OBERON_LIBRARIES, so a
-# program names only the libraries it uses (as polibfyaml does).
-POC_OBERON_LIBRARIES ?= /usr/local/sw/versions/oberon/poc/lib
+# Each library is built in a directory of its own, and all are installed
+# in one, $(POCLIBDIR).
 LIBRARY := pofltk
-LIBDIR   = $(POC_OBERON_LIBRARIES)/$(LIBRARY)
+LIBDIR  := $(BUILD)/lib
 FORMSLIBRARY := pofltk-forms
-FORMSLIBDIR   = $(POC_OBERON_LIBRARIES)/$(FORMSLIBRARY)
+FORMSLIBDIR  := $(BUILD)/lib-forms
 GLLIBRARY := pofltk-gl
-GLLIBDIR   = $(POC_OBERON_LIBRARIES)/$(GLLIBRARY)
+GLLIBDIR  := $(BUILD)/lib-gl
 CAIROLIBRARY := pofltk-cairo
-CAIROLIBDIR   = $(POC_OBERON_LIBRARIES)/$(CAIROLIBRARY)
-TRIPLE   = $(shell $(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p')
+CAIROLIBDIR  := $(BUILD)/lib-cairo
+
+# $(call variant-flags,<variant>) gives poc's flags for a variant: OC-g gives
+# -OC -g.
+variant-flags = -$(firstword $(subst -, ,$(1))) $(if $(filter %-g,$(1)),-g)
+
+# A library records the poc that built it, and another poc refuses it, so
+# each library depends on poc itself.
+POCBIN := $(shell command -v $(POC))
 
 # Test programs (test/<name>.Mod, each a main module).
 TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestDrawMore TestStatics TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint TestPlugins TestUtf8
@@ -114,8 +145,9 @@ FORMSTESTS := TestForms TestFormsConstants
 FORMSHALTS := HaltFormsTimerKind:74 HaltFormsFreeKind:74 HaltFormsBitmap:78 HaltFormsPixmap:78
 FORMSEXAMPLES := Forms FreeForm
 FORMSSRC := src/forms/FlForms.Mod src/forms/FlForms.cpp
-FORMSLINK := -import-path src/forms -link -lfltk_forms
+FORMSUSE := -library-path $(FORMSLIBDIR)
 ifeq ($(HAVE_FORMS),yes)
+  OPTIONAL += $(FORMSLIBRARY)
   TESTS += $(FORMSTESTS)
   HALTTESTS += $(FORMSHALTS)
   EXAMPLES += $(FORMSEXAMPLES)
@@ -131,7 +163,7 @@ GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
 # fltk-config says which GL libraries, on some systems. A static FLTK with
 # Wayland needs EGL's too.
 GL_LIBS := $(or $(filter -lGL% -lOpenGL -lEGL -lwayland-egl,$(shell $(FLTK_CONFIG) --use-gl --ldflags)),-lGL)
-GLLINK := -import-path src/gl -link -lfltk_gl $(GL_LIBS:%=-link %)
+GLUSE := -library-path $(GLLIBDIR)
 # FLTK's OpenGL 3 examples load GL's functions with GLEW, which isn't FLTK's.
 GL3EXAMPLES := OpenGL3Test OpenGL3GlutTest
 HAVE_GLEW := $(shell pkg-config --exists glew 2>/dev/null && echo yes)
@@ -143,6 +175,7 @@ ifeq ($(HAVE_GL),yes)
   else
     MISSING += GLEW
   endif
+  OPTIONAL += $(GLLIBRARY)
   TESTS += $(GLTESTS)
   HALTTESTS += $(GLHALTS)
   EXAMPLES += $(GLEXAMPLES)
@@ -159,8 +192,9 @@ CAIRO_PKGS := cairo $(shell grep -q 'define FLTK_USE_X11 1' $(FLTK_CONFIG_H) && 
 HAVE_CAIRO := $(shell pkg-config --exists $(CAIRO_PKGS) 2>/dev/null && echo yes)
 CAIRO_CFLAGS := $(addprefix -c-flag ,$(shell pkg-config --cflags $(CAIRO_PKGS) 2>/dev/null))
 CAIRO_LIBS := $(shell pkg-config --libs $(CAIRO_PKGS) 2>/dev/null)
-CAIROLINK := -import-path src/cairo $(CAIRO_CFLAGS) $(CAIRO_LIBS:%=-link %)
+CAIROUSE := -library-path $(CAIROLIBDIR) $(CAIRO_CFLAGS)
 ifeq ($(HAVE_CAIRO),yes)
+  OPTIONAL += $(CAIROLIBRARY)
   TESTS += $(CAIROTESTS)
   HALTTESTS += $(CAIROHALTS)
   EXAMPLES += $(CAIROEXAMPLES)
@@ -192,25 +226,56 @@ $(BUILD)/plugins/%.so: test/CPlugin.cpp | $(BUILD)/plugins
 	clang++ $(FLTK_CXXFLAGS) $(X11_CXXFLAGS) $(CXXFLAGS) -DPLUGIN='"$*"' -fPIC -shared -o $@ $<
 
 FORMSPROGRAMS := $(FORMSTESTS:%=$(BUILD)/%) $(FORMSEXAMPLES:%=$(BUILD)/%) $(foreach h,$(FORMSHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
-$(FORMSPROGRAMS): MORE := $(FORMSLINK)
-$(FORMSPROGRAMS): $(FORMSSRC)
+$(FORMSPROGRAMS): MORE := $(FORMSUSE)
+$(FORMSPROGRAMS): $(FORMSLIBDIR)/$(FORMSLIBRARY)-OC.stamp
 GLPROGRAMS := $(GLTESTS:%=$(BUILD)/%) $(GLEXAMPLES:%=$(BUILD)/%) $(foreach h,$(GLHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
-$(GLPROGRAMS): MORE := $(GLLINK)
-$(GLPROGRAMS): $(GLSRC)
-$(GL3EXAMPLES:%=$(BUILD)/%): MORE := $(GLLINK) $(GLEW_FLAGS)
-$(GL3EXAMPLES:%=$(BUILD)/%): $(GLSRC)
+$(GLPROGRAMS): MORE := $(GLUSE)
+$(GLPROGRAMS): $(GLLIBDIR)/$(GLLIBRARY)-OC.stamp
+$(GL3EXAMPLES:%=$(BUILD)/%): MORE := $(GLUSE) $(GLEW_FLAGS)
+$(GL3EXAMPLES:%=$(BUILD)/%): $(GLLIBDIR)/$(GLLIBRARY)-OC.stamp
 CAIROPROGRAMS := $(CAIROTESTS:%=$(BUILD)/%) $(CAIROEXAMPLES:%=$(BUILD)/%) $(foreach h,$(CAIROHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
-$(CAIROPROGRAMS): MORE := $(CAIROLINK)
-$(CAIROPROGRAMS): $(CAIROSRC)
+$(CAIROPROGRAMS): MORE := $(CAIROUSE)
+$(CAIROPROGRAMS): $(CAIROLIBDIR)/$(CAIROLIBRARY)-OC.stamp
 
-$(BUILD)/Test%: test/Test%.Mod test/Check.Mod $(LIBSRC) $(TESTSRC) | $(BUILD)
-	$(POC) $(POCFLAGS) -import-path src -import-path test -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
+# The libraries, one stamp for each variant. FLTK's -link flags go in the
+# manifest. An optional part imports pofltk, so it is built again with it.
+PARTLINK := $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)),-link $(f))
 
-$(EXAMPLEBINS): $(BUILD)/%: examples/%.Mod $(LIBSRC) $(EXAMPLESRC) | $(BUILD)
-	$(POC) $(POCFLAGS) -import-path src -import-path examples -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
+$(LIBDIR)/$(LIBRARY)-%.stamp: $(LIBSRC) $(POCBIN) | $(BUILD)
+	mkdir -p $(LIBDIR)
+	cd src && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -output-dir $(abspath $(LIBDIR)) $(LINK) \
+	  -library $(LIBRARY) $(MODULES:%=%.Mod)
+	touch $@
 
-$(BUILD)/Halt%: test/Halt%.Mod $(LIBSRC) | $(BUILD)
-	$(POC) $(POCFLAGS) -import-path src -output-dir $(BUILD) $(MORE) $(LINK) -o $@ $<
+$(FORMSLIBDIR)/$(FORMSLIBRARY)-%.stamp: $(FORMSSRC) $(LIBDIR)/$(LIBRARY)-%.stamp
+	mkdir -p $(FORMSLIBDIR)
+	cd src/forms && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -library-path $(abspath $(LIBDIR)) -output-dir $(abspath $(FORMSLIBDIR)) \
+	  $(CFLAGS) $(PARTLINK) -link -lfltk_forms -library $(FORMSLIBRARY) FlForms.Mod
+	touch $@
+
+$(GLLIBDIR)/$(GLLIBRARY)-%.stamp: $(GLSRC) $(LIBDIR)/$(LIBRARY)-%.stamp
+	mkdir -p $(GLLIBDIR)
+	cd src/gl && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -library-path $(abspath $(LIBDIR)) -output-dir $(abspath $(GLLIBDIR)) \
+	  $(CFLAGS) $(PARTLINK) $(foreach f,-lfltk_gl $(GL_LIBS),-link $(f)) -library $(GLLIBRARY) FlGl.Mod FlGlut.Mod
+	touch $@
+
+$(CAIROLIBDIR)/$(CAIROLIBRARY)-%.stamp: $(CAIROSRC) $(LIBDIR)/$(LIBRARY)-%.stamp
+	mkdir -p $(CAIROLIBDIR)
+	cd src/cairo && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -library-path $(abspath $(LIBDIR)) -output-dir $(abspath $(CAIROLIBDIR)) \
+	  $(CFLAGS) $(CAIRO_CFLAGS) $(PARTLINK) $(CAIRO_LIBS:%=-link %) -library $(CAIROLIBRARY) FlCairo.Mod
+	touch $@
+
+# The -I and -D flags go on for the C++ parts of test and example modules.
+USELIB = -library-path $(LIBDIR) $(MORE) $(CFLAGS)
+
+$(BUILD)/Test%: test/Test%.Mod test/Check.Mod $(LIBDIR)/$(LIBRARY)-OC.stamp $(TESTSRC) | $(BUILD)
+	$(POC) $(POCFLAGS) -import-path test -output-dir $(BUILD) $(USELIB) -o $@ $<
+
+$(EXAMPLEBINS): $(BUILD)/%: examples/%.Mod $(LIBDIR)/$(LIBRARY)-OC.stamp $(EXAMPLESRC) | $(BUILD)
+	$(POC) $(POCFLAGS) -import-path examples -output-dir $(BUILD) $(USELIB) -o $@ $<
+
+$(BUILD)/Halt%: test/Halt%.Mod $(LIBDIR)/$(LIBRARY)-OC.stamp | $(BUILD)
+	$(POC) $(POCFLAGS) -output-dir $(BUILD) $(USELIB) -o $@ $<
 
 # FLTK needs a display even for widgets never shown (PLAN.md, "Build and
 # test"): run under X11 or Wayland, or headless (test-headless and
@@ -288,54 +353,49 @@ test-sway: tests
 valgrind-sway: tests
 	tools/with-sway.sh $(MAKE) valgrind
 
-# Install only a library whose tests build: every test imports it. Built
-# in $(BUILD)/lib/ with FLTK's -link flags, which the manifest records,
-# then copied by poc -install-library: the archive (with Fl.cpp's object),
-# the shared object, the manifest, and each module's .sym and .owner. A
-# library records the poc that built it, and another poc refuses it:
-# install again after upgrading poc.
-install: tests
-	cd src && $(POC) $(POCFLAGS) -output-dir $(abspath $(BUILD))/lib $(LINK) \
-	  -library $(LIBRARY) $(MODULES:%=%.Mod)
-	install -d $(LIBDIR)
-	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -output-dir $(LIBDIR) -install-library $(LIBRARY)
-ifeq ($(HAVE_FORMS),yes)
-	cd src/forms && $(POC) $(POCFLAGS) -library-path $(abspath $(BUILD))/lib -output-dir $(abspath $(BUILD))/lib-forms \
-	  $(CFLAGS) $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)) -lfltk_forms,-link $(f)) -library $(FORMSLIBRARY) FlForms.Mod
-	install -d $(FORMSLIBDIR)
-	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-forms -output-dir $(FORMSLIBDIR) -install-library $(FORMSLIBRARY)
-endif
-ifeq ($(HAVE_GL),yes)
-	cd src/gl && $(POC) $(POCFLAGS) -library-path $(abspath $(BUILD))/lib -output-dir $(abspath $(BUILD))/lib-gl \
-	  $(CFLAGS) $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)) -lfltk_gl $(GL_LIBS),-link $(f)) -library $(GLLIBRARY) FlGl.Mod FlGlut.Mod
-	install -d $(GLLIBDIR)
-	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-gl -output-dir $(GLLIBDIR) -install-library $(GLLIBRARY)
-endif
-ifeq ($(HAVE_CAIRO),yes)
-	cd src/cairo && $(POC) $(POCFLAGS) -library-path $(abspath $(BUILD))/lib -output-dir $(abspath $(BUILD))/lib-cairo \
-	  $(CFLAGS) $(CAIRO_CFLAGS) $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)) $(CAIRO_LIBS),-link $(f)) -library $(CAIROLIBRARY) FlCairo.Mod
-	install -d $(CAIROLIBDIR)
-	$(POC) $(POCFLAGS) -library-path $(BUILD)/lib -library-path $(BUILD)/lib-cairo -output-dir $(CAIROLIBDIR) -install-library $(CAIROLIBRARY)
-endif
+# install copies each library, in each variant, into $(POCLIBDIR) with poc
+# -install-library: the archive (with the C++ parts' objects), the shared
+# object, the manifest, and each module's .sym and .owner. A library
+# records the poc that built it, and another poc refuses it: install again
+# after upgrading poc.
+define newline
 
-# Remove what make install wrote, and only that.
+
+endef
+
+# $(call install-library,<library>,<its build directory>,<variant>)
+install-library = $(POC) $(call variant-flags,$(3)) -library-path $(LIBDIR) -library-path $(2) \
+  -install-library $(1) -output-dir $(POCLIBDIR)$(newline)
+
+INSTALLS := $(LIBDIR)/$(LIBRARY) \
+  $(if $(filter $(FORMSLIBRARY),$(OPTIONAL)),$(FORMSLIBDIR)/$(FORMSLIBRARY)) \
+  $(if $(filter $(GLLIBRARY),$(OPTIONAL)),$(GLLIBDIR)/$(GLLIBRARY)) \
+  $(if $(filter $(CAIROLIBRARY),$(OPTIONAL)),$(CAIROLIBDIR)/$(CAIROLIBRARY))
+
+install: $(foreach v,$(VARIANTS),$(INSTALLS:%=%-$(v).stamp))
+	$(foreach v,$(VARIANTS),$(foreach i,$(INSTALLS),$(call install-library,$(notdir $(i)),$(dir $(i)),$(v))))
+
+# uninstall removes from $(POCLIBDIR)/<triple>/<variant> what install put
+# there, whichever parts this FLTK has. It leaves other libraries' files
+# alone, and removes a directory only when nothing is left in it. The
+# triple is poc's target.
+library-files = $(1).library lib$(1).a lib$(1).so lib$(1).so.0.0
+INSTALLED_FILES := $(foreach l,$(LIBRARY) $(FORMSLIBRARY) $(GLLIBRARY) $(CAIROLIBRARY),$(call library-files,$(l))) \
+  $(foreach m,$(MODULES) FlForms FlGl FlGlut FlCairo,$(m).sym $(m).owner)
+
 uninstall:
-	d=$(LIBDIR)/$(TRIPLE)/OC; \
-	rm -f $$d/lib$(LIBRARY).a $$d/lib$(LIBRARY).so $$d/$(LIBRARY).library \
-	  $(foreach x,$(MODULES),$$d/$(x).sym $$d/$(x).owner); \
-	rmdir $$d 2>/dev/null; \
-	d=$(FORMSLIBDIR)/$(TRIPLE)/OC; \
-	rm -f $$d/lib$(FORMSLIBRARY).a $$d/lib$(FORMSLIBRARY).so $$d/$(FORMSLIBRARY).library \
-	  $$d/FlForms.sym $$d/FlForms.owner; \
-	rmdir $$d 2>/dev/null; \
-	d=$(GLLIBDIR)/$(TRIPLE)/OC; \
-	rm -f $$d/lib$(GLLIBRARY).a $$d/lib$(GLLIBRARY).so $$d/$(GLLIBRARY).library \
-	  $$d/FlGl.sym $$d/FlGl.owner $$d/FlGlut.sym $$d/FlGlut.owner; \
-	rmdir $$d 2>/dev/null; \
-	d=$(CAIROLIBDIR)/$(TRIPLE)/OC; \
-	rm -f $$d/lib$(CAIROLIBRARY).a $$d/lib$(CAIROLIBRARY).so $$d/$(CAIROLIBRARY).library \
-	  $$d/FlCairo.sym $$d/FlCairo.owner; \
-	rmdir $$d 2>/dev/null; true
+	@triple=$$($(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p'); \
+	if [ -z "$$triple" ]; then echo "uninstall: cannot get the target from $(POC) -version" >&2; exit 1; fi; \
+	for v in $(VARIANTS); do \
+	  dir=$(POCLIBDIR)/$$triple/$$v; \
+	  if [ -d "$$dir" ]; then \
+	    echo "cd $$dir && rm -f $(INSTALLED_FILES)"; \
+	    (cd "$$dir" && rm -f $(INSTALLED_FILES)) || exit 1; \
+	    rmdir "$$dir" 2>/dev/null || :; \
+	  fi; \
+	done; \
+	rmdir $(POCLIBDIR)/$$triple 2>/dev/null || :; \
+	rmdir $(POCLIBDIR) 2>/dev/null || :
 
 clean:
 	rm -rf $(BUILD)

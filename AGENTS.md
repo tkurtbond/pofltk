@@ -231,7 +231,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 | FLTKAda | `/usr/local/sw/src/tkb/fltkada` (`AGENTS.md`, `doc/binding_architecture.md`, `progress.txt`, `test/`) |
 | polibfyaml | `~/Repos/Oberon/polibfyaml` (`AGENTS.md`, `GNUmakefile`, `test/Check.Mod`, `test/poc-gc.supp`) |
 | Oberon-2 report | `~/Reference/Computer/Languages/Oberon/Oberon2.pdf` |
-| Installed poc libraries | `/usr/local/sw/versions/oberon/poc/lib` (`POC_OBERON_LIBRARIES` in polibfyaml's makefile) |
+| Installed poc libraries | `~/.local/lib/poc` (`POCLIBDIR` in the makefiles here and in polibfyaml) |
 
 Before assuming an FLTK function is missing or behaves as its header
 comment says, check the source: FLTKAda's notes record several header
@@ -280,25 +280,35 @@ make clean      # rm -rf build
 - `-verbose` on a poc command shows the clang commands it runs.
 
 ```sh
-make install    # the poc library pofltk, into $(POC_OBERON_LIBRARIES)/pofltk
+make install    # the poc library pofltk, -OC, with and without -g, into POCLIBDIR
 make uninstall  # remove exactly what make install wrote
 ```
 
 `pofltk-forms`, where FLTK has Forms, `pofltk-gl`, where it has GL, and
-`pofltk-cairo`, where there is cairo, go beside it, and a program using one adds `-library-path` for it.
+`pofltk-cairo`, where there is cairo, go beside it in `POCLIBDIR`, so
+one `-library-path` finds them all.
 
-`poc -library` always links a shared object too, so `make install` fails
-on an FLTK of static libraries built without `-fPIC`, as on cymoril,
-jherek, alerik and rackhir (2026-10-31), which `make test` doesn't mind.
-pkgsrc's FLTK, on yishana and artos, installs.
+The tests and examples are built on the libraries in `build/lib*`, not
+from `src/`, so they test what `make install` installs, and the makefile
+unexports `POC_LIBRARY_PATH`, so an installed `pofltk` is never tested in
+place of this checkout. `install` builds the libraries and doesn't run
+the tests.
 
-`POC_OBERON_LIBRARIES` defaults to `/usr/local/sw/versions/oberon/poc/lib`,
-as polibfyaml's does. Try it elsewhere first with
-`make install POC_OBERON_LIBRARIES=<scratch dir>`. The manifest records
-`c++`, `-lfltk_images` and `-lfltk`, so a program using the installed library needs only:
+`poc -library` links a shared object too, which an FLTK of static
+libraries can't go into, as on cymoril, jherek, alerik and rackhir
+(2026-10-31). The makefile gives poc `-no-shared-library` (poc 0.11.0)
+where `FLTK_LIBDIR` has no `libfltk.so*`, on all four libraries, since a
+library with a shared object can't need one without.
+pkgsrc's FLTK, on yishana and artos, has both. `fltk-config` is found on
+`PATH`, then in `/usr/local/sw/versions/fltk/*/bin`.
+
+`POCLIBDIR` defaults to `$(PREFIX)/lib/poc`, with `PREFIX` default
+`~/.local`. Try it elsewhere first with `make install
+POCLIBDIR=<scratch dir>`. The manifest records `c++`, `-lfltk_images` and
+`-lfltk`, so a program using the installed library needs only:
 
 ```sh
-poc -OC -library-path $POC_OBERON_LIBRARIES/pofltk Main.Mod
+poc -OC -library-path $POCLIBDIR Main.Mod
 ```
 
 A library records the poc that built it, and another poc refuses it, so
