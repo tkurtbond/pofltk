@@ -55,6 +55,10 @@ BEGIN
     "SetValue sets the text, with the cursor at its end");
   in.Value(small);
   Check.Check(small = "hel", "Value truncates to fit its argument");
+  in.SetValue("aé");
+  Check.Check((in.Index(0) = 97) & (in.Index(1) = 0E9H) & (in.Index(3) = 0),
+    "Index is the character at a byte, 0 at the end");
+  Check.Check(in.Index(2) = 0A9H, "and a byte that isn't a character's first is read as Latin-1");
 
   (* typing *)
   in.SetValue(""); in.action := Count; in.SetWhen(Fl.WhenChanged); calls := 0;

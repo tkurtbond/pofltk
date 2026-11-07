@@ -489,6 +489,10 @@ BEGIN
   Same(FlBrowsers.ScrollbarHorizontalAlways, "Fl_Browser_::HORIZONTAL_ALWAYS");
   Same(FlBrowsers.ScrollbarVerticalAlways, "Fl_Browser_::VERTICAL_ALWAYS");
   Same(FlBrowsers.ScrollbarBothAlways, "Fl_Browser_::BOTH_ALWAYS");
+  Same(FlBrowsers.NormalKind, "FL_NORMAL_BROWSER");
+  Same(FlBrowsers.SelectKind, "FL_SELECT_BROWSER");
+  Same(FlBrowsers.HoldKind, "FL_HOLD_BROWSER");
+  Same(FlBrowsers.MultiKind, "FL_MULTI_BROWSER");
   Same(FlBrowsers.SortAscending, "FL_SORT_ASCENDING");
   Same(FlBrowsers.SortDescending, "FL_SORT_DESCENDING");
   Same(FlBrowsers.SortCaseInsensitive, "FL_SORT_CASEINSENSITIVE");
@@ -604,6 +608,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 585), "each of 585 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 589), "each of 589 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

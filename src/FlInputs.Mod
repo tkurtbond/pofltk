@@ -76,6 +76,7 @@ PROCEDURE ["C", "ofl_input_maximum_size"] CMaximumSize(i: SYSTEM.ADDRESS): SYSTE
 PROCEDURE ["C", "ofl_input_set_maximum_size"] CSetMaximumSize(i: SYSTEM.ADDRESS; m: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_insert_position"] CInsertPosition(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_mark"] CMark(i: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_input_index"] CIndex(i: SYSTEM.ADDRESS; pos: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_set_position"] CSetPosition(i: SYSTEM.ADDRESS; p, m: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_replace"] CReplace(i: SYSTEM.ADDRESS; b, e: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_cut"] CCut(i: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -215,6 +216,15 @@ END InsertPosition;
 PROCEDURE (i: Input) Mark*(): INTEGER;
 BEGIN RETURN CMark(Fl.Live(i))
 END Mark;
+
+(* The character at byte pos of the text, 0 at its end (pos the text's
+   length); a byte that isn't UTF-8 is read as CP1252 or Latin-1. *)
+PROCEDURE (i: Input) Index*(pos: INTEGER): INTEGER;
+VAR c: INTEGER;
+BEGIN
+  c := CIndex(Fl.Live(i), pos); ASSERT(c >= 0, Fl.IndexOutOfRange);
+  RETURN c
+END Index;
 
 (* Puts the cursor at p and the mark at m, so selecting p .. m. *)
 PROCEDURE (i: Input) Select*(p, m: INTEGER);

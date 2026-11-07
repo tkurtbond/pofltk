@@ -33,6 +33,15 @@ int32_t send(intptr_t win, int32_t event) {
   return Fl::handle(event, widget(win)->as_window());
 }
 
+// Fl_Window's protected force_position(), through a pointer to member
+// named in a class derived from it.
+struct Placed : Fl_Window {
+  static int forced(Fl_Window *w) {
+    int (Fl_Window::*get)() const = &Placed::force_position;
+    return (w->*get)();
+  }
+};
+
 }  // namespace
 
 // Not in a header: what the window system's code calls.
@@ -43,6 +52,12 @@ extern "C" {
 
 // Draws w as FLTK would in its window, on white, into an image of w's
 // size, for ofltest_pixel. The window need not be shown.
+// 1 if window w is to be shown where the program put it, 0 if where the
+// window manager chooses.
+int32_t ofltest_forced_position(intptr_t w) {
+  return Placed::forced(widget(w)->as_window());
+}
+
 // How many resources w keeps beside its label images (ofl::Ref::keep).
 int32_t ofltest_kept(intptr_t w) {
   return static_cast<int32_t>(ofl::ref_of(widget(w))->kept_count());

@@ -125,6 +125,8 @@ PROCEDURE ["C", "ofl_scroll_yposition"] CYPosition(s: SYSTEM.ADDRESS): SYSTEM.IN
 PROCEDURE ["C", "ofl_scroll_to"] CScrollTo(s: SYSTEM.ADDRESS; x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_scroll_scrollbar_size"] CScrollbarSize(s: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_scroll_set_scrollbar_size"] CSetScrollbarSize(s: SYSTEM.ADDRESS; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_scroll_scrollbar_align"] CScrollbarAlign(s: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_scroll_set_scrollbar_align"] CSetScrollbarAlign(s: SYSTEM.ADDRESS; a: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_tabs_value"] CTabsValue(t: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_tabs_set_value"] CTabsSetValue(t, w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_tabs_tab_align"] CTabAlign(t: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -438,6 +440,18 @@ END ScrollbarSize;
 PROCEDURE (s: Scroll) SetScrollbarSize*(n: INTEGER);
 BEGIN CSetScrollbarSize(Fl.Live(s), n)
 END SetScrollbarSize;
+
+(* Where the scrollbars are: Fl.AlignLeft puts the vertical one on the
+   left, Fl.AlignTop the horizontal one on top, and without them they are
+   right and bottom. It starts as Fl.AlignBottom, a valuator's label
+   align, since it is the vertical scrollbar's. *)
+PROCEDURE (s: Scroll) ScrollbarAlign*(): SET;
+BEGIN RETURN SYSTEM.VAL(SET, CScrollbarAlign(Fl.Live(s)))
+END ScrollbarAlign;
+
+PROCEDURE (s: Scroll) SetScrollbarAlign*(a: SET);
+BEGIN CSetScrollbarAlign(Fl.Live(s), ORD(a))
+END SetScrollbarAlign;
 
 (* Tabs *)
 

@@ -176,6 +176,12 @@ the system's colours; `Show` does neither.
     (played frame by frame by the program) and `AnimGifImageResize`
     (copied to its canvas's size);
   - from FLTK's `test/`: `Clock`, `DoubleBuffer`.
+- Ports of FLTK's `test/` programs, named the same way:
+  - widgets and windows: `Adjuster`, `Ask`, `Browser`, `Button`,
+    `Buttons`, `ColBrowser`, `FastSlow`, `Iconize`, `Inactive`,
+    `Input`, `Message`, `Minimum`, `NativeFileChooser`, `Navigation`,
+    `Output`, `Pack`, `Radio`, `Resize`, `ResizeBox`, `Scroll`,
+    `Tabs`, `Tile`, `TwoWin`, `Valuators`, `WindowFocus`, `Wizard`.
 
 ## Modules
 

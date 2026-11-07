@@ -89,4 +89,10 @@ void ofl_button_set_down_box(intptr_t b, int32_t t) {
   button(b)->down_box(static_cast<Fl_Boxtype>(t));
 }
 
+int32_t ofl_button_compact(intptr_t b) { return button(b)->compact(); }
+
+void ofl_button_set_compact(intptr_t b, int32_t v) {
+  button(b)->compact(static_cast<uchar>(v));
+}
+
 }  // extern "C"

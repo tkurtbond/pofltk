@@ -58,6 +58,51 @@ PROCEDURE Click(w: Fl.Widget);
 BEGIN Press(w); Release(w)
 END Click;
 
+(* The last capture's pixels, row by row. *)
+PROCEDURE Pixels(VAR p: ARRAY OF INTEGER; w, h: INTEGER);
+  VAR x, y: INTEGER;
+BEGIN
+  FOR y := 0 TO h - 1 DO FOR x := 0 TO w - 1 DO p[y * w + x] := Probe.Pixel(x, y) END END
+END Pixels;
+
+(* Whether column x of plain and compact differ, in rows from to to. *)
+PROCEDURE Differ(VAR plain, compact: ARRAY OF INTEGER; w, x, from, to: INTEGER): BOOLEAN;
+  VAR y: INTEGER; d: BOOLEAN;
+BEGIN
+  d := FALSE;
+  FOR y := from TO to DO d := d OR (plain[y * w + x] # compact[y * w + x]) END;
+  RETURN d
+END Differ;
+
+(* A compact key is drawn with its group's box, clipped to the key, and a
+   line where it meets another key. Two keys fill a group: the right
+   key's right edge is the group's, so it is drawn as before, and its
+   left edge is inside the group's box. *)
+PROCEDURE CompactKeys;
+  CONST w = 30; h = 20;
+  VAR pad: Fl.Window; keys: Fl.Group; left, right: FlButtons.Button;
+    plain, compact: ARRAY w * h OF INTEGER;
+BEGIN
+  NEW(pad); Fl.OpenWindow(pad, 100, 60, "pad");
+  NEW(keys); Fl.OpenGroup(keys, 10, 10, 2 * w, h, "");
+  keys.SetBoxType(Fl.UpBox);
+  NEW(left); FlButtons.OpenButton(left, 10, 10, w, h, "");
+  NEW(right); FlButtons.OpenButton(right, 10 + w, 10, w, h, "");
+  keys.End; pad.End;
+  Check.Check(~right.Compact(), "a button isn't compact to start with");
+  Check.Check(Probe.Capture(right), "a plain key draws"); Pixels(plain, w, h);
+  left.SetCompact(TRUE); right.SetCompact(TRUE);
+  Check.Check(right.Compact(), "SetCompact reads back");
+  Check.Check(Probe.Capture(right), "a compact key draws"); Pixels(compact, w, h);
+  Check.Check(~Differ(plain, compact, w, w - 1, 0, h - 1),
+    "a compact key's edge on its group's edge is drawn as before");
+  Check.Check(Differ(plain, compact, w, 0, 0, h - 1),
+    "a compact key's edge inside its group is the group's box");
+  right.SetCompact(FALSE);
+  Check.Check(~right.Compact(), "and SetCompact(FALSE) turns it off");
+  pad.Delete
+END CompactKeys;
+
 (* A key with the text the window system would give it. *)
 PROCEDURE Key(key: INTEGER; keys: SET; text: ARRAY OF CHAR);
   VAR used: BOOLEAN;
@@ -168,6 +213,7 @@ BEGIN
   (* other settings *)
   push.SetDownBox(Fl.FlatBox);
   Check.Check(push.DownBox() = Fl.FlatBox, "the down box reads back");
+  CompactKeys;
 
   (* repeating: FLTK waits 0.5 s, then repeats every 0.1 s *)
   rep.action := Count; calls := 0;

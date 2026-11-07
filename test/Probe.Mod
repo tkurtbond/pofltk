@@ -16,6 +16,7 @@ PROCEDURE ["C", "ofltest_close"] CClose(fd: SYSTEM.INT32);
 PROCEDURE ["C", "ofltest_pixel"] CPixel(x, y: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_grab"] CGrab(VAR r: ARRAY OF SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_icon_words"] CIconWords(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_forced_position"] CForcedPosition(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_shown_pixel"] CShownPixel(w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_release"] CRelease;
 PROCEDURE ["C", "ofltest_mouse"] CMouse(win: SYSTEM.ADDRESS; event, x, y, button, state, clicks: SYSTEM.INT32): SYSTEM.INT32;
@@ -56,6 +57,12 @@ END Grab;
 PROCEDURE IconWords*(w: Fl.Window): INTEGER;
 BEGIN RETURN CIconWords(w.h)
 END IconWords;
+
+(* Whether window w is to be shown where the program put it, not where
+   the window manager chooses (FLTK's protected force_position). *)
+PROCEDURE ForcedPosition*(w: Fl.Window): BOOLEAN;
+BEGIN RETURN CForcedPosition(w.h) # 0
+END ForcedPosition;
 
 (* Pixel x, y of what shown window w shows, as Fl.RGB gives it. *)
 PROCEDURE ShownPixel*(w: Fl.Window; x, y: INTEGER): INTEGER;

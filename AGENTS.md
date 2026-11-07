@@ -21,9 +21,10 @@ anything:
 
 ## Status
 
-As of 2026-11-06, Phases 0 to 24 of PLAN.md are done, and `README.md`
+As of 2026-11-07, Phases 0 to 25 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
-of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
+of FLTK's `examples/` and bound what they needed; Phases 25 to 32
+(planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
 `FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`, `FlUtf8`,
 `FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, `src/gl/`
@@ -202,8 +203,11 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 - `examples/`: example programs (`Hello`, FLTK's hello; `Scribble`,
   drawing with the mouse; `Swatch`, the prototype's demo; `Menus`, a
   menu bar, a choice and the dialogs; and ports of FLTK's `examples/`,
-  named for FLTK's file in CamelCase without `howto-`). A port is
-  checked against FLTK's own build of it (in FLTK's `examples/`): both
+  named for FLTK's file in CamelCase without `howto-`, and of its
+  `test/`, from Phase 25; their data, `browser.cxx` and `rgb.txt`, is
+  copied beside them). A port is
+  checked against FLTK's own build of it (in FLTK's `examples/` or
+  `test/`): both
   run under Xvfb, driven by the same `xdotool` input, and their screens
   compared (`magick compare -metric AE -fuzz 1%`, then with no fuzz:
   the fuzz hid a port's `Show` where FLTK's program has
@@ -957,6 +961,17 @@ held only in C++ memory**.
 - **`show(argc, argv)`** (`ShowArgs`) loads the system's colours, which
   even at the default background moves `FL_DARK3` and `FL_DARK1` off
   `show()`'s, on X11 and Wayland (`doc/fltk-issues.md`, 154).
+- **Schemes** (`doc/fltk-issues.md`, 156): every `Fl::scheme()` writes
+  `FLTK_SCHEME`, which `scheme(NULL)` (`SetSystemScheme`) reads before
+  X11's `fltk.scheme` resource, so after a `SetScheme` it gives that
+  scheme back.
+- **`Fl_Input_::index`** doesn't check its position (155): `Index`
+  halts 74 outside 0 to the text's length.
+- **A scroll's scrollbar align** starts as `FL_ALIGN_BOTTOM`, a
+  valuator's label align; without `Left` and `Top` the bars are right
+  and bottom.
+- **An output widget** (`set_output`) is passed over by its group's
+  routing, but its window still reports a push on it used.
 - **Screens**: `Fl::screen_num` is 0 for a point on no screen.
   xvfb-run's default screen is 640x480; `tools/with-sway.sh`'s output
   is 1280x800.
@@ -1039,7 +1054,13 @@ None at present.
   passed." twice, after a stray line; three reruns of TestGlut printed
   them once. After `ShowArgs` in the ports (2026-11-07), the same: 2458,
   2437, 2249 and 2229 here, and 2458 on NetBSD and FreeBSD and 2450 on
-  OpenBSD, with the same skips.
+  OpenBSD, with the same skips. After Phase 25 (2026-11-07), 2517 (1 skipped), 2496 (8
+  skipped), 2281 (1 skipped) and 2261 (7 skipped) here; 2517, 1
+  skipped, on NetBSD and FreeBSD and 2509, 2 skipped, on OpenBSD; 2507,
+  4 skipped, with neither Cairo nor Pango; 2227, 20 skipped, with no
+  SVG, printing or GL; 2455 with no Forms; 2331 with no GL; 2515 with no
+  GLEW; 2473 with no cairo; and on a Wayland FLTK without
+  `FLTK_HAVE_CAIRO`, 2517 on Xvfb and 2496 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

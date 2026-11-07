@@ -25,6 +25,14 @@ PROCEDURE NewBox(VAR box: Fl.Box; x, y, w, h: INTEGER);
 BEGIN NEW(box); Fl.OpenBox(box, x, y, w, h, "")
 END NewBox;
 
+(* Pixel x, y of w drawn, from its top left. *)
+PROCEDURE PixelAt(w: Fl.Widget; x, y: INTEGER): INTEGER;
+  VAR p: INTEGER;
+BEGIN
+  p := -1; IF Probe.Capture(w) THEN p := Probe.Pixel(x, y) END;
+  Probe.Release; RETURN p
+END PixelAt;
+
 PROCEDURE Is(w: Fl.Widget; x, y, width, height: INTEGER): BOOLEAN;
 BEGIN RETURN (w.X() = x) & (w.Y() = y) & (w.W() = width) & (w.H() = height)
 END Is;
@@ -123,6 +131,17 @@ BEGIN
   scroll.ScrollTo(20, 50);
   Check.Check((scroll.XPosition() = 20) & (scroll.YPosition() = 50) & (content.Y() = -50),
     "ScrollTo moves the content");
+  content.SetBoxType(Fl.FlatBox); content.SetColor(Fl.Red);
+  Check.Check(scroll.ScrollbarAlign() = Fl.AlignBottom,
+    "a scroll's scrollbars are right and bottom to start with, at a valuator's align, AlignBottom");
+  Check.Check((PixelAt(scroll, 3, 50) = Fl.RGB(255, 0, 0)) & (PixelAt(scroll, 96, 50) # Fl.RGB(255, 0, 0))
+    & (PixelAt(scroll, 50, 96) # Fl.RGB(255, 0, 0)) & (PixelAt(scroll, 50, 3) = Fl.RGB(255, 0, 0)),
+    "and are drawn there, over the content");
+  scroll.SetScrollbarAlign(Fl.AlignLeft + Fl.AlignTop);
+  Check.Check(scroll.ScrollbarAlign() = Fl.AlignLeft + Fl.AlignTop, "SetScrollbarAlign");
+  Check.Check((PixelAt(scroll, 3, 50) # Fl.RGB(255, 0, 0)) & (PixelAt(scroll, 96, 50) = Fl.RGB(255, 0, 0))
+    & (PixelAt(scroll, 50, 96) = Fl.RGB(255, 0, 0)) & (PixelAt(scroll, 50, 3) # Fl.RGB(255, 0, 0)),
+    "AlignLeft + AlignTop draws them left and top");
   scroll.Clear;
   Check.Check((scroll.Children() = 2) & ~content.IsOpen(), "Clear deletes the content, not the scrollbars");
   Check.Check(Probe.Capture(scroll), "and the scroll still draws");

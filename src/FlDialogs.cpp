@@ -197,11 +197,12 @@ int32_t ofl_dialog_choice(const char *text, const char *b0, const char *b1,
 
 // 1 and the text typed in buf, which also holds the text to start with; 0
 // if the dialog was cancelled. FLTK returns its own copy, and copies buf
-// before the dialog starts.
+// before the dialog starts. At most max characters may be typed, not
+// bytes; 0 is no limit.
 int32_t ofl_dialog_input(int32_t password, const char *label, char *buf,
-                         int32_t n) {
-  const char *r = password ? fl_password("%s", buf, label)
-                           : fl_input("%s", buf, label);
+                         int32_t n, int32_t max) {
+  const char *r = password ? fl_password(max, "%s", buf, label)
+                           : fl_input(max, "%s", buf, label);
   if (r == 0) return 0;
   ofl::copy_out(r, buf, n);
   return 1;

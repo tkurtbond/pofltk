@@ -288,6 +288,9 @@ module("FlBrowsers")
 section("which scrollbars a browser shows (BrowserBase.SetScrollbars)")
 add("int", [("Scrollbar" + camel(k), "Fl_Browser_::" + k) for k in
             "HORIZONTAL VERTICAL BOTH ALWAYS_ON HORIZONTAL_ALWAYS VERTICAL_ALWAYS BOTH_ALWAYS".split()])
+section("how a browser selects (Browser.SetKind)")
+add("int", [(k.capitalize() + "Kind", "FL_" + k + "_BROWSER") for k in
+            "NORMAL SELECT HOLD MULTI".split()])
 section("how BrowserBase.Sort sorts")
 add("int", [("SortAscending", "FL_SORT_ASCENDING"), ("SortDescending", "FL_SORT_DESCENDING"),
             ("SortCaseInsensitive", "FL_SORT_CASEINSENSITIVE")])

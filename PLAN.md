@@ -2864,13 +2864,57 @@ Order: the plain widget programs first, since writing them finds small
 gaps cheaply; then layout, drawing and events; then the large programs;
 GL; and last the unit tests and the demo launcher.
 
-- **Phase 25: Widgets and windows.** `adjuster`, `ask`, `browser`,
+- **Phase 25: Widgets and windows** [done]. `adjuster`, `ask`, `browser`,
   `button`, `buttons`, `colbrowser`, `fast_slow`, `iconize`, `inactive`,
   `input`, `message`, `minimum`, `native-filechooser`, `navigation`,
   `output`, `pack`, `radio`, `resize`, `resizebox`, `scroll`, `tabs`,
   `tile`, `twowin`, `valuators`, `windowfocus`, `wizard` (26). Binds
   `Compact` and `FreePosition`. `iconize` needs a window manager on X11
   (`doc/fltk-issues.md`, 149), so it is compared on sway.
+
+  Done 2026-11-07. Every port matches FLTK's build with no fuzz, shot
+  for shot, but two of `colbrowser`'s (below). Besides `Compact` and
+  `FreePosition`, the ports found these gaps, each now bound and
+  tested:
+  - `FlDialogs.InputLimited` and `PasswordLimited`, `fl_input` and
+    `fl_password` with a most characters (`ask`);
+  - `FlBrowsers`' `Kind` and `SetKind`, with the kinds' constants
+    (`browser`'s choice of type);
+  - `Widget.Window` (`Fl_Widget::window`, `resize`);
+  - `Widget.SetOutput` and `Output` (`fast_slow`'s sliders, which
+    take no events), in place of a subclass whose `Handle` refused
+    them;
+  - `Fl.SetSystemScheme`, `Fl::scheme(NULL)` (`message`): the
+    `FLTK_SCHEME` variable, and on X11 the `fltk.scheme` resource;
+  - `Input.Index` (`input`), which halts 74 for a position outside
+    the text, since FLTK's `index` doesn't check
+    (`doc/fltk-issues.md`, 155);
+  - `Scroll.ScrollbarAlign` and `SetScrollbarAlign` (`scroll`).
+
+  Findings:
+  - `colbrowser`'s file button is given `dbname`, a static buffer,
+    and a name that fails to load leaves it unchanged; a later one that
+    loads is copied into the same buffer, which FLTK shows only when
+    the button is next redrawn. The port copies its label, and shows
+    the new name at once, so the two shots after a failed name differ.
+    That is the program's doing, not FLTK's.
+  - `iconize` was compared on Xvfb with openbox as the window manager,
+    not on sway, whose headless output has no way to show an iconized
+    window.
+  - A scroll's scrollbar align starts as `FL_ALIGN_BOTTOM`, a
+    valuator's label align, since it is the vertical scrollbar's; it
+    means right and bottom, as `{}` would.
+  - Every `Fl::scheme()` writes `FLTK_SCHEME` into the environment
+    (`doc/fltk-issues.md`, 156), so a later `scheme(NULL)` reads the
+    program's own last scheme.
+  - An output widget is passed over by its group's routing, but its
+    window still reports a push on it used.
+
+  Counts: `make test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway` give 2517, 2496, 2281 and 2261 `ok` lines here (1, 8,
+  1 and 7 skipped; every valgrind error summary 0); `make test` 2517 on
+  NetBSD and FreeBSD and 2509 on OpenBSD; the FLTK variants as in
+  AGENTS.md's poc 0.11.2 notes.
 - **Phase 26: Layout.** `resize-example1` to `5c` (10), sharing
   `resize-arrows.cxx` as an example module; `flex_demo`, `flex_login`,
   `grid_alignment`, `grid_buttons`, `grid_dialog`, `grid_login`,

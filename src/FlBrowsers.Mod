@@ -34,6 +34,12 @@ CONST
   ScrollbarVerticalAlways* = 6;
   ScrollbarBothAlways* = 7;
 
+  (* how a browser selects (Browser.SetKind) *)
+  NormalKind* = 0;
+  SelectKind* = 1;
+  HoldKind* = 2;
+  MultiKind* = 3;
+
   (* how BrowserBase.Sort sorts *)
   SortAscending* = 0;
   SortDescending* = 1;
@@ -151,6 +157,8 @@ PROCEDURE ["C", "ofl_browser_insert"] CInsert(b: SYSTEM.ADDRESS; line: SYSTEM.IN
 PROCEDURE ["C", "ofl_browser_remove"] CRemove(b: SYSTEM.ADDRESS; line: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_browser_move"] CMove(b: SYSTEM.ADDRESS; to, from: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_browser_swap"] CSwap(b: SYSTEM.ADDRESS; a, c: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_browser_type"] CType(b: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_browser_set_type"] CSetType(b: SYSTEM.ADDRESS; t: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_browser_clear"] CClear(b: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_browser_load"] CLoad(b: SYSTEM.ADDRESS; name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_browser_text"] CText(b: SYSTEM.ADDRESS; line: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
@@ -362,6 +370,17 @@ PROCEDURE (b: Browser) Swap*(a, c: INTEGER);
 VAR h: SYSTEM.ADDRESS;
 BEGIN h := L(b, a, 1, 0); h := L(b, c, 1, 0); CSwap(h, a, c)
 END Swap;
+
+(* How the browser selects (NormalKind, SelectKind, HoldKind or
+   MultiKind). The kind a browser is opened as is only its first: a
+   HoldBrowser set to MultiKind selects as a MultiBrowser does. *)
+PROCEDURE (b: Browser) Kind*(): INTEGER;
+BEGIN RETURN CType(Fl.Live(b))
+END Kind;
+
+PROCEDURE (b: Browser) SetKind*(k: INTEGER);
+BEGIN CSetType(Fl.Live(b), k)
+END SetKind;
 
 PROCEDURE (b: Browser) Clear*;
 BEGIN CClear(Fl.Live(b))

@@ -136,6 +136,16 @@ BEGIN
   s := "";
   Reply("secret", Fl.KeyEnter, 0DX); ok := FlDialogs.Password("Password:", s);
   Check.Check(ok & (s = "secret"), "Password");
+  s := "";
+  Reply("secret", Fl.KeyEnter, 0DX); ok := FlDialogs.PasswordLimited("Password:", s, 3);
+  Check.Check(ok & (s = "sec"), "PasswordLimited takes no more than its limit");
+  s := "x"; s[0] := 0C3X; s[1] := 0A9X; s[2] := 0X;  (* an e acute, two bytes *)
+  Reply("abc", Fl.KeyEnter, 0DX); ok := FlDialogs.InputLimited("Name:", s, 3);
+  Check.Check(ok & (s[0] = 0C3X) & (s[1] = 0A9X) & (s[2] = "a") & (s[3] = "b") & (s[4] = 0X),
+    "InputLimited counts characters, not bytes");
+  s := "";
+  Reply("abcd", Fl.KeyEnter, 0DX); ok := FlDialogs.InputLimited("Name:", s, 0);
+  Check.Check(ok & (s = "abcd"), "and a limit of 0 is none");
 
   FlDialogs.SetTitle("Once");
   Enter; FlDialogs.Message("titled");

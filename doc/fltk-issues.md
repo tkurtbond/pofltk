@@ -2902,3 +2902,48 @@ and no others. Under Xvfb with no fuzz, `Hello` against FLTK's
 `Forms` against `test/forms` differed in box edges across the window with
 `Show`, and with `ShowArgs` only at its clock and timer, which show the
 time. Found by FLTKAda, porting `test/forms.cxx`.
+
+## 155. `Fl_Input_::index` doesn't check its position
+
+**What happens:** `index(i)` decodes the character at byte `i` of the
+text with no bounds check, so a position before the text or past its
+end reads outside the value's buffer. At the text's length it reads the
+terminating `0`, and gives 0. A byte inside a character, not its
+first, is decoded alone, as CP1252 or Latin-1: the second byte of "é"
+gives `0A9H`.
+
+**Cause:** `src/Fl_Input_.cxx:1560` is
+`fl_utf8decode(value_+i, value_+size_, &len)`, and `fl_utf8decode`
+(`src/fl_utf8.cxx:724`) reads `*p` before it compares `p` with `end`.
+
+**Effect on pofltk:** `Input.Index` halts 74 (`IndexOutOfRange`) for a
+position outside 0 to the text's length: the shim returns -1 for one.
+
+**Confirmed:** from the source; `TestInputs` reads "aé" at 0 to 3
+(`97`, `0E9H`, `0A9H`, 0), and `HaltInputIndex` halts at 3 of "ab",
+2026-11-07.
+
+## 156. Every `Fl::scheme()` writes `FLTK_SCHEME`
+
+**What happens:** `Fl::scheme(name)` sets the environment variable
+`FLTK_SCHEME` to the scheme it chose, or to "" for none, so that child
+processes inherit it. `Fl::scheme(NULL)`, the system's scheme, reads
+`FLTK_SCHEME` first, and on X11 only without it the X resource
+`<class>.scheme` (`fltk.scheme` by default). So once a program has set
+a scheme, `scheme(NULL)` gives that scheme back, and the X resource is
+never read again. Names are case-insensitive, and an unknown one is
+none.
+
+**Cause:** `src/Fl_get_system_colors.cxx:196` (`Fl::scheme`, its
+`putenv` of a static buffer), and the screen drivers'
+`get_system_scheme` (`src/drivers/X11/Fl_X11_Screen_Driver.cxx:567`,
+which opens the display; `src/Fl_Screen_Driver.cxx:215` elsewhere).
+
+**Effect on pofltk:** `Fl.SetSystemScheme` is `scheme(NULL)`, and its
+comment says so; a program that wants the user's scheme calls it before
+any `SetScheme`. A program it starts inherits its scheme.
+
+**Confirmed:** `TestWidget`, 2026-11-07, under Xvfb and headless sway:
+`SetSystemScheme` after `SetScheme("gtk+")` gives "gtk+"; with
+`FLTK_SCHEME` set to "Plastic" it gives "plastic"; "nonesuch" gives
+none. `Message` matches FLTK's build with `FLTK_SCHEME=plastic` too.

@@ -88,6 +88,13 @@ int32_t ofl_input_insert_position(intptr_t i) {
 
 int32_t ofl_input_mark(intptr_t i) { return input(i)->mark(); }
 
+// FLTK doesn't check the index (it reads outside the text): -1 if it is
+// outside, for FlInputs to halt.
+int32_t ofl_input_index(intptr_t i, int32_t pos) {
+  if (pos < 0 || pos > input(i)->size()) return -1;
+  return static_cast<int32_t>(input(i)->index(pos));
+}
+
 void ofl_input_set_position(intptr_t i, int32_t p, int32_t m) {
   input(i)->insert_position(p, m);
 }

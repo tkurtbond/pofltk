@@ -86,6 +86,8 @@ PROCEDURE ["C", "ofl_button_shortcut"] CShortcut(b: SYSTEM.ADDRESS): SYSTEM.INT3
 PROCEDURE ["C", "ofl_button_set_shortcut"] CSetShortcut(b: SYSTEM.ADDRESS; s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_button_down_box"] CDownBox(b: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_button_set_down_box"] CSetDownBox(b: SYSTEM.ADDRESS; t: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_button_compact"] CCompact(b: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_button_set_compact"] CSetCompact(b: SYSTEM.ADDRESS; v: SYSTEM.INT32);
 
 PROCEDURE Open(b: Button; class, x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Fl.EndOpen(b, CNew(class, x, y, w, h, label, Fl.BeginOpen(b)))
@@ -187,6 +189,19 @@ END DownBox;
 PROCEDURE (b: Button) SetDownBox*(t: INTEGER);
 BEGIN CSetDownBox(Fl.Live(b), t)
 END SetDownBox;
+
+(* Whether b is drawn as one key of a keypad: its box is its group's,
+   clipped to b, with a line on each side not at the group's edge. For
+   buttons that tile their group. Only Fl_Button's own drawing does
+   this, not a light, check or round button's. *)
+PROCEDURE (b: Button) Compact*(): BOOLEAN;
+BEGIN RETURN CCompact(Fl.Live(b)) # 0
+END Compact;
+
+PROCEDURE (b: Button) SetCompact*(on: BOOLEAN);
+BEGIN
+  IF on THEN CSetCompact(Fl.Live(b), 1) ELSE CSetCompact(Fl.Live(b), 0) END
+END SetCompact;
 
 (* Shortcut buttons *)
 

@@ -3,9 +3,15 @@ MODULE TestWidget; (* Widget, group and window properties; colors and schemes *)
 (* Each property set reads back as set, through FLTK. Drawing them is
    tested by pixels in Phase 2. *)
 
-IMPORT Out, Fl, FlDraw, Check;
+IMPORT Out, Fl, FlDraw, Check, Probe;
+
+TYPE
+  (* a box that takes pushes, and counts them *)
+  Taker = POINTER TO RECORD (Fl.BoxDesc) END;
 
 VAR
+  taker: Taker;
+  pushes: INTEGER;
   win: Fl.Window;
   g: Fl.Group;
   single: Fl.SingleWindow;
@@ -15,9 +21,22 @@ VAR
   short: ARRAY 10 OF CHAR;
   sx, sy, sw, sh, wx, wy, ww, wh: INTEGER;
   r, gr, bl: INTEGER;
-  shown: BOOLEAN;
+  shown, ok: BOOLEAN;
   n, lw, lh, fw, fh: INTEGER;
   other: Fl.Window;
+
+PROCEDURE (t: Taker) Handle*(event: INTEGER): BOOLEAN;
+BEGIN
+  IF event = Fl.EvPush THEN INC(pushes); RETURN TRUE END;
+  RETURN t.Handle^(event)
+END Handle;
+
+PROCEDURE Click(x, y: INTEGER): BOOLEAN;
+  VAR used: BOOLEAN;
+BEGIN
+  used := Probe.Mouse(win, Fl.EvPush, x, y, 1, {}, 1);
+  RETURN Probe.Mouse(win, Fl.EvRelease, x, y, 1, {}, 1) OR used
+END Click;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 300, 200, "TestWidget");
@@ -75,6 +94,17 @@ BEGIN
   (* parents and children *)
   Check.Check((a.Parent() = g) & (g.Parent() = win) & (win.Parent() = NIL),
     "Parent finds each object");
+  Check.Check((a.Window() = win) & (g.Window() = win) & (win.Window() = NIL),
+    "Window is the window a widget is in, not the window itself");
+  NEW(taker); Fl.OpenBox(taker, 220, 170, 50, 20, ""); win.Add(taker);
+  Check.Check(~taker.Output() & Click(230, 175) & (pushes = 1), "a widget takes the pushes its window passes it");
+  taker.SetOutput(TRUE);
+  (* the window reports the push used, whoever took it *)
+  ok := Click(230, 175);
+  Check.Check(taker.Output() & (pushes = 1), "an output widget's window passes it none");
+  taker.SetOutput(FALSE);
+  Check.Check(~taker.Output() & Click(230, 175) & (pushes = 2), "and SetOutput(FALSE) puts it back");
+  taker.Delete;
   Check.Check((g.Find(b) = 1) & (g.Find(c) = -1) & (win.Find(c) = 1), "Find");
   g.Remove(a);
   Check.Check((g.Children() = 1) & (a.Parent() = NIL) & a.IsOpen(), "Remove keeps the widget");
@@ -159,6 +189,16 @@ BEGIN
   Check.Check(Fl.SetScheme("gtk+"), "a known scheme");
   Fl.GetScheme(s);
   Check.Check(s = "gtk+", "reads back");
+  Check.Check(Fl.SetSystemScheme(), "SetSystemScheme, after SetScheme");
+  Fl.GetScheme(s);
+  Check.Check(s = "gtk+", "is the scheme SetScheme set, through FLTK_SCHEME");
+  Probe.SetEnv("FLTK_SCHEME", "Plastic");
+  Check.Check(Fl.SetSystemScheme(), "SetSystemScheme with FLTK_SCHEME set");
+  Fl.GetScheme(s);
+  Check.Check(s = "plastic", "is FLTK_SCHEME's, its case ignored");
+  Probe.SetEnv("FLTK_SCHEME", "nonesuch");
+  Check.Check(~Fl.SetSystemScheme(), "and FLTK_SCHEME of a name FLTK doesn't know is none");
+  Check.Check(Fl.SetScheme("gtk+"), "gtk+ again");
   Fl.SetNormalSize(18);
   NEW(d); Fl.OpenBox(d, 0, 0, 10, 10, "");
   Check.Check(d.LabelSize() = 18, "a box opened after SetNormalSize gets the size");
@@ -236,6 +276,15 @@ BEGIN
   NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
   other.Iconize; shown := Fl.Check();
   Check.Check(other.Shown(), "Iconize of a window not shown shows it, minimized");
+  other.Delete;
+  NEW(other); Fl.OpenWindowAt(other, 30, 40, 100, 80, "placed"); other.End;
+  Check.Check(Probe.ForcedPosition(other), "a window opened at a place keeps it");
+  other.FreePosition;
+  Check.Check(~Probe.ForcedPosition(other), "FreePosition lets the window manager place it");
+  Check.Check((other.X() = 30) & (other.Y() = 40), "and leaves its x and y");
+  other.Delete;
+  NEW(other); Fl.OpenWindow(other, 100, 80, "unplaced"); other.End;
+  Check.Check(~Probe.ForcedPosition(other), "a window opened with no place has none");
   other.Delete;
   IF Fl.Has(Fl.Wayland) THEN
     win.Iconize;

@@ -710,6 +710,9 @@ PROCEDURE ["C", "ofl_widget_parent"] CParent(w: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_widget_visible_r"] CVisibleR(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_activate"] CActivate(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_deactivate"] CDeactivate(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_widget_window"] CWindow(w: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_widget_output"] COutput(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_widget_set_output"] CSetOutput(w: SYSTEM.ADDRESS; on: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_active"] CActive(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_active_r"] CActiveR(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_color"] CColor(w: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -752,6 +755,7 @@ PROCEDURE ["C", "ofl_window_fullscreen_off"] CFullscreenOff(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_fullscreen_active"] CFullscreenActive(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_fullscreen_screens"] CFullscreenScreens(w: SYSTEM.ADDRESS; top, bottom, left, right: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_window_iconize"] CIconize(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_free_position"] CFreePosition(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_set_color"] CSetIndexColor(i, c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_get_rgb"] CGetRGB(c: SYSTEM.INT32; VAR r, g, b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_linespacing"] CMenuLinespacing(): SYSTEM.INT32;
@@ -768,6 +772,7 @@ PROCEDURE ["C", "ofl_set_normal_size"] CSetNormalSize(s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_box_d"] CBoxD(b, what: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_has"] CHas(feature: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_scheme"] CSetScheme(name: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_set_system_scheme"] CSetSystemScheme(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_scheme"] CScheme(): SYSTEM.ADDRESS;
 
 (* s := the C string at a, truncated to fit s; "" if a is 0. *)
@@ -1066,6 +1071,16 @@ PROCEDURE (w: Widget) Deactivate*;
 BEGIN CDeactivate(Live(w))
 END Deactivate;
 
+(* An output widget looks as it would, but takes no events: its group
+   passes it none, though Handle still gets what is sent to it alone. *)
+PROCEDURE (w: Widget) SetOutput*(on: BOOLEAN);
+BEGIN IF on THEN CSetOutput(Live(w), 1) ELSE CSetOutput(Live(w), 0) END
+END SetOutput;
+
+PROCEDURE (w: Widget) Output*(): BOOLEAN;
+BEGIN RETURN COutput(Live(w)) # 0
+END Output;
+
 (* TRUE unless w itself was deactivated. *)
 PROCEDURE (w: Widget) Active*(): BOOLEAN;
 BEGIN RETURN CActive(Live(w)) # 0
@@ -1089,6 +1104,16 @@ BEGIN
   IF (p # NIL) & (p IS Group) THEN RETURN p(Group) END;
   RETURN NIL
 END Parent;
+
+(* The window w is in, not w itself, or NIL: none, or one FLTK made
+   rather than pofltk. *)
+PROCEDURE (w: Widget) Window*(): Window;
+  VAR p: Widget;
+BEGIN
+  p := SYSTEM.VAL(Widget, CWindow(Live(w)));
+  IF (p # NIL) & (p IS Window) THEN RETURN p(Window) END;
+  RETURN NIL
+END Window;
 
 PROCEDURE (w: Widget) X*(): INTEGER;
 BEGIN RETURN CX(Live(w))
@@ -1374,6 +1399,12 @@ PROCEDURE (w: Window) Iconize*;
 BEGIN CIconize(Live(w))
 END Iconize;
 
+(* Lets the window manager place the window when it is next shown,
+   undoing the position an OpenWindowAt, a Resize or a show gave it. *)
+PROCEDURE (w: Window) FreePosition*;
+BEGIN CFreePosition(Live(w))
+END FreePosition;
+
 PROCEDURE (w: Window) FullscreenActive*(): BOOLEAN;
 BEGIN RETURN CFullscreenActive(Live(w)) # 0
 END FullscreenActive;
@@ -1569,6 +1600,14 @@ END Has;
 PROCEDURE SetScheme*(name-: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CSetScheme(name) # 0
 END SetScheme;
+
+(* Sets the system's scheme, as SetScheme does: the environment
+   variable FLTK_SCHEME, or on X11 without it the X resource "scheme" of
+   the first window's class (or "fltk"), which opens the display. Every
+   SetScheme sets FLTK_SCHEME, so after one this is the scheme it set. *)
+PROCEDURE SetSystemScheme*(): BOOLEAN;
+BEGIN RETURN CSetSystemScheme() # 0
+END SetSystemScheme;
 
 (* The scheme's name, "" for none. *)
 PROCEDURE GetScheme*(VAR name: ARRAY OF CHAR);

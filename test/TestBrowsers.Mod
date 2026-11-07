@@ -154,6 +154,12 @@ BEGIN
   Check.Check(~multi.Selected(1) & multi.Selected(2) & ~multi.Selected(3), "a click selects one line");
   Check.Check(multi.Select(1, TRUE) & multi.Selected(2), "Select keeps the others in a multi browser");
   Check.Check(hold.Select(1, TRUE) & ~hold.Selected(3) & (hold.Value() = 1), "not in a hold browser");
+  Check.Check((multi.Kind() = FlBrowsers.MultiKind) & (hold.Kind() = FlBrowsers.HoldKind),
+    "Kind is the kind opened");
+  hold.SetKind(FlBrowsers.MultiKind);
+  Check.Check(hold.Select(3, TRUE) & hold.Selected(1) & (hold.Kind() = FlBrowsers.MultiKind),
+    "SetKind: a hold browser set to MultiKind keeps the others");
+  hold.SetKind(FlBrowsers.HoldKind);
   multi.Delete;
 
   (* A file browser *)

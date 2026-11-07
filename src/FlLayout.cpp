@@ -205,6 +205,15 @@ int32_t ofl_scroll_scrollbar_size(intptr_t s) {
   return ofl::as<Fl_Scroll>(s)->scrollbar_size();
 }
 
+int32_t ofl_scroll_scrollbar_align(intptr_t s) {
+  return ofl::as<Fl_Scroll>(s)->scrollbar.align();
+}
+
+void ofl_scroll_set_scrollbar_align(intptr_t s, int32_t a) {
+  ofl::as<Fl_Scroll>(s)->scrollbar.align(a);
+  ofl::as<Fl_Scroll>(s)->redraw();
+}
+
 void ofl_scroll_set_scrollbar_size(intptr_t s, int32_t n) {
   ofl::as<Fl_Scroll>(s)->scrollbar_size(n);
 }

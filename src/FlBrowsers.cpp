@@ -280,6 +280,10 @@ void ofl_browser_swap(intptr_t b, int32_t a, int32_t c) {
   browser(b)->swap(a, c);
 }
 
+int32_t ofl_browser_type(intptr_t b) { return browser(b)->type(); }
+
+void ofl_browser_set_type(intptr_t b, int32_t t) { browser(b)->type(t); }
+
 void ofl_browser_clear(intptr_t b) {
   browser(b)->clear();
   ofl::drop_icons(browser(b));

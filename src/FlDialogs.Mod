@@ -132,7 +132,7 @@ VAR
 
 PROCEDURE ["C", "ofl_dialog_message"] CMessage(alert: SYSTEM.INT32; text: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_dialog_choice"] CChoice(text, b0, b1, b2: ARRAY OF CHAR): SYSTEM.INT32;
-PROCEDURE ["C", "ofl_dialog_input"] CInput(password: SYSTEM.INT32; label: ARRAY OF CHAR; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_dialog_input"] CInput(password: SYSTEM.INT32; label: ARRAY OF CHAR; VAR buf: ARRAY OF CHAR; n, max: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_dialog_title"] CTitle(dflt: SYSTEM.INT32; title: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_dialog_hotspot"] CHotspot(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_dialog_set_hotspot"] CSetHotspot(on: SYSTEM.INT32);
@@ -239,13 +239,25 @@ END Choice;
    value (truncated to fit) if the user pushed OK, FALSE and value
    unchanged if Cancel. *)
 PROCEDURE Input*(label-: ARRAY OF CHAR; VAR value: ARRAY OF CHAR): BOOLEAN;
-BEGIN RETURN CInput(0, label, value, SHORT(LEN(value))) # 0
+BEGIN RETURN CInput(0, label, value, SHORT(LEN(value)), 0) # 0
 END Input;
 
 (* The same, the text hidden as it is typed. *)
 PROCEDURE Password*(label-: ARRAY OF CHAR; VAR value: ARRAY OF CHAR): BOOLEAN;
-BEGIN RETURN CInput(1, label, value, SHORT(LEN(value))) # 0
+BEGIN RETURN CInput(1, label, value, SHORT(LEN(value)), 0) # 0
 END Password;
+
+(* Input and Password, letting at most max characters be typed (not
+   bytes: a character of UTF-8 counts once). max 0 or less is no limit. *)
+PROCEDURE InputLimited*(label-: ARRAY OF CHAR; VAR value: ARRAY OF CHAR; max: INTEGER): BOOLEAN;
+BEGIN
+  RETURN CInput(0, label, value, SHORT(LEN(value)), max) # 0
+END InputLimited;
+
+PROCEDURE PasswordLimited*(label-: ARRAY OF CHAR; VAR value: ARRAY OF CHAR; max: INTEGER): BOOLEAN;
+BEGIN
+  RETURN CInput(1, label, value, SHORT(LEN(value)), max) # 0
+END PasswordLimited;
 
 (* The window title of the next of these dialogs (Message to Password)
    only; SetDefaultTitle, of every one given none. "" is none. *)

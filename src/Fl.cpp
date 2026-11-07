@@ -487,6 +487,18 @@ int32_t ofl_widget_visible_r(intptr_t w) {
 void ofl_widget_activate(intptr_t w) { ofl::widget(w)->activate(); }
 void ofl_widget_deactivate(intptr_t w) { ofl::widget(w)->deactivate(); }
 
+intptr_t ofl_widget_window(intptr_t w) {
+  return ofl::object_of(ofl::widget(w)->window());
+}
+
+int32_t ofl_widget_output(intptr_t w) {
+  return ofl::widget(w)->output() ? 1 : 0;
+}
+
+void ofl_widget_set_output(intptr_t w, int32_t on) {
+  if (on) ofl::widget(w)->set_output(); else ofl::widget(w)->clear_output();
+}
+
 int32_t ofl_widget_active(intptr_t w) {
   return ofl::widget(w)->active() ? 1 : 0;
 }
@@ -626,6 +638,10 @@ void ofl_window_fullscreen_screens(intptr_t w, int32_t top, int32_t bottom,
 }
 
 void ofl_window_iconize(intptr_t w) { ofl::as<Fl_Window>(w)->iconize(); }
+
+void ofl_window_free_position(intptr_t w) {
+  ofl::as<Fl_Window>(w)->free_position();
+}
 
 int32_t ofl_window_fullscreen_active(intptr_t w) {
   return ofl::as<Fl_Window>(w)->fullscreen_active() ? 1 : 0;
@@ -817,6 +833,9 @@ int32_t ofl_has(int32_t feature) {
 }
 
 int32_t ofl_set_scheme(const char *name) { return Fl::scheme(name); }
+
+// NULL is the system's scheme (Fl_Screen_Driver::get_system_scheme).
+int32_t ofl_set_system_scheme(void) { return Fl::scheme(NULL); }
 
 // The scheme's name, a const char *, or 0 for none.
 intptr_t ofl_scheme(void) { return reinterpret_cast<intptr_t>(Fl::scheme()); }
