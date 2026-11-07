@@ -2816,6 +2816,99 @@ FLTKAda's commits since the last comparison (after its Phase 14, to
   surfaces, pages and `gl_start` a hook pushed before an exception left
   it. Oberon has no exceptions, and a halt ends the program.
 
+### Phases 25 to 32: FLTK's test/ programs
+
+Planned 2026-11-07, with poc 0.11.2 and FLTK 1.4.5. FLTK's `test/`
+builds 103 programs (CMake's `fl_create_example`, not counting the
+`-shared` builds). Earlier phases ported 24 of them, `Utf8Test` in
+part. These phases port the other 79, except three (below), and bind
+the few things they need.
+
+The list came as Phases 9 to 13's did: each program's classes, `Fl::`
+and `fl_` names and called methods, compared with what the C++ parts
+call, and each name left over looked for in the Oberon modules under
+its pofltk name. Almost everything is bound already. What was missing:
+
+- `Fl_Button::compact` (`buttons`, `inactive`);
+- `Fl_Widget::horizontal_label_margin`, `vertical_label_margin` and
+  `label_image_spacing` (`label`);
+- `Fl_Window::maximize`, `un_maximize`, `maximize_active` and
+  `free_position` (`fullscreen`, `colbrowser`);
+- `Fl_Tree::show_item_bottom`, `show_item_middle`, `show_self`,
+  `last_selected_item`, `select_toggle` and `open_toggle` (`tree`);
+- `FL/names.h`'s tables of event names, and of callback reasons
+  (`handle_events`, `handle_keys`, `subwindow`, `tree`): Oberon
+  tables, not bindings.
+
+A port may still find a small gap, which goes into the phase that finds
+it. `Fl::visible_focus` is `Fl.SetOption(Fl.OptionVisibleFocus, ...)`.
+`Fl_Toggle_Light_Button` is `Fl_Light_Button`'s old name. The
+`Fl::args_to_utf8` calls are for Windows.
+
+Each phase ends as Phases 9 to 13 did:
+- every test passes on `make test-headless` and `make test-sway`;
+- `make valgrind-headless` and `make valgrind-sway` are clean;
+- each binding gets its own test;
+- `doc/fltk-issues.md` records each FLTK problem found.
+
+Each port is named for FLTK's file in CamelCase (`ResizeExample3a`,
+`FlexLogin`), goes in `EXAMPLES` (or `GLEXAMPLES`), and is compared
+with FLTK's own build in `test/` under Xvfb, with `xdotool`, with fuzz
+and then without (`doc/fltk-issues.md`, 154). A program FLUID wrote
+(`.fl`) is ported from the C++ FLUID generates, in one module, as
+`Mandelbrot` was. Data a program reads from `test/` (`browser.cxx`,
+`rgb.txt`, `pixmaps/`, `help_dialog.html`) is copied into `examples/`,
+or its XPMs written as Oberon arrays for `FlImages.OpenXPM`.
+
+Order: the plain widget programs first, since writing them finds small
+gaps cheaply; then layout, drawing and events; then the large programs;
+GL; and last the unit tests and the demo launcher.
+
+- **Phase 25: Widgets and windows.** `adjuster`, `ask`, `browser`,
+  `button`, `buttons`, `colbrowser`, `fast_slow`, `iconize`, `inactive`,
+  `input`, `message`, `minimum`, `native-filechooser`, `navigation`,
+  `output`, `pack`, `radio`, `resize`, `resizebox`, `scroll`, `tabs`,
+  `tile`, `twowin`, `valuators`, `windowfocus`, `wizard` (26). Binds
+  `Compact` and `FreePosition`. `iconize` needs a window manager on X11
+  (`doc/fltk-issues.md`, 149), so it is compared on sway.
+- **Phase 26: Layout.** `resize-example1` to `5c` (10), sharing
+  `resize-arrows.cxx` as an example module; `flex_demo`, `flex_login`,
+  `grid_alignment`, `grid_buttons`, `grid_dialog`, `grid_login`,
+  `fltk-versions` (17).
+- **Phase 27: Drawing and images.** `animated`, `arc`, `clipboard`,
+  `contrast`, `coordinates`, `curve`, `icon`, `image`, `label`,
+  `line_style`, `line_style_docs`, `pixmap`, `rotated_text`,
+  `tiled_image` (14). Binds the label margins and spacing.
+- **Phase 28: Events and keys.** `handle_keys`, `keyboard` (its
+  `keyboard_ui.fl` is 718 lines), `subwindow` (3), with the event-name
+  tables.
+- **Phase 29: The large widget programs.** `editor` (1105 lines),
+  `preferences` (`preferences.fl`), `table` (506), `tree` (2083, with
+  `tree.fl`) (4). Binds the tree's six methods.
+- **Phase 30: OpenGL.** `CubeView` (`CubeViewUI.fl`), `fractals`
+  (with `fracviewer`, through GLUT), `fullscreen`, `glpuzzle` (1512,
+  GLUT), `handle_events`, `shape` (6), in `GLEXAMPLES`. Binds the
+  window's maximize procedures, which `fullscreen` needs without GL
+  too.
+- **Phase 31: Games.** `blocks` (1092), `checkers` (1363, and 1272 of
+  `checkers_pieces`), `sudoku` (1443) (3). `blocks` and `sudoku` play
+  sounds through ALSA only where FLTK's `test/` was built with its
+  headers, and are silent otherwise, as the build here is (`blocks` is
+  linked with no `libasound`). The ports are silent too; `sudoku`'s
+  `fl_beep` on a wrong number is kept.
+- **Phase 32: The unit tests, the terminal and the demo.**
+  `unittests` (14 pages, about 3700 lines with `unittest_*.cxx`), one
+  port with a module per page; `terminal` (2521 lines, mostly
+  `terminal.fl`'s panel, left out by Phase 18 for its size); and `demo`,
+  FLTK's launcher, with a menu file of its own naming the ports, last,
+  so that every program it starts exists (3).
+
+Not ported, and why:
+- `threads`: poc has no threads, and `Fl::lock`, `Fl::awake` and
+  `fl_create_thread` aren't bound.
+- `list_visuals`: plain Xlib, with no FLTK widget.
+- `shadow_variables`: a compile test, with no window.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was
