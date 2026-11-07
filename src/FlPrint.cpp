@@ -24,6 +24,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <deque>
+#include <new>
 #include <string>
 
 // FLTK built with --disable-print has stubs for these classes, with null
@@ -201,7 +203,11 @@ const char **const texts[] = {
     &ofl_pdf_orientation,              &ofl_pdf_default,
 };
 const int32_t text_count = sizeof texts / sizeof texts[0];
-std::string text_kept[sizeof texts / sizeof texts[0]];
+// FLTK builds the Print dialog's panel once (Fl_Posix_Printer_Driver.cxx,
+// "if (!print_panel)"), with these pointers as its widgets' labels, and
+// keeps it: so each copy lasts as long as the program, as FlDialogs'
+// chooser labels do (doc/fltk-issues.md, 144).
+std::deque<std::string> text_kept;
 
 }  // namespace
 
@@ -438,8 +444,13 @@ int32_t ofl_print_available() { return can_print(); }
 int32_t ofl_print_text(int32_t which, const char *text) {
   if (which < 0 || which >= text_count) return 0;
   if (texts[which] == 0) return 1;
-  text_kept[which] = text;
-  *texts[which] = text_kept[which].c_str();
+  if (*texts[which] && strcmp(*texts[which], text) == 0) return 1;
+  try {
+    text_kept.push_back(text);
+  } catch (const std::bad_alloc &) {
+    return 1;  // the old text stays
+  }
+  *texts[which] = text_kept.back().c_str();
   return 1;
 }
 

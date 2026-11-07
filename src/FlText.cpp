@@ -13,8 +13,13 @@
 #include <FL/Fl_Text_Buffer.H>
 #include <FL/Fl_Text_Display.H>
 #include <FL/Fl_Text_Editor.H>
+#include <FL/fl_utf8.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <new>
+#include <string>
 
 namespace {
 
@@ -109,6 +114,55 @@ void give(char *s, char *buf, int32_t n) {
   free(s);
 }
 
+// Fl_Text_Buffer::insertfile, reading file into b at pos: 0, 1 if it can't
+// be opened, 2 on a read error. FLTK's utf8_input_filter stops at a
+// sequence cut short by the end of the file, and insertfile takes that
+// for the end, so a Latin-1 é in the last three bytes loses it and
+// all after it, with no warning (doc/fltk-issues.md, 141). Here each
+// byte is decoded as FLTK's filter decodes it, up to the end of the
+// file, where what is left decodes as fl_utf8decode decodes a bad byte.
+int insert_file(Fl_Text_Buffer *b, const char *file, int pos) {
+  FILE *fp = fl_fopen(file, "rb");
+  if (!fp) return 1;
+  std::string in, out;
+  char chunk[65536];
+  size_t r;
+  int e = 0;
+  try {
+    while ((r = fread(chunk, 1, sizeof chunk, fp)) > 0) in.append(chunk, r);
+  } catch (const std::bad_alloc &) {
+    e = 2;
+  }
+  if (ferror(fp)) e = 2;
+  fclose(fp);
+  b->input_file_was_transcoded = false;
+  if (e) return e;
+  const char *p = in.data(), *end = p + in.size();
+  char bytes[5];
+  try {
+    while (p < end) {
+      int l = fl_utf8len1(*p);
+      if (end - p < l) l = static_cast<int>(end - p);
+      while (l > 0) {
+        int lp;
+        unsigned u = fl_utf8decode(p, p + l, &lp);
+        int lq = fl_utf8encode(u, bytes);
+        if (lp != l || lq != l) b->input_file_was_transcoded = true;
+        out.append(bytes, lq);
+        p += lp;
+        l -= lp;
+      }
+    }
+  } catch (const std::bad_alloc &) {
+    return 2;
+  }
+  // As FLTK's insertfile does, a 0 byte ends the text inserted.
+  b->insert(pos, out.c_str());
+  if (b->input_file_was_transcoded && b->transcoding_warning_action)
+    b->transcoding_warning_action(b);
+  return 0;
+}
+
 }  // namespace
 
 extern "C" {
@@ -178,11 +232,16 @@ void ofl_buffer_set_can_undo(intptr_t b, int32_t on) {
 int32_t ofl_buffer_file(intptr_t b, int32_t what, const char *name,
                         int32_t pos, int32_t end) {
   switch (what) {
-    case 1: return buffer(b)->appendfile(name);
-    case 2: return buffer(b)->insertfile(name, pos);
+    case 1: return insert_file(buffer(b), name, buffer(b)->length());
+    case 2: return insert_file(buffer(b), name, pos);
     case 3: return buffer(b)->savefile(name);
     case 4: return buffer(b)->outputfile(name, pos, end);
-    default: return buffer(b)->loadfile(name);
+    default: {
+      Fl_Text_Buffer *t = buffer(b);
+      t->select(0, t->length());
+      t->remove_selection();
+      return insert_file(t, name, 0);
+    }
   }
 }
 
@@ -314,6 +373,9 @@ int32_t ofl_buffer_search(intptr_t b, int32_t backward, int32_t start,
                           const char *s, int32_t *found, int32_t match_case) {
   Buffer *buf = buffer(b);
   if (!match_case) {
+    // From past the end, search_backward's prev_char never moves, and it
+    // never returns (doc/fltk-issues.md, 139).
+    if (start > buf->length()) start = buf->length();
     int f = 0;
     int r = backward ? buf->search_backward(start, s, &f, 0)
                      : buf->search_forward(start, s, &f, 0);

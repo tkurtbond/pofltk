@@ -7,6 +7,12 @@ VAR
   a, b: Fl.Box;
   d: LONGREAL;
   shown: BOOLEAN;
+  i: INTEGER;
+
+PROCEDURE Pump;
+VAR i: INTEGER;
+BEGIN FOR i := 1 TO 5 DO Fl.Wait(0.01D0) END
+END Pump;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 200, 200, "TestTooltips");
@@ -59,6 +65,28 @@ BEGIN
   Fl.EnterArea(b, 60, 0, 25, 25, "second");
   Check.Check(Fl.TooltipCurrent() = b, "and the next takes over");
   shown := Fl.Check();
+
+  (* FLTK keeps the last text after an empty one, and after one given
+     while tooltips are off. A text given while a tip is up is shown by the
+     hover delay's timer, and hiding the tip that was up leaves no widget
+     current, so the empty text after it can't stop the timer, which then
+     reads the text (doc/fltk-issues.md, 75): valgrind checks the shim kept
+     it *)
+  (* FLTK shows no tip in a window not shown, and under Wayland a tip over
+     a window not yet exposed is fatal, as a menu is
+     (doc/fltk-issues.md, 28) *)
+  win.Show; i := 0;
+  WHILE ~win.Shown() & (i < 500) DO Fl.Wait(0.01D0); INC(i) END;
+  win.WaitForExpose;
+  Fl.SetTooltipHoverDelay(0.0D0);
+  Fl.EnterArea(a, 0, 0, 25, 25, "tip"); Pump;
+  Fl.EnterArea(a, 0, 0, 25, 25, "other tip");
+  Fl.EnterArea(a, 0, 0, 25, 25, ""); Pump;
+  Fl.EnterArea(a, 0, 0, 25, 25, "tip"); Pump;
+  Fl.EnableTooltips(FALSE);
+  Fl.EnterArea(a, 0, 0, 25, 25, "disabled tip");
+  Fl.EnableTooltips(TRUE); Pump;
+  Fl.EnterArea(b, 60, 0, 25, 25, "second"); Pump;
 
   (* a deleted widget stops being current *)
   b.Delete;

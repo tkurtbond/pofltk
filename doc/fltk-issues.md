@@ -127,6 +127,9 @@ Unless an entry says otherwise, the version is FLTK 1.4.5 (Fedora's
   died this way every time; with `wait_for_expose()` between them, three
   runs of three worked. On X11 it works either way. `TestMenus` can't
   check it, since under Wayland the pop-up is closed at once (29).
+  A tooltip shown over a window not yet exposed dies the same way:
+  `TestTooltips` did, three runs of three on sway, until it called
+  `WaitForExpose` after `Show` (2026-11-06).
 
 ### 36. `Fl_Text_Buffer::search_forward` and `search_backward` read past the text when matching case
 
@@ -1132,11 +1135,26 @@ Unless an entry says otherwise, the version is FLTK 1.4.5 (Fedora's
 - **Effect on pofltk**: `Fl.EnterArea` would pass a string that may die
   with a stack frame. The shim keeps one copy, until the next text. The
   same text keeps the same pointer, or the tip would restart each time
-  the mouse moved in the area; "" frees it, so the last call should be
-  that. The widget can't dangle: `~Fl_Widget` calls `fl_throw_focus`,
-  which clears the current widget (`src/Fl.cxx:1215`).
+  the mouse moved in the area. The widget can't dangle: `~Fl_Widget`
+  calls `fl_throw_focus`, which clears the current widget
+  (`src/Fl.cxx:1215`).
+- **"" didn't end it** (found by FLTKAda, its F4, and traced here
+  2026-11-06): the shim freed its copy on "", but FLTK can still read
+  it. On a tip shown recently, `enter_area` sets `tip`, then hides the
+  tooltip window, which (`hide_common`, `fl_throw_focus`) calls
+  `Fl_Tooltip::exit_` and clears the current widget, and only then arms
+  `tooltip_timeout`. An `enter_area` with "" next goes to `exit_(0)`,
+  which returns at once with no current widget (`:251`), leaving the
+  timer armed: it reads `tip` (`:165`), and the window's label as it
+  measures it (`Fl_TooltipBox::layout`). Text given while tooltips are
+  off isn't taken. So the shim now keeps a copy until FLTK has taken
+  another (tooltips on), passes "" as NULL, keeping the copy, and frees
+  the last copy at exit.
 - **Confirmed**: by the source; `TestTooltips` runs it clean under
-  valgrind (2026-10-30).
+  valgrind (2026-10-30). Since 2026-11-06 it shows the window, sets the
+  delay to 0, and gives "other tip" then "" at once, and text while
+  tooltips are off: the old shim gives invalid reads in
+  `tooltip_timeout` and `fl_measure`, the new one none, on Xvfb.
 
 ### 76. `Fl_Clock_Output::value()` isn't what `value(ulong)` set
 
@@ -2078,7 +2096,12 @@ for the start (`fl_utf8back`, line 852, is where valgrind stops).
 ## 116. `fl_utf_tolower` and `fl_utf_toupper` have no size and no terminator
 
 **What happens:** each writes to a buffer of no stated size and doesn't
-end it with `0X`. A bad byte becomes U+FFFD, 3 bytes.
+end it with `0X`. A bad byte isn't U+FFFD, as this entry said until
+2026-11-06 (FLTKAda found it): FLTK's default build (`ERRORS_TO_CP1252`)
+decodes a byte from 80 to 9F as CP1252's character, as 80X is the euro
+sign, E2 82 AC, and any other bad byte as Latin-1's, 2 bytes, except
+the five CP1252 leaves out (81, 8D, 8F, 90, 9D), which stay themselves,
+2 bytes. So a bad byte still takes at most 3.
 
 **Cause:** the destination has no length parameter, and the result is
 only a count.
@@ -2086,7 +2109,9 @@ only a count.
 **Effect on pofltk:** `FlUtf8` gives each a buffer of its own, larger
 than the `3 * n` a bad text needs, and copies out what fits.
 
-**Confirmed:** by a program, and `TestUtf8`, 2026-10-31.
+**Confirmed:** by a program, and `TestUtf8`, 2026-10-31; the bytes of
+bad text by a program (80 to U+20AC, 9F to U+0178, 81 to U+0081, E9 to
+U+00E9), and `TestUtf8`'s checks of `ToUpper` and `ToLower`, 2026-11-06.
 
 ## 117. `fl_utf8toa`'s count past a short buffer
 
@@ -2399,11 +2424,16 @@ texture's width to the raster position, and `glutBitmapCharacter` in
 `glut_font.cxx` passes `gl_draw` a one-byte string.
 
 **Effect on pofltk:** `BitmapCharacter` takes a `CHAR`, so nothing is
-cut, and its comment sends text with spacing that matters, and anything
-past `7FX`, to `BitmapString`.
+cut, and its comment sends text with spacing that matters to
+`BitmapString`. Since 2026-11-06 (FLTKAda's F29) the shim encodes the
+character in UTF-8 before drawing it, so `BitmapCharacter(c)` draws the
+character `BitmapWidth(c)` measures: before, 80X to 9FX were drawn as
+CP1252's, and other bytes past 7FX as Latin-1's (116).
 
 **Confirmed:** by a C++ program that read `GL_CURRENT_RASTER_POSITION`,
-and `TestGlut`, on Xvfb and sway, 2026-10-31.
+and `TestGlut`, on Xvfb and sway, 2026-10-31. `TestGlut` compares
+`BitmapCharacter(80X)` and `(0E9X)` with `BitmapString` of their UTF-8,
+which the old shim fails for 80X, 2026-11-06.
 
 ## 136. `fl_line_style`'s dash patterns
 
@@ -2478,3 +2508,145 @@ the clipboard too. `OpenCopySurface` opens the display first.
 
 **Confirmed:** by a C++ program, and `TestClipboard`, which pastes the
 pixels back, on Xvfb and sway, 2026-11-02.
+
+## 139. `Fl_Text_Buffer::search_backward` from past the end never returns
+
+**What happens:** `search_backward(pos, s, &found, 0)`, not matching
+case, with `pos` past `length()` loops for ever: `SearchBackward(20,
+"a", FALSE, f)` on "abc" hangs. Found by FLTKAda (its F6), and
+confirmed in pofltk 2026-11-06.
+
+**Cause:** `Fl_Text_Buffer::search_backward` (`src/Fl_Text_Buffer.cxx`)
+loops `while (startPos >= 0)`, stepping with `prev_char(startPos)`,
+which calls `prev_char_clipped`; that returns a position past the end
+unchanged, so `startPos` never falls. The case-matching path has the
+same loop.
+
+**Effect on pofltk:** `ofl_buffer_search` (`src/FlText.cpp`) clamps the
+start to `length()` before calling FLTK. Its own search, for matching
+case (36), clamped it already.
+
+**Confirmed:** by a scratch program, which hung, and `TestText` ("not
+matching case, from past the end"), which hangs without the clamp, on
+Xvfb, 2026-11-06.
+
+## 140. `Fl_Terminal::cursor_tab_right` and `cursor_tab_left` ignore the count
+
+**What happens:** each moves to the next tab stop whatever its count:
+`cursor_tab_right(2)` from column 0 goes to 8, not 16, and
+`cursor_tab_left(2)` from 24 to 16, not 8. Found by FLTKAda (its F24),
+confirmed in pofltk 2026-11-06.
+
+**Cause:** `src/Fl_Terminal.cxx`, `cursor_tab_right` and
+`cursor_tab_left`: inside `while (count-- > 0)`, the inner loop over
+columns `return`s at the first tab stop it finds, ending the outer loop
+too.
+
+**Effect on pofltk:** `FlTerminal.cpp` calls each with a count of 1, as
+many times as the count, and stops when the column doesn't change (at
+either end of the line).
+
+**Confirmed:** `TestTerminal` ("two tab stops", "and two back", and a
+count of 10000 each way), which fails without the loop, 2026-11-06.
+
+## 141. `Fl_Text_Buffer::insertfile` stops at a Latin-1 or CP1252 byte near the end of the file
+
+**What happens:** `loadfile`, `insertfile` and `appendfile` of a file
+that ends with a byte that isn't UTF-8, such as `caf\xE9\n`, cut the
+text before it, and don't set `input_file_was_transcoded`: the buffer
+holds "caf", with no warning. The same byte earlier in the file is
+transcoded, as documented. Found by FLTKAda (its F26), confirmed in
+pofltk 2026-11-06.
+
+**Cause:** `utf8_input_filter` (`src/Fl_Text_Buffer.cxx`) takes the
+sequence's length from its lead byte (`fl_utf8len1`, 2 for `E9`). When
+that runs past the bytes read, it reads more, and if there are still
+too few, `break`s and returns what it has, dropping the rest of the
+file: the bad byte is never decoded as CP1252 or Latin-1.
+
+**Effect on pofltk:** `ofl_buffer_file` (`src/FlText.cpp`) loads,
+inserts and appends through its own `insert_file`, which reads the file
+whole and decodes it as FLTK's filter does (UTF-8, or a byte from 80 to
+9F as CP1252 and any other bad byte as Latin-1, as `fl_utf8decode`
+does), to the end; it sets `input_file_was_transcoded` and calls
+`transcoding_warning_action` as FLTK does.
+
+**Confirmed:** by a scratch program, and `TestText`: `caf\xE9\n` loads
+as 6 bytes with C3 A9 and FLTK's warning, and `caf\x80` as the euro
+sign; FLTK's own `loadfile` gives 3 bytes, 2026-11-06.
+
+## 142. `Fl_Terminal`'s `PER_WRITE` redraws only the first write
+
+**What happens:** with `redraw_style(PER_WRITE)`, the first write after
+the style is set calls `redraw()`, and no later one does, however often
+the terminal is drawn. And a write waiting for `RATE_LIMITED`'s timer
+when the style changes is never drawn. Found by FLTKAda (its F23),
+which found `modified()` to be `append_ascii("")`; confirmed in pofltk
+2026-11-06.
+
+**Cause:** `Fl_Terminal::display_modified` (`src/Fl_Terminal.cxx`)
+redraws under `PER_WRITE` only if `redraw_modified_` is false, and sets
+it. Only `RATE_LIMITED`'s timer (`redraw_timer_cb2`) and
+`display_modified_clear` clear it, and nothing in FLTK calls
+`display_modified_clear`. `redraw_style()` removes the timer and leaves
+the flag set.
+
+**Effect on pofltk:** `Term`'s `draw()` (`src/FlTerminal.cpp`) clears
+the flag under `PER_WRITE`, reached through an explicit instantiation
+(`Reach`), and `SetRedrawStyle` clears it too, and redraws if it was
+set.
+
+**Confirmed:** `TestTerminal`'s `TestRedraw`, whose five checks of the
+damage after a write fail without the shim's clearing, 2026-11-06.
+
+## 143. `Fl_Grid::layout(rows, cols)` keeps spans past the new size
+
+**What happens:** a grid made smaller by `layout(rows, cols)` keeps
+each cell's spans, so the next `layout()` reads rows and columns that
+are gone: a 3 by 3 grid with a 3 by 3 span, laid out 1 by 1, then laid
+out, reads freed memory under valgrind (`Fl_Grid.cxx:471` to `477`),
+and a grid made larger again shows the old span. Found by FLTKAda (its
+F5), confirmed in pofltk 2026-11-06.
+
+**Cause:** `Fl_Grid::layout(int, int)` (`src/Fl_Grid.cxx`) deletes the
+cells of rows removed and reallocates the column and row arrays, but
+leaves `rowspan_` and `colspan_` of the cells kept; `layout()` adds up
+the widths and heights of every column and row a span covers.
+
+**Effect on pofltk:** `ofl_grid_set_layout` (`src/FlLayout.cpp`) cuts
+each child's spans to the new size first, and a cell left outside it
+(which FLTK's layout skips) spans one, so a larger grid shows it in its
+cell alone. `Grid.PlaceSpan` checks the span when it is placed (21).
+FLTKAda's F27, cell setters that don't ask for a layout, doesn't apply:
+pofltk binds no `Fl_Grid::Cell` setter, and places through `widget()`.
+
+**Confirmed:** `TestLayout` ("a span is cut to a grid made smaller",
+"and stays cut when the grid grows again"): invalid reads, and the
+second check failing, without the cutting, 2026-11-06.
+
+## 144. The Print dialog's panel keeps its texts
+
+**What happens:** `Fl_Printer`'s texts (`Fl_Printer::dialog_title` and
+the rest) are pointers that FLTK's print panel takes as its widgets'
+labels when it is built, once, and keeps. A text changed after the
+first dialog is never shown, and the old one must stay valid. Found by
+FLTKAda (its FLTKAda-BUGS 36), confirmed in pofltk 2026-11-06.
+
+**Cause:** `Fl_Posix_Printer_Driver::begin_job`
+(`src/drivers/Posix/Fl_Posix_Printer_Driver.cxx`) calls
+`make_print_panel()` only `if (!print_panel)`, and `print_panel.cxx`
+sets labels from the static pointers (`:249`, `dialog_title`), without
+copying.
+
+**Effect on pofltk:** `ofl_print_text` (`src/FlPrint.cpp`) kept one
+`std::string` per text and reassigned it, overwriting or freeing the
+buffer the panel showed. It now keeps every text it is given, in a `std::deque`, for the
+program's life, and the same text again adds nothing.
+`FlPrint.SetPrinterText`'s comment says a text set after the first
+dialog isn't shown.
+
+**Confirmed:** `TestPrint` ("the panel keeps its texts"), which sets a
+longer title after the first dialog, and fails with the old shim: a
+short text sits inside its `std::string`, so the panel's label was
+overwritten in place, not freed, and valgrind saw nothing. Passes with
+the new, on Xvfb, 2026-11-06.

@@ -169,6 +169,17 @@ BEGIN
   FlGlut.BitmapCharacter(f, "A");
   Check.Check(Lit() > one, "and moves on");
 
+  (* a character past 7FX is the Unicode one BitmapWidth measures: FLTK
+     would draw 80X to 9FX alone as CP1252's (doc/fltk-issues.md, 135) *)
+  s[0] := 0C2X; s[1] := 80X; s[2] := 0X;
+  Blank; FlGlut.BitmapString(f, s); one := Lit();
+  Blank; FlGlut.BitmapCharacter(f, 80X);
+  Check.Check((one > 0) & (Lit() = one), "BitmapCharacter(80X) draws U+0080");
+  s[0] := 0C3X; s[1] := 0A9X;
+  Blank; FlGlut.BitmapString(f, s); one := Lit();
+  Blank; FlGlut.BitmapCharacter(f, 0E9X);
+  Check.Check((one > 0) & (Lit() = one), "and 0E9X U+00E9");
+
   (* text with no width, which FLTK can't draw *)
   Blank;
   FlGlut.BitmapCharacter(f, 0X);

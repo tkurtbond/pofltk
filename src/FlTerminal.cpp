@@ -34,6 +34,10 @@ public:
     typedef EscapeSeq Fl_Terminal::*type;
     friend type member(Seq);
   };
+  struct Modified {
+    typedef bool Fl_Terminal::*type;
+    friend type member(Modified);
+  };
 
   Term(int x, int y, int w, int h) : ofl::W<Fl_Terminal>(x, y, w, h) {}
 
@@ -59,6 +63,30 @@ public:
   // redraw_style is obeyed.
   void modified() { append_ascii(""); }
 
+  // FLTK's flag that a change waits to be drawn: PER_WRITE redraws only
+  // while it is false, and only RATE_LIMITED's timer clears it, so a
+  // terminal redraws once under PER_WRITE, and then never again; and one
+  // that changed under RATE_LIMITED, as opening it does, never
+  // (doc/fltk-issues.md, 142). Under PER_WRITE it is cleared after each
+  // draw; under RATE_LIMITED its timer's work is left alone, since a
+  // draw clipped to part of the terminal would then cancel the timer's
+  // redraw (FLTKAda-BUGS.md, 87).
+  bool &waiting() { return this->*member(Modified()); }
+
+  void draw() override {
+    ofl::W<Fl_Terminal>::draw();
+    if (redraw_style() == PER_WRITE) waiting() = false;
+  }
+
+  // A change waiting for RATE_LIMITED's timer, which FLTK removes, is
+  // drawn now, unless nothing is to be.
+  void set_redraw_style(RedrawStyle style) {
+    bool was = waiting();
+    redraw_style(style);
+    waiting() = false;
+    if (was && style != NO_REDRAW) redraw();
+  }
+
   void base_resize(int x, int y, int w, int h) override {
     ofl::W<Fl_Terminal>::base_resize(x, y, w, h);
     fit();
@@ -66,6 +94,7 @@ public:
 };
 
 template struct Reach<Term::Seq, &Fl_Terminal::escseq>;
+template struct Reach<Term::Modified, &Fl_Terminal::redraw_modified_>;
 
 // The cursor and the saved cursor, moved back onto the screen. The
 // setters clamp.
@@ -180,7 +209,7 @@ void ofl_terminal_set(intptr_t h, int32_t what, int32_t v) {
     case 12: t->textsize(v); break;
     case 13: t->textattrib(static_cast<uchar>(v)); break;
     case 14:
-      t->redraw_style(static_cast<Fl_Terminal::RedrawStyle>(v));
+      t->set_redraw_style(static_cast<Fl_Terminal::RedrawStyle>(v));
       break;
     case 15: t->show_unknown(v != 0); break;
     case 16: t->ansi(v != 0); break;
@@ -340,8 +369,17 @@ void ofl_terminal_cursor(intptr_t h, int32_t what, int32_t count,
     case 6: t->cursor_sol(); break;
     case 7: t->cursor_cr(); break;
     case 8: t->cursor_crlf(count); break;
-    case 9: t->cursor_tab_right(count); break;
-    case 10: t->cursor_tab_left(count); break;
+    case 9:
+    case 10:
+      // FLTK's tabs stop at the first tab stop whatever the count
+      // (doc/fltk-issues.md, 140), so one at a time, and no more than a
+      // line holds.
+      for (int i = 0; i < count && i < t->display_columns(); ++i) {
+        int col = t->cursor_col();
+        if (what == 9) t->cursor_tab_right(1); else t->cursor_tab_left(1);
+        if (t->cursor_col() == col) break;
+      }
+      break;
     case 11: t->save_cursor(); break;
     case 12: t->restore(); break;
     default: break;

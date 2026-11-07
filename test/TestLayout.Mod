@@ -9,7 +9,7 @@ IMPORT Fl, FlLayout, FlValuators, Check, Probe;
 VAR
   win: Fl.Window;
   flex, row: FlLayout.Flex;
-  grid: FlLayout.Grid;
+  grid, small: FlLayout.Grid;
   pack: FlLayout.Pack;
   scroll: FlLayout.Scroll;
   tabs: FlLayout.Tabs;
@@ -18,7 +18,7 @@ VAR
   spinner: FlValuators.Spinner;
   a, b, c, d, content, p1, p2, left, right: Fl.Box;
   g1, g2: Fl.Group;
-  w1, w2, w3: Fl.Box;
+  w1, w2, w3, span: Fl.Box;
   l, t, r, bo, rg, cg: INTEGER;
 
 PROCEDURE NewBox(VAR box: Fl.Box; x, y, w, h: INTEGER);
@@ -84,6 +84,19 @@ BEGIN
   Check.Check((grid.RowHeight(1) = 30) & (grid.RowWeight(1) = 0), "a row's height and weight");
   grid.Place(w1, 1, 1, FlLayout.GridCenter);
   Check.Check(grid.Children() = 3, "placing a child again moves it, keeping it a child");
+
+  (* a grid made smaller: FLTK keeps a span past the new last row or
+     column, and lays it out from beyond its arrays (doc/fltk-issues.md, 21) *)
+  NEW(small); FlLayout.OpenGrid(small, 0, 300, 90, 90, "");
+  NewBox(span, 0, 0, 0, 0);
+  small.End;
+  small.SetLayout(3, 3);
+  small.PlaceSpan(span, 0, 0, 3, 3, FlLayout.GridFill);
+  small.SetLayout(2, 2); small.Layout;
+  Check.Check(Is(span, 0, 300, 90, 90), "a span is cut to a grid made smaller");
+  small.SetLayout(3, 3); small.Layout;
+  Check.Check(Is(span, 0, 300, 60, 60), "and stays cut when the grid grows again");
+  small.Delete;
 
   (* a pack: children at their own heights, spaced *)
   NEW(pack); FlLayout.OpenPack(pack, 200, 300, 100, 200, "");

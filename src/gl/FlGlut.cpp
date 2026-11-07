@@ -15,6 +15,8 @@
 #include <FL/glut.H>
 #pragma clang diagnostic pop
 #include <FL/platform.H>
+#include <FL/fl_utf8.h>
+#include <FL/gl.h>
 
 #include <deque>
 #include <map>
@@ -513,9 +515,14 @@ void ofl_glut_overlay_display_func(void (*f)()) {
 
 // Fonts
 
+// c is a character's number, which glutBitmapCharacter would draw as one
+// byte: so 80 to 9F would be CP1252's, not the character glutBitmapWidth
+// measures (doc/fltk-issues.md, 135). This draws it in UTF-8, as
+// glutBitmapCharacter does but for that (glut_font.cxx).
 void ofl_glut_bitmap_character(int32_t font, int32_t c) {
-  char a = static_cast<char>(c);
-  if (drawable(font, &a, 1)) glutBitmapCharacter(fonts[font], c);
+  char a[4];
+  int n = fl_utf8encode(static_cast<unsigned>(c & 0xFF), a);
+  if (drawable(font, a, n)) gl_draw(a, n);
 }
 
 int32_t ofl_glut_bitmap_height(int32_t font) {

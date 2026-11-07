@@ -61,6 +61,8 @@ BEGIN
   C.Check((n = 4) & (e[0] = 0F0X) & (e[3] = 080X) & (e[4] = 0X), "Encode of four");
   n := U.Encode(110000H, e);
   C.Check((n = 3) & (e[0] = 0EFX) & (e[1] = 0BFX) & (e[2] = 0BDX), "Encode past Unicode");
+  n := U.Encode(0D800H, e);
+  C.Check((n = 3) & (e[0] = 0EDX) & (e[1] = 0A0X) & (e[2] = 080X), "Encode of a surrogate, as it is");
   n := U.Encode(20ACH, four);
   C.Check((n = 3) & (four[3] = 0X), "Encode that just fits");
   n := U.Encode(1F600H, four);
@@ -177,8 +179,15 @@ BEGIN
   long[0] := 0X;
   FOR i := 0 TO 1999 DO long[i] := 080X END; long[2000] := 0X;
   n := U.ToUpper(long, longer);
-  C.Check(n = 6000, "ToUpper of bad bytes, each three");
+  C.Check((n = 6000) & (longer[0] = 0E2X) & (longer[1] = 082X) & (longer[2] = 0ACX),
+    "ToUpper of bad bytes 80X, each CP1252's euro sign, three bytes");
   C.Check(longer[5999] = 0X, "its 0X");
+  (* a bad byte is CP1252's from 80X to 9FX, and Latin-1's above, not
+     U+FFFD (doc/fltk-issues.md, 116) *)
+  e[0] := 09FX; e[1] := 0E9X; e[2] := 081X; e[3] := 0X;
+  n := U.ToLower(e, t);
+  C.Check((n = 6) & (t[0] = 0C3X) & (t[1] = 0BFX) & (t[2] = 0C3X) & (t[3] = 0A9X)
+    & (t[4] = 0C2X) & (t[5] = 081X), "ToLower of bad bytes: CP1252, Latin-1, and 81X, which CP1252 leaves out");
   e[0] := 0C3X; e[1] := 0X;
   n := U.ToLower(e, t);
   C.Check(n >= 1, "ToLower of a character cut short");

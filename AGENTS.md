@@ -606,7 +606,8 @@ held only in C++ memory**.
 - **`Fl_Grid::widget` overruns its rows** for a row equal to `rows()`
   or a column equal to `cols()` (it checks `>`, not `>=`): valgrind
   shows an invalid read and write. `Grid.PlaceSpan` checks first
-  (`doc/fltk-issues.md`, 21).
+  (`doc/fltk-issues.md`, 21). `layout(rows, cols)` keeps spans past the
+  new size, read at the next `layout()`: the shim cuts them first (143).
 - **`Fl_Tile` without size ranges doesn't save the sizes a move gives**,
   so a range set later makes the next move put the children back.
   `Tile.SizeRange` saves them first (`doc/fltk-issues.md`, 24).
@@ -643,7 +644,12 @@ held only in C++ memory**.
   - a style buffer with no styles makes FLTK read before the style
     table;
   - `search_forward` and `search_backward` with `matchCase` read past
-    the end of the text (a bug): the shim searches itself.
+    the end of the text (a bug): the shim searches itself;
+    `search_backward` from past the end never returns (139): the shim
+    clamps the start;
+  - `insertfile`, and so `loadfile`, cut the text at a Latin-1 or
+    CP1252 byte in the file's last bytes, with no warning (141): the
+    shim reads files itself, decoding as FLTK does.
 - **Browsers** (`doc/fltk-issues.md`, 37 to 40):
   - `column_widths`, `Fl_File_Browser::filter` and `load` keep their
     pointers: the shim keeps copies;
@@ -747,7 +753,10 @@ held only in C++ memory**.
   next character is written outside the row: `Term::fit`. `restore_cursor`
   tests `col != 1`, so column 1 isn't restored. `error_char` keeps its
   pointer, overruns a cell past 4 bytes, and a control character there
-  recurses without end. `textsize` below 1 divides by zero. `print_char`,
+  recurses without end. `textsize` below 1 divides by zero. `cursor_tab_right` and
+  `cursor_tab_left` ignore their count (140). `PER_WRITE` redraws only
+  the first write, and a write waiting for `RATE_LIMITED`'s timer is
+  lost when the style changes (142): `Term` clears FLTK's flag. `print_char`,
   `plot_char`, the cursor's moves and the clears don't redraw. A byte
   like `FF` waits for a long form's rest, and shows nothing.
 - **Forms** (`doc/fltk-issues.md`, 105 to 107): `Fl_Free`'s timer sends
@@ -781,7 +790,8 @@ held only in C++ memory**.
   `glutBitmapCharacter` of them, on both back ends, so the shim draws only
   what has a width. `glutBitmapCharacter` moves the raster position by the
   texture's width, a multiple of 4, not the character's, and it takes a
-  raw byte where `glutBitmapWidth` takes a character. GLUT font numbers
+  raw byte where `glutBitmapWidth` takes a character: the shim
+  encodes the character in UTF-8 (135). GLUT font numbers
   are cut to a byte. A stroke capital is 100 units tall, and the stroke
   measures need no window.
 - **Cairo** (`doc/fltk-issues.md`, 114): `Fl_Cairo_Window` is only in
@@ -794,7 +804,9 @@ held only in C++ memory**.
   X11 and Wayland.
 - **UTF-8** (`doc/fltk-issues.md`, 115 to 118): the composed-character
   walks and `fl_utf8strlen` go past either end of the text, on a bad or
-  cut-short lead. `fl_utf_tolower` has no size and no `0X`. `fl_utf8toa`'s
+  cut-short lead. `fl_utf_tolower` has no size and no `0X`; a
+  bad byte decodes as CP1252 (80 to 9F) or Latin-1, not U+FFFD, at most
+  3 bytes (116). `fl_utf8toa`'s
   count past a short buffer isn't its count in a long one. In a UTF-8
   locale `fl_utf8to_mb` writes nothing to a short buffer. There is no
   `fl_utf8_to_locale` off Windows.
@@ -858,7 +870,8 @@ held only in C++ memory**.
   it twice; `FlPrint`'s `Sink` covers files and its own calls, but
   drawing through `FlDraw` that breaks Cairo still reaches it. PDF's
   `end_job` reports only by an alert. An SVG surface has no font
-  descriptor, so test `fl_size()` too. A window never shown isn't
+  descriptor, so test `fl_size()` too. The print panel is built once,
+  keeping its texts' pointers, so `FlPrint` keeps every text (144). A window never shown isn't
   visible, so no surface draws it.
 - **Tables** (`doc/fltk-issues.md`, 52): `Fl_Table` hides `Fl_Group`'s
   `begin`, `end`, `children`, `child`, `add` and the rest, which reach
@@ -890,7 +903,10 @@ held only in C++ memory**.
   reads as seconds past midnight. `Fl_Round_Clock` is also `FL_NO_BOX`,
   not just a type.
 - **Tooltips** (`doc/fltk-issues.md`, 75): `enter_area` keeps its text,
-  and knows it by its pointer; `Fl_Tooltip::current` leaves none
+  and knows it by its pointer, and can still read it after a later ""
+  (its timer, armed after hiding the last tip) or a text given while
+  tooltips are off: the shim frees a copy only when FLTK has taken
+  another; `Fl_Tooltip::current` leaves none
   current for a widget with no tooltip, nor a group around it with one.
 - **`Fl_File_Input`'s bar** takes a click in a shown window alone under
   Wayland: `make_current` of one not shown is an alert, then a fatal
@@ -956,6 +972,9 @@ None at present.
   Pango; 2078, 19 skipped, with no SVG, printing or GL; 2294 with no
   Forms; 2181 with no GL; 2354 with no GLEW; 2312 with no cairo; and on a
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2356 on Xvfb and 2346 on sway.
+  After FLTKAda's findings (2026-11-06), 2380, 2370 (3 skipped), 2175
+  and 2166 (2 skipped) here; 2380 on NetBSD and FreeBSD and 2372, 1
+  skipped, on OpenBSD.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

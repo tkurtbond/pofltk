@@ -289,6 +289,14 @@ BEGIN
   Check.Check(t.CursorCol() = 8, "a tab stop");
   t.CursorTabLeft(1);
   Check.Check(t.CursorCol() = 0, "and back");
+  t.CursorTabRight(2);
+  Check.Check(t.CursorCol() = 16, "two tab stops");
+  t.SetCursorCol(24); t.CursorTabLeft(2);
+  Check.Check(t.CursorCol() = 8, "and two back");
+  t.CursorTabRight(10000);
+  Check.Check(t.CursorCol() = t.DisplayColumns() - 1, "no further than the end of the line");
+  t.CursorTabLeft(10000);
+  Check.Check(t.CursorCol() = 0, "nor the start");
   t.CursorHome;
   Check.Check((t.CursorRow() = 0) & (t.CursorCol() = 0), "home");
   t.CursorUp(1, FALSE);
@@ -467,6 +475,31 @@ BEGIN
 END TestSubclass;
 
 (* A redraw on FLTK's timer is pending when the terminal goes. *)
+(* Each style redraws whenever text is written, not just the first time. *)
+PROCEDURE TestRedraw;
+  VAR i: INTEGER;
+BEGIN
+  Open(200, 100);
+  t.SetRedrawStyle(FlTerminal.PerWrite);
+  t.ClearDamage; t.Append("a");
+  Check.Check(t.Damage() # {}, "PerWrite: a write redraws");
+  ok := Probe.Capture(t); Probe.Release;
+  t.ClearDamage; t.Append("b");
+  Check.Check(t.Damage() # {}, "and so does the next, once drawn");
+  ok := Probe.Capture(t); Probe.Release;
+  t.ClearDamage; t.SetRedrawStyle(FlTerminal.RateLimited); t.Append("c");
+  i := 0;
+  WHILE (i < 500) & (t.Damage() = {}) DO Fl.Wait(0.01D0); INC(i) END;
+  Check.Check(t.Damage() # {}, "RateLimited, after PerWrite");
+  ok := Probe.Capture(t); Probe.Release;
+  t.ClearDamage; t.Append("d"); t.SetRedrawStyle(FlTerminal.PerWrite);
+  Check.Check(t.Damage() # {}, "a write waiting for RateLimited's timer is drawn when the style changes");
+  ok := Probe.Capture(t); Probe.Release;
+  t.ClearDamage; t.Append("e");
+  Check.Check(t.Damage() # {}, "and PerWrite redraws after it");
+  Close
+END TestRedraw;
+
 PROCEDURE TestPending;
   VAR i: INTEGER;
 BEGIN
@@ -494,6 +527,7 @@ BEGIN
   TestDrawing;
   TestSelection;
   TestSubclass;
+  TestRedraw;
   TestPending;
   Check.Summary
 END TestTerminal.

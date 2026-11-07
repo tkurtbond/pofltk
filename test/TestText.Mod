@@ -10,6 +10,14 @@ TYPE
     calls, pos, inserted, deleted: INTEGER
   END;
 
+  (* Waits for a dialog, FLTK's alert that a file was transcoded, and
+     sends Escape; then fires once more, as TestPrint's Answer does. *)
+  Answer = POINTER TO RECORD (Fl.TimerDesc)
+    title: ARRAY 64 OF CHAR;
+    tries, seen: INTEGER;
+    sent: BOOLEAN
+  END;
+
 VAR
   win: Fl.Window;
   b, other, styles: FlText.TextBuffer;
@@ -21,10 +29,25 @@ VAR
   i, j, pos, x, y: INTEGER;
   c: CHAR;
   ok: BOOLEAN;
+  answer: Answer;
 
 PROCEDURE (w: Watched) Modified*(pos, inserted, deleted, restyled: INTEGER);
 BEGIN INC(w.calls); w.pos := pos; w.inserted := inserted; w.deleted := deleted
 END Modified;
+
+PROCEDURE (a: Answer) Fire*;
+  VAR ok: BOOLEAN;
+BEGIN
+  IF a.sent THEN (* only to wake the loop *)
+  ELSIF ~Probe.Modal(a.title) THEN
+    INC(a.tries); IF a.tries < 400 THEN Fl.RepeatTimeout(a, 0.05D0) END
+  ELSIF a.seen < 2 THEN  (* let it settle *)
+    INC(a.seen); Fl.RepeatTimeout(a, 0.05D0)
+  ELSE
+    ok := Probe.ModalKey(Fl.KeyEscape, {}, 1BX);
+    a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
+  END
+END Fire;
 
 (* a, b and c joined by newlines, as many as given ("" ends them) *)
 PROCEDURE Lines(a, b, c: ARRAY OF CHAR; VAR s: ARRAY OF CHAR);
@@ -169,6 +192,8 @@ BEGIN
   Check.Check(b.SearchForward(0, "third", TRUE, i) & (i = 22) & ~b.SearchForward(23, "third", TRUE, i)
     & b.SearchBackward(b.Length(), "third", TRUE, i) & (i = 22) & b.SearchBackward(99, "first", TRUE, i) & (i = 0)
     & ~b.SearchForward(0, "thirdd", TRUE, i), "matching case, up to the end of the text");
+  Check.Check(b.SearchBackward(99, "FIRST", FALSE, i) & (i = 0) & ~b.SearchForward(99, "first", FALSE, i),
+    "not matching case, from past the end");
 
   (* files *)
   s := "saved_"; s[5] := 0AX; b.SetText(s);
@@ -178,6 +203,21 @@ BEGIN
   Check.Check(b.AppendFile(file) & b.InsertFile(file, 0) & (b.Length() = 18), "AppendFile, InsertFile");
   Check.Check(b.SaveRange(file, 0, 3) & b.LoadFile(file) & (b.Length() = 3), "SaveRange");
   Check.Check(~b.LoadFile("../build/no such file"), "a file that isn't there is FALSE");
+  (* A Latin-1 letter in the last three bytes of a file: FLTK's own
+     loadfile would stop before it, with no warning. *)
+  s := "cafe_"; s[3] := 0E9X; s[4] := 0AX; b.SetText(s);
+  Check.Check(b.SaveFile(file) & (b.Length() = 5), "SaveFile, Latin-1");
+  NEW(answer); Fl.AddTimeout(answer, 0.05D0);
+  Check.Check(b.LoadFile(file) & (b.Length() = 6), "LoadFile transcodes a Latin-1 end");
+  b.GetText(t);
+  Check.Check((t[3] = 0C3X) & (t[4] = 0A9X) & (t[5] = 0AX) & answer.sent, "into UTF-8, with FLTK's warning");
+  s[3] := 80X; s[4] := 0X; b.SetText(s);
+  NEW(answer); Fl.AddTimeout(answer, 0.05D0);
+  Check.Check(b.SaveFile(file) & b.LoadFile(file) & (b.Length() = 6), "a byte from 80X to 9FX is CP1252's");
+  b.GetText(t);
+  Check.Check((t[3] = 0E2X) & (t[4] = 82X) & (t[5] = 0ACX) & answer.sent, "the euro sign");
+  s := "plain_"; s[5] := 0AX; b.SetText(s);
+  Check.Check(b.SaveFile(file) & b.LoadFile(file) & (b.Length() = 6), "UTF-8 is read as it is");
 
   (* Modified *)
   NEW(w); FlText.OpenBuffer(w);

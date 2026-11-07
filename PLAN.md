@@ -2561,6 +2561,41 @@ The three things `Device` still left out, bound 2026-11-02.
   clock's hands, with the mask of the window, group and sub-window. A
   copy shows nothing, so `TestClipboard` pastes it back.
 
+### FLTKAda's findings `[done]`
+
+FLTKAda's `FLTK-issues.md` and `FLTKAda-BUGS.md`, read against pofltk
+on 2026-11-06 (`Ada-vs-Oberon-2.md`). Each bug was shown by a test that
+fails without its fix.
+
+- **Text**: `SearchBackward` from past the end, not matching case, hung
+  (FLTKAda's F6; `doc/fltk-issues.md`, 139): the shim clamps the start.
+  `LoadFile`, `InsertFile` and `AppendFile` cut a file ending in a
+  Latin-1 byte, with no warning (F26; 141): the shim reads the file
+  itself and decodes it as FLTK's filter does, to the end, with FLTK's
+  warning.
+- **Terminal**: `CursorTabRight` and `CursorTabLeft` ignored their
+  count (F24; 140): the shim moves one stop at a time. `PerWrite`
+  redrew only the first write after it was set (F23; 142): `Term`'s `draw` and `SetRedrawStyle` clear FLTK's
+  flag.
+- **Grid**: `SetLayout` to a smaller grid kept spans, and the next
+  `Layout` read freed memory (F5; 143): the shim cuts the spans.
+  FLTKAda's F27, `Fl_Grid::Cell` setters that don't ask for a layout,
+  doesn't apply: pofltk binds none.
+- **Tooltips**: `EnterArea` with "" freed the copy FLTK's armed timer
+  would read (F4; 75, amended): the path is traced there, and the shim
+  frees a copy only when FLTK has taken another.
+- **Printing**: `SetPrinterText` after the first dialog overwrote the
+  text the panel showed (FLTKAda-BUGS 36; 144): `FlPrint` keeps every
+  text.
+- **GLUT**: `BitmapCharacter` drew 80X to 9FX as CP1252's, not the
+  character `BitmapWidth` measures (F29; 135, amended): the shim
+  encodes it in UTF-8.
+- **Issue 116 was wrong**: a bad byte decodes as CP1252 or Latin-1, not
+  U+FFFD. `FlUtf8.Encode`'s comment now says a surrogate is encoded as
+  it is, and `TestUtf8` checks both.
+- Not done: FLTKAda-BUGS 91, the claim under `FlGlut`'s overlay guard,
+  stays in `000-todo.org`.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

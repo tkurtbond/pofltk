@@ -80,8 +80,26 @@ void ofl_flex_layout(intptr_t f) { flex(f)->layout(); }
 
 // Grid. Rows and columns are checked by FlLayout.
 
+// layout(rows, cols) keeps every cell's span, and the next layout() adds
+// up rows and columns past the new ones (doc/fltk-issues.md, 143): so each
+// span is cut to fit first, and a cell left outside, which a larger grid
+// would show again, spans one.
 void ofl_grid_set_layout(intptr_t g, int32_t rows, int32_t cols) {
-  grid(g)->layout(rows, cols);
+  Fl_Grid *t = grid(g);
+  for (int i = 0; i < t->children(); ++i) {
+    Fl_Grid::Cell *c = t->cell(t->child(i));
+    if (!c) continue;
+    if (c->row() >= rows || c->col() >= cols) {
+      c->rowspan(1);
+      c->colspan(1);
+    } else {
+      if (c->row() + c->rowspan() > rows)
+        c->rowspan(static_cast<short>(rows - c->row()));
+      if (c->col() + c->colspan() > cols)
+        c->colspan(static_cast<short>(cols - c->col()));
+    }
+  }
+  t->layout(rows, cols);
 }
 
 void ofl_grid_layout(intptr_t g) { grid(g)->layout(); }

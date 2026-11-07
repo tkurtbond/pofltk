@@ -1095,24 +1095,41 @@ void ofl_tooltip_set_current(intptr_t w) {
   Fl_Tooltip::current(w ? ofl::widget(w) : 0);
 }
 
-// Fl_Tooltip::enter_area keeps the text, so this keeps a copy, until the
-// next text (doc/fltk-issues.md, 75). The same text must stay the same
-// pointer, by which FLTK knows the tip it is showing already. "" hides
-// the tip, and lets the copy go.
+// Fl_Tooltip::enter_area keeps the text, so this keeps a copy
+// (doc/fltk-issues.md, 75). The same text must stay the same pointer, by
+// which FLTK knows the tip it is showing already. FLTK still holds the
+// last text after "", and after a text given while tooltips are off, in
+// its tip and its tooltip window's label: the copy goes only when FLTK
+// has taken another, and the last at exit.
+namespace {
+struct KeptTip {
+  char *text;
+  ~KeptTip() { free(text); }
+};
+KeptTip kept_tip = {0};
+}
+
 void ofl_tooltip_enter_area(intptr_t w, int32_t x, int32_t y, int32_t width,
                             int32_t height, const char *text) {
-  static char *kept = 0;
-  char *old = kept;
+  char *&kept = kept_tip.text;
+  Fl_Widget *wid = ofl::widget(w);
   if (!*text) {
-    kept = 0;
-    Fl_Tooltip::enter_area(ofl::widget(w), x, y, width, height, 0);
-    free(old);
-  } else if (old && !strcmp(old, text)) {
-    Fl_Tooltip::enter_area(ofl::widget(w), x, y, width, height, old);
+    Fl_Tooltip::enter_area(wid, x, y, width, height, 0);
+  } else if (kept && !strcmp(kept, text)) {
+    Fl_Tooltip::enter_area(wid, x, y, width, height, kept);
   } else {
-    kept = strdup(text);
-    Fl_Tooltip::enter_area(ofl::widget(w), x, y, width, height, kept);
-    free(old);
+    char *copy = strdup(text);
+    if (!copy) return;
+    Fl_Tooltip::enter_area(wid, x, y, width, height, copy);
+    // FLTK took it if tooltips are on (but not inside its own timer, as it
+    // shows a tip, which no Oberon code runs in). wid needn't be current
+    // after: hiding the last tip's window can clear that.
+    if (Fl_Tooltip::enabled()) {
+      free(kept);
+      kept = copy;
+    } else {
+      free(copy);
+    }
   }
 }
 

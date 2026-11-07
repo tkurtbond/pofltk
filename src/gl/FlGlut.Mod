@@ -649,8 +649,8 @@ END CheckStroke;
 
 (* c at the raster position, which moves past it, by a multiple of 4 pixels,
    so characters drawn one by one sit further apart than BitmapString's
-   (doc/fltk-issues.md, 135). c past 7FX is a byte of UTF-8 alone: use
-   BitmapString for those. *)
+   (doc/fltk-issues.md, 135). c is the character numbered ORD(c) in
+   Unicode, as BitmapWidth measures it. *)
 PROCEDURE BitmapCharacter*(font: INTEGER; c: CHAR);
 BEGIN CheckBitmap(font); CBitmapCharacter(font, ORD(c))
 END BitmapCharacter;

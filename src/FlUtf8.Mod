@@ -68,7 +68,8 @@ PROCEDURE Size1*(c: CHAR): INTEGER;
 BEGIN RETURN CLen1(ORD(c))
 END Size1;
 
-(* The bytes Encode gives for ucs: 3, for U+FFFD, if it isn't Unicode. *)
+(* The bytes Encode gives for ucs: 3, for U+FFFD, if it is negative or past
+   U+10FFFF. A surrogate is encoded as it is, in 3. *)
 PROCEDURE Bytes*(ucs: INTEGER): INTEGER;
 BEGIN RETURN CBytes(ucs)
 END Bytes;

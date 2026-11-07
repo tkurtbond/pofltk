@@ -269,8 +269,12 @@ BEGIN
   Escape; r := p.BeginJob(1);
   Check.Check(r = FlPrint.JobCancelled, "BeginJob, cancelled");
   Check.Check(answer.title = "Drucken", "SetPrinterText");
+  (* FLTK builds its panel once, keeping the texts' pointers: a text set
+     now leaves the old one where the panel shows it. *)
+  FlPrint.SetPrinterText(FlPrint.DialogTitle, "A title much too long to fit where the old one was");
   Escape; r := p.BeginJob(0);
   Check.Check(r = FlPrint.JobCancelled, "and again");
+  Check.Check(answer.title = "Drucken", "the panel keeps its texts");
   p.Close; Check.Check(FlPrint.openSurfaces = 0, "Close");
 
   IF noPDF THEN Check.Skip("PDF needs Pango")
