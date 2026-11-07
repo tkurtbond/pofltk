@@ -115,8 +115,14 @@ CAIROLIBDIR  := $(BUILD)/lib-cairo
 variant-flags = -$(firstword $(subst -, ,$(1))) $(if $(filter %-g,$(1)),-g)
 
 # A library records the poc that built it, and another poc refuses it, so
-# each library depends on poc itself.
+# each library depends on poc itself: its file, for a poc rebuilt in place,
+# and POCID, the version poc gives, since a package keeps its build's date
+# (Fedora's 0.11.2 was dated before the libraries 0.11.1 had built, so
+# make built nothing again, 2026-11-07). POCID is written only when the
+# version changes.
 POCBIN := $(shell command -v $(POC))
+POCID  := $(BUILD)/poc-version
+POC_ID := $(shell $(POC) -version | sed -n 1p)
 
 # Test programs (test/<name>.Mod, each a main module).
 TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestDrawMore TestStatics TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint TestPlugins TestUtf8 TestKeys
@@ -206,7 +212,7 @@ TESTBINS := $(TESTS:%=$(BUILD)/%)
 HALTBINS := $(foreach h,$(HALTTESTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
 EXAMPLEBINS := $(EXAMPLES:%=$(BUILD)/%)
 
-.PHONY: all tests test valgrind test-headless valgrind-headless test-sway valgrind-sway install uninstall clean display
+.PHONY: all tests test valgrind test-headless valgrind-headless test-sway valgrind-sway install uninstall clean display FORCE
 .NOTPARALLEL:
 
 all: tests
@@ -215,6 +221,11 @@ tests: $(TESTBINS) $(HALTBINS) $(EXAMPLEBINS)
 
 $(BUILD):
 	mkdir -p $@
+
+$(POCID): FORCE | $(BUILD)
+	@echo '$(POC_ID)' | cmp -s - $@ || echo '$(POC_ID)' > $@
+
+FORCE:
 
 # TestPlugins loads shared libraries, which find FLTK in the program.
 $(BUILD)/plugins:
@@ -241,7 +252,7 @@ $(CAIROPROGRAMS): $(CAIROLIBDIR)/$(CAIROLIBRARY)-OC.stamp
 # manifest. An optional part imports pofltk, so it is built again with it.
 PARTLINK := $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)),-link $(f))
 
-$(LIBDIR)/$(LIBRARY)-%.stamp: $(LIBSRC) $(POCBIN) | $(BUILD)
+$(LIBDIR)/$(LIBRARY)-%.stamp: $(LIBSRC) $(POCBIN) $(POCID) | $(BUILD)
 	mkdir -p $(LIBDIR)
 	cd src && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -output-dir $(abspath $(LIBDIR)) $(LINK) \
 	  -library $(LIBRARY) $(MODULES:%=%.Mod)

@@ -316,7 +316,11 @@ poc -OC -library-path $POCLIBDIR Main.Mod
 ```
 
 A library records the poc that built it, and another poc refuses it, so
-install again after upgrading poc.
+install again after upgrading poc. The libraries, and so every program,
+are rebuilt when `poc -version` changes (`build/poc-version`), not just
+poc's file: a package keeps its build's date, and Fedora's 0.11.2 was
+dated before the libraries 0.11.1 had built, so nothing was rebuilt
+(2026-11-07).
 
 By hand, as for an experiment in the scratchpad:
 
