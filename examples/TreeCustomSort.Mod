@@ -66,6 +66,6 @@ BEGIN
   seed := 1;
   ok := Fl.SetScheme("gtk+");
   Build;
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END TreeCustomSort.

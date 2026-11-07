@@ -144,6 +144,6 @@ BEGIN
   Toggle(inactb, 125, 75, 100, "inactive");
   w.SetResizable(w);
   w.End;
-  w.Show;
+  w.ShowArgs;
   Fl.Run
 END Bitmap.

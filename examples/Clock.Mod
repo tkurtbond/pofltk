@@ -25,7 +25,7 @@ BEGIN
   (* FLTK's says a clock Xresource of another program's got in its way *)
   window.SetXClass("Fl_Clock");
   window2.SetXClass("Fl_Clock");
-  window.Show;
+  window.ShowArgs;
   window2.Show;
   Fl.Run
 END Clock.

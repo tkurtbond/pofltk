@@ -41,6 +41,6 @@ BEGIN
   item := tree.Find("Pathnames"); item.Close;
   win.End;
   win.SetResizable(win);
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END TreeSimple.

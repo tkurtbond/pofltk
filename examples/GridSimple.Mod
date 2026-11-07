@@ -26,6 +26,6 @@ BEGIN
   win.End;
   win.SetResizable(grid);
   win.SizeRange(300, 100, 0, 0);
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END GridSimple.

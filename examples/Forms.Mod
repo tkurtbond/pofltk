@@ -272,6 +272,6 @@ END CreateForm;
 BEGIN
   lastbt := -1;
   CreateForm;
-  form.Show;
+  form.ShowArgs;
   Fl.Run
 END Forms.

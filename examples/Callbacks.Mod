@@ -140,6 +140,6 @@ END Build;
 
 BEGIN
   Build;
-  window.Show;
+  window.ShowArgs;
   Fl.Run
 END Callbacks.

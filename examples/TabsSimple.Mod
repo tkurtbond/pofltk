@@ -28,6 +28,6 @@ BEGIN
   bbb.End;
   tabs.End;
   win.End;
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END TabsSimple.

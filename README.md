@@ -119,10 +119,14 @@ BEGIN
   box.SetLabelSize(36);
   box.SetLabelType(Fl.ShadowLabel);
   window.End;
-  window.Show;
+  window.ShowArgs;
   Fl.Run
 END Hello.
 ```
+
+`ShowArgs`, as `show(argc, argv)` in C++, also takes FLTK's options
+from the command line (`-geometry`, `-scheme` and the rest) and loads
+the system's colours; `Show` does neither.
 
 `examples/` has more:
 - `Scribble`: a custom widget drawn and driven by the mouse.

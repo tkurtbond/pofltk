@@ -14,6 +14,6 @@ BEGIN
   box.SetLabelSize(36);
   box.SetLabelType(Fl.ShadowLabel);
   window.End;
-  window.Show;
+  window.ShowArgs;
   Fl.Run
 END Hello.

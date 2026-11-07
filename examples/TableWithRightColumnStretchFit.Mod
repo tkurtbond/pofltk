@@ -93,6 +93,6 @@ BEGIN
   NEW(less); FlButtons.OpenButton(less, 220, 360, 100, 25, "- Row"); less.action := LessCb;
   win.End;
   win.SetResizable(table);
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END TableWithRightColumnStretchFit.

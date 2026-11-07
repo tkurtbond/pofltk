@@ -45,6 +45,6 @@ BEGIN
   Page("Finish", "This is the Last page", TRUE, TRUE);
   wiz.End;
   win.End;
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END WizardSimple.

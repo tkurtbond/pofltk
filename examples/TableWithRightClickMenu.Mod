@@ -94,6 +94,6 @@ BEGIN
   NEW(table); OpenMyTable(table, 10, 10, 880, 380);
   win.End;
   win.SetResizable(table);
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END TableWithRightClickMenu.

@@ -55,6 +55,6 @@ BEGIN
   window.End;
   window.SetResizable(flex);
   window.SizeRange(300, 30, 0, 0);
-  window.Show;
+  window.ShowArgs;
   Fl.Run
 END FlexSimple.

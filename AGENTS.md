@@ -205,7 +205,10 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   named for FLTK's file in CamelCase without `howto-`). A port is
   checked against FLTK's own build of it (in FLTK's `examples/`): both
   run under Xvfb, driven by the same `xdotool` input, and their screens
-  compared (`magick compare -metric AE -fuzz 1%`). On Xvfb with no
+  compared (`magick compare -metric AE -fuzz 1%`, then with no fuzz:
+  the fuzz hid a port's `Show` where FLTK's program has
+  `show(argc, argv)`, which is `ShowArgs`; `doc/fltk-issues.md`, 154).
+  On Xvfb with no
   window manager a window sits 20 pixels below its y, so add 20 to a
   click's y. `make` builds them. They wait for the user, so
   `make test` runs each for `EXAMPLETIME` seconds and checks it is still
@@ -946,6 +949,9 @@ held only in C++ memory**.
   Wayland ignores it; `iconize` of a window not shown shows it minimized,
   and of a shown one needs a window manager on X11. Window icons and
   default icons are copied, and Wayland ignores them.
+- **`show(argc, argv)`** (`ShowArgs`) loads the system's colours, which
+  even at the default background moves `FL_DARK3` and `FL_DARK1` off
+  `show()`'s, on X11 and Wayland (`doc/fltk-issues.md`, 154).
 - **Screens**: `Fl::screen_num` is 0 for a point on no screen.
   xvfb-run's default screen is 640x480; `tools/with-sway.sh`'s output
   is 1280x800.
@@ -1010,11 +1016,15 @@ None at present.
   skipped), 2178 and 2169 (2 skipped) here, the valgrind runs with the
   stricter `vg-check.sh`; 2383 on NetBSD and FreeBSD and 2375, 1
   skipped, on OpenBSD. After Phase 24 (2026-11-07), 2458 (1 skipped:
-  `Iconize` needs a window manager on X11), 2400 (8 skipped), 2249 (1
+  `Iconize` needs a window manager on X11), 2437 (8 skipped; 2400 was
+  first recorded, a miscount: the commit gave 2437 when rerun), 2249 (1
   skipped) and 2229 (7 skipped) here; 2458, 1 skipped, on NetBSD and
-  FreeBSD and 2450, 2 skipped, on OpenBSD. One `test-headless` log showed
-  2462, with TestGlut's last four checks and its "All checks passed."
-  twice, after a stray line; three reruns of TestGlut printed them once.
+  FreeBSD and 2450, 2 skipped, on OpenBSD. One `test-headless` log
+  showed 2462, with TestGlut's last four checks and its "All checks
+  passed." twice, after a stray line; three reruns of TestGlut printed
+  them once. After `ShowArgs` in the ports (2026-11-07), the same: 2458,
+  2437, 2249 and 2229 here, and 2458 on NetBSD and FreeBSD and 2450 on
+  OpenBSD, with the same skips.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

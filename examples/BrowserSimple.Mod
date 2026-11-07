@@ -45,6 +45,6 @@ BEGIN
   ok := multi.Select(1, TRUE); ok := multi.Select(2, TRUE);
   win.End;
   win.SetResizable(win);
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END BrowserSimple.

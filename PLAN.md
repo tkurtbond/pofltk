@@ -2795,6 +2795,27 @@ Done 2026-11-06. What was found and decided:
   that part can call `glutGetProcAddress` itself. `glutWarpPointer` and
   `glutPushWindow` are left out too: they are empty in FLTK.
 
+### FLTKAda's Phases 15 and 16 `[done]`
+
+FLTKAda's commits since the last comparison (after its Phase 14, to
+258575c, 2026-11-07), read against pofltk on 2026-11-07:
+
+- **`show(argc, argv)` is not `show()`** (`doc/fltk-issues.md`, 154):
+  it loads the system's colours, which move `FL_DARK3` and `FL_DARK1`
+  even at the default background. Nineteen ports called `Show` where
+  FLTK's program has `show(argc, argv)`, and the ports' checks, with
+  `-fuzz 1%`, didn't see it. They call `ShowArgs` now, `Hello` and so
+  README's example among them. With no fuzz, `Hello` and the seven
+  `*Simple` ports of browsers, flex, grids, tables, tabs, trees and
+  wizards are now pixel for pixel FLTK's builds (AE 0). FLTKAda found it porting `test/forms.cxx`.
+- **Already covered**: `EndJob` in a page (FLTKAda-BUGS 123) halts 77;
+  a directory FLTK can't list (124) makes `ListDirectory` FALSE, and
+  `LoadAll` passes FLTK's -1 to `fl_filename_free_list`, which returns
+  for it; a plugin's empty or `/` name, and a second of one name, halt.
+- **Not applicable**: FLTKAda's hooks undo the clips, matrices,
+  surfaces, pages and `gl_start` a hook pushed before an exception left
+  it. Oberon has no exceptions, and a halt ends the program.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

@@ -71,6 +71,6 @@ BEGIN
   FlImages.SetImage(but2, gradient);                                    (* the same image *)
   but2.SetAlign(Fl.AlignImageBackdrop + but2.Align());
   win.End;
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END TextOverImageButton.

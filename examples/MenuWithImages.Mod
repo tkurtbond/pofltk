@@ -166,6 +166,6 @@ BEGIN
 
   win.End;
   win.SetResizable(win);
-  win.Show;
+  win.ShowArgs;
   Fl.Run
 END MenuWithImages.

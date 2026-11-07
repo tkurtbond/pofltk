@@ -2870,3 +2870,35 @@ window.
 **Confirmed:** by the source, and `TestText` on Xvfb and headless sway,
 2026-11-06: in a capture of a window never shown, no line number was
 drawn.
+
+## 154. `show(argc, argv)` changes two greys, even at the default background
+
+**What happens:** a window shown with `show(argc, argv)` is drawn with
+`FL_DARK3` at 0x535353 and `FL_DARK1` at 0xababab, where one shown with
+`show()` has FLTK's built-in 0x555555 and 0xaaaaaa, on X11 and Wayland,
+with no X resources or options: the system's background is FLTK's own
+default, `#c0c0c0`. A port of an FLTK program that uses one where the
+program uses the other differs in every box edge drawn with those greys,
+by too little for `magick compare -fuzz 1%` to see.
+
+**Cause:** `Fl_Window::show(int, char **)` calls `Fl::get_system_colors()`
+(`src/Fl_arg.cxx:290`), and each driver's `get_system_colors` calls
+`Fl::background` with the system's background, `#c0c0c0` by default
+(`src/drivers/X11/Fl_X11_Screen_Driver.cxx:562`). `Fl::background`
+(`src/Fl_get_system_colors.cxx:42`) recomputes the whole grey ramp as a
+power curve through that colour, rounded, which isn't the table in
+`fl_cmap.h` at two places.
+
+**Effect on pofltk:** none in the binding: `Window.Show` is `show()` and
+`Window.ShowArgs` is `show(argc, argv)`, as FLTK's are. Nineteen of the
+examples' ports used `Show` where FLTK's program uses `show(argc, argv)`;
+they now use `ShowArgs` (`Clock`'s second window is shown plainly, as in
+FLTK). README's example, `Hello`, is one of them.
+
+**Confirmed:** a C++ program printing the colours `get_system_colors`
+changes, under Xvfb and headless sway, 2026-11-07: 39 and 47, as above,
+and no others. Under Xvfb with no fuzz, `Hello` against FLTK's
+`test/hello` gave an AE of 8.6 with `Show` and none with `ShowArgs`;
+`Forms` against `test/forms` differed in box edges across the window with
+`Show`, and with `ShowArgs` only at its clock and timer, which show the
+time. Found by FLTKAda, porting `test/forms.cxx`.

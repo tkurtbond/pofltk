@@ -27,6 +27,6 @@ BEGIN
   window.SizeRange(50, 50, -1, -1);
   window.SetResizable(window);
   window.End;
-  window.Show;
+  window.ShowArgs;
   Fl.Run
 END CairoDrawX.

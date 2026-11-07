@@ -97,6 +97,6 @@ BEGIN
   window.SetResizable(window);
   window.SetColor(Fl.White);
   window.End;
-  window.Show;
+  window.ShowArgs;
   Fl.Run
 END CairoTest.

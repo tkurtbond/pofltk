@@ -1293,6 +1293,12 @@ PROCEDURE (w: OverlayWindow) CanDoOverlay*(): BOOLEAN;
 BEGIN RETURN COverlayCanDo(Live(w)) # 0
 END CanDoOverlay;
 
+(* Shows w as FLTK's show(argc, argv) does: with the options on the
+   program's command line (Args), and the system's colours
+   (Fl::get_system_colors). Those set the background, and so FLTK's
+   grey ramp, which even at the default background moves Dark3 and Dark1
+   from FLTK's built-in ramp (doc/fltk-issues.md, 154). A port of
+   an FLTK program that calls show(argc, argv) calls this. *)
 PROCEDURE (w: Window) ShowArgs*;
 BEGIN CWindowShowArgs(Live(w), Args.argc, Args.argv)
 END ShowArgs;
