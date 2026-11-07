@@ -3,9 +3,10 @@ MODULE TestMenus; (* FlMenus: items, picking, shortcuts, choices, a global menu 
 IMPORT Fl, FlMenus, Check, Probe;
 
 TYPE
-  (* Answers a pop-up menu: Down and Enter to pick its first item, or
-     Escape to close it. *)
-  Answer = POINTER TO RECORD (Fl.TimerDesc) pick: BOOLEAN END;
+  (* Answers a pop-up menu: Down and Enter to pick its first item, Enter
+     alone to pick the item it opened on (enter), or Escape to close it.
+     It notes where the menu's window is (Probe.Grab). *)
+  Answer = POINTER TO RECORD (Fl.TimerDesc) pick, enter: BOOLEAN END;
 
 VAR
   win: Fl.Window;
@@ -20,7 +21,8 @@ VAR
   file, open, save, quit, edit, copy, grid, small, large, danger, i: INTEGER;
   key: INTEGER; state: SET;
   s: ARRAY 64 OF CHAR;
-  ok: BOOLEAN;
+  ok, grabbed: BOOLEAN;
+  gx, gy, gw, gh: INTEGER;
   action: FlMenus.Action;
 
 PROCEDURE Open(w: Fl.Widget);
@@ -42,7 +44,10 @@ END ClearMenu;
 PROCEDURE (a: Answer) Fire*;
   VAR ok: BOOLEAN;
 BEGIN
-  IF a.pick THEN
+  grabbed := Probe.Grab(gx, gy, gw, gh);
+  IF a.enter THEN
+    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
+  ELSIF a.pick THEN
     ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyDown, {}, "");
     ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
   ELSE
@@ -195,7 +200,26 @@ BEGIN
     Check.Check((i = 0) & (opened = 3) & (button.Value() = 0), "Popup returns the item picked, after its action");
     NEW(answer); answer.pick := FALSE; Fl.AddTimeout(answer, 0.2D0);
     i := button.Popup();
-    Check.Check((i = -1) & (opened = 3), "or -1, closed")
+    Check.Check((i = -1) & (opened = 3), "or -1, closed");
+
+    (* at a place, with a title, and pulled down under a rectangle *)
+    NEW(answer); answer.pick := TRUE; Fl.AddTimeout(answer, 0.2D0);
+    i := button.PopupAt(40, 50, "", -1);
+    Check.Check((i = 0) & (opened = 4) & (button.Value() = 0), "PopupAt returns the item picked, after its action");
+    Check.Check(grabbed & (gx = win.X() + 40) & (gy = win.Y() + 50), "at the place given, in the window's coordinates");
+    NEW(answer); answer.pick := TRUE; Fl.AddTimeout(answer, 0.2D0);
+    i := button.PopupAt(40, 50, "Title", -1);
+    Check.Check((i = 0) & (opened = 5), "with a title");
+    NEW(answer); answer.enter := TRUE; Fl.AddTimeout(answer, 0.2D0);
+    i := button.PopupAt(40, 50, "", 1);
+    Check.Check((i = 1) & (opened = 5) & (button.Value() = 1), "opened on an item");
+    NEW(answer); answer.pick := FALSE; Fl.AddTimeout(answer, 0.2D0);
+    i := button.PopupAt(40, 50, "", -1);
+    Check.Check((i = -1) & (opened = 5), "or -1, closed");
+    NEW(answer); answer.pick := TRUE; Fl.AddTimeout(answer, 0.2D0);
+    i := button.Pulldown(30, 60, 100, 20, -1);
+    Check.Check((i = 0) & (opened = 6), "Pulldown returns the item picked");
+    Check.Check(grabbed & (gx = win.X() + 30) & (gy = win.Y() + 80), "below the rectangle given")
   END;
 
   (* A choice of schemes, FLTK's names in FLTK's order *)

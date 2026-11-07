@@ -1187,6 +1187,25 @@ void ofl_window_icon(intptr_t w, intptr_t i) {
   win->icon(i ? img(i)->rgb() : 0);
 }
 
+// Window w's icons, the n images in is, n 0 for none, or, w 0, every
+// window's that has none of its own when it is shown. FLTK's X11 drivers
+// copy them, the window's as images and the default as their pixels;
+// Wayland's ignore them. An image with no pixels to read (a bitmap, a
+// tiled one) is left out, since FLTK takes each to be an Fl_RGB_Image.
+void ofl_window_icons(intptr_t w, const intptr_t *is, int32_t n) {
+  std::vector<const Fl_RGB_Image *> v;
+  for (int32_t k = 0; k < n; k++) {
+    if (Fl_RGB_Image *r = img(is[k])->rgb()) v.push_back(r);
+  }
+  const Fl_RGB_Image **a = v.empty() ? 0 : &v[0];
+  int c = static_cast<int>(v.size());
+  if (w) {
+    ofl::as<Fl_Window>(w)->icons(a, c);
+  } else {
+    Fl_Window::default_icons(a, c);
+  }
+}
+
 // Window w's shape, from image i: its pixels that aren't black or
 // transparent. 0 if i has no pixels to read (a bitmap, a tiled image).
 // FLTK keeps the image's pointer, and X11's driver reads w() by h()

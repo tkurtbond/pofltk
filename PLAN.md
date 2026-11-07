@@ -2620,6 +2620,181 @@ fails without its fix.
   that a NIL display or overlay procedure crashed at the next draw: the
   shim now always gives FLTK its own. `TestGlut` checks both.
 
+### Phase 24: Editor key bindings and the last gaps [done]
+
+Planned 2026-11-06, from the comparison with FLTKAda
+(`Ada-vs-Oberon-2.md`, "Only in FLTKAda"): what FLTKAda binds and
+pofltk doesn't, apart from what poc can't use. Phase 6 left the key
+bindings out, as needed by nothing yet; an editor example would need
+them. Done 2026-11-06; its findings follow the plan, below.
+
+**Key bindings** (`FlText`). How FLTK 1.4.5 does them
+(`Fl_Text_Editor.cxx`):
+
+- A `Key_Func` is `int (*)(int key, Fl_Text_Editor *)`, with no user
+  data. A binding is a key, a state and a `Key_Func`, in a list each
+  editor owns (`key_bindings`, protected), and one static list for all
+  editors (`global_key_bindings`), searched first and never freed.
+- `add_key_binding` puts a binding first and replaces none, so the
+  newest wins; `remove_key_binding(key, state)` removes the first that
+  matches exactly, which can uncover an older one;
+  `remove_all_key_bindings` frees the whole list, the defaults too;
+  `add_default_key_bindings` adds them back, with the platform's extras.
+  A binding's state `FL_TEXT_EDITOR_ANY_STATE` matches every state.
+- `handle_key` masks the state to Shift, Ctrl, Alt and Meta, and calls
+  the bound function with the key (`Fl::event_key()`); a key bound to
+  nothing, with no modifier, goes to `default_key_function_`
+  (`kf_default` to start with) with the text's first byte. `kf_undo` and
+  `kf_redo` are never passed on to another widget, and beep if they fail;
+  that test is by pointer, so a binding of the program's that calls them
+  is treated as any other.
+- `tab_nav` is a `kf_ignore` binding of `FL_Tab` (pofltk's `TabNav`).
+
+The design, to be confirmed by a scratch program first:
+
+- One C++ `Key_Func`, `ofl_key_trampoline`, is what FLTK sees for every
+  binding of the program's. It finds the editor's Oberon object through
+  its `Ref`, as `W<B>` does, and calls an Oberon dispatcher that
+  FlText's body registers (`ofl_text_register`, as `ofl_table_register`
+  is). The dispatcher searches the editor's Oberon list of key, state
+  and procedure, kept in FLTK's order (newest first) and matched as FLTK
+  matches, so its first match is the binding FLTK chose: FLTK's first
+  match was a trampoline, and the Oberon list holds the trampolines'
+  bindings alone, in the same order.
+- `RemoveKeyBinding` asks the shim which kind FLTK's first exact match
+  is (it walks `key_bindings`, reached as `W<Fl_Text_Editor>`'s own
+  member), and removes an Oberon binding only if that is one, so the two
+  lists can't part. `RemoveAllKeyBindings` empties both.
+- FLTK's own functions are numbered (`KfDefault` to `KfRedo`, pofltk's
+  numbers, in FLTK's order) and bound directly
+  (`BindBuiltin(key, state, KfCopy)`), so undo and redo keep FLTK's
+  treatment; `e.Builtin(KfCopy, key)` calls one from a program's
+  procedure, as FLTKAda's wrappers do.
+- `BoundKey(key, state)` says what is bound: nothing, a built-in's
+  number, or the program's, since the shim can compare FLTK's pointer
+  with the `kf_*` table and the trampoline; it returns the Oberon
+  procedure too. Oberon can't compare procedure values with C's.
+- `SetDefaultKeyFunction(proc)` puts a second trampoline in
+  `default_key_function_`; `SetDefaultBuiltin(KfDefault)` and the like
+  put FLTK's back. FLTK passes it the text's first byte, not the key:
+  the Oberon procedure is given both (`Fl.EventKey`, `Fl.EventText`).
+- The global list, the same way, with a module-level Oberon list:
+  `AddGlobalKeyBinding` and the rest. FLTK never frees it; check that
+  valgrind charges it to `libfltk`, not to pofltk.
+- A binding is `PROCEDURE (e: TextEditor; key: INTEGER): BOOLEAN`, TRUE
+  if it used the key. The procedure lives in the Oberon list, which is
+  the editor's, reached from the registry, so the collector sees it.
+
+To find out first, each with a scratch program, before the design is
+settled:
+
+- a binding that deletes its own editor (`Fl.Delete` and
+  `DeleteWidget`): what `Fl_Text_Editor::handle` does after
+  `handle_key` returns, and whether the dispatch depth covers it;
+- a binding that adds or removes bindings, or calls
+  `RemoveAllKeyBindings`, while it runs;
+- typing after `RemoveAllKeyBindings`: only `kf_default`'s plain
+  characters should be left;
+- the same key and state added twice, then removed once; `ANY_STATE`
+  against an exact binding added later;
+- a key with Shift and a binding of the key alone: FLTK's `bound_key_function`
+  wants the state exact unless `ANY_STATE`;
+- `Fl::compose`: a key composing text never reaches a binding.
+
+Tests (`TestText`, or a `TestKeys` of its own): keys sent to a focused
+editor with `Probe.Key`, carrying the text the window system gives
+(AGENTS.md, "Probe drives FLTK's own routing"), with an editor that has
+the focus so issue 3 can't arise: an Oberon binding called with the
+right key and editor; the newest of two winning; removal uncovering the
+older; a built-in bound by number; undo through `KfUndo`; the default
+function; a global binding before an editor's; `BoundKey` for each
+kind; and an editor deleted with bindings, under valgrind.
+
+**The small gaps**:
+
+- `Fl.Widget`: `MeasureLabel(VAR w, h)` (`measure_label`; a label
+  needs a font set first, AGENTS.md) and `RedrawLabel`.
+- `Fl.Window`: `Iconize`, and `FullscreenScreens(top, bottom, left,
+  right)`, checked against `Fl.ScreenCount` (FLTK's own checks first).
+  `FlImages`: `SetIcons(win, images)` and `SetDefaultIcons(images)`,
+  for `icons` and `default_icons`, beside `SetIcon`. Their header says
+  the images are copied; check the source on X11 and Wayland, and
+  Wayland ignores icons (issue 44), so a test there can only check no
+  harm is done.
+- `FlMenus`: a menu's items popped up or pulled down at a place, not at
+  the mouse (`Fl_Menu_Item::popup(x, y, title, picked, menu)` and
+  `pulldown(x, y, w, h, picked, menu)`), the picked item's callback done
+  as `Fl_Menu_Button::popup` does. Tested on X11 alone, as `Popup` is,
+  and with `Popup`'s wait for an expose under Wayland.
+- `FlText`, `Fl_Text_Display`'s public methods not yet bound:
+  `WrappedRow`, `WrappedColumn`, `RedisplayRange`, and
+  `LinenumberAlign` and `LinenumberFormat`, which keep their pointer
+  (check the source; the shim then keeps a copy, in `Holds`). FLTKAda
+  binds `skip_displayed_characters`, `count_displayed_characters` and
+  `findchar_forward`/`backward`, but 1.4.5's header has none of them:
+  find out where FLTKAda got them before binding anything.
+- `FlGl`: `gl_texture_pile_height`, both forms. `FlGlut`:
+  `glutGetProcAddress`, returning an `ADDRESS` (poc can't call it, but a
+  C++ part can; check it is worth having). `glutWarpPointer` and
+  `glutPushWindow` do nothing in FLTK's `glut.H`: bind them only for a
+  port's sake, as nothing.
+
+Not planned, and why:
+
+- `Fl::lock`, `unlock` and `awake`: poc has no threads (Phase 0).
+- `Fl::add_system_handler`: its event is the platform's own (an
+  `XEvent *`, a Wayland one), which an Oberon program can't read
+  without a C++ part of its own.
+- `Fl::has_timeout`, `has_idle` and `has_check`: bound already, as
+  `Timer.Pending`, `Idle.Added` and `Checker.Added`.
+- Subclassing `Fl_Browser_` with a program's own items (`item_first`,
+  `item_next`, `item_draw` and the rest): ten more virtuals sent to
+  Oberon, for what `Fl_Browser` and `Fl_Tree` already do. A later phase,
+  if a program wants it.
+- FLTKAda's ports of FLTK's `test/` programs: pofltk ports
+  `examples/`. A later phase, if wanted.
+
+Afterwards: `doc/fltk-issues.md` for what turns up (147 on), AGENTS.md
+(Status, Layout's `FlText`, the counts), README.md's `FlText` section,
+and the full matrix: `test-headless`, `test-sway`, `valgrind-headless`,
+`valgrind-sway`, and the six BSDs.
+
+Done 2026-11-06. What was found and decided:
+
+- **Key bindings** are as designed: three trampolines (the editor's
+  list, the global list, the default key function) calling one Oberon
+  dispatcher, with Oberon lists kept in FLTK's order. `TestKeys` tests
+  them, and `HaltKeyFunction` (74) a `Kf` number out of range. A key
+  that types text never reaches a binding (`doc/fltk-issues.md`, 147),
+  and `tab_nav(0)` removes whatever Tab alone is bound to (148).
+- **`Fl`**: `RedrawLabel`, `MeasureLabel(wrap, w, h)`, `Iconize` and
+  `FullscreenScreens`. A window shown with no resizable widget can't go
+  full screen afterwards (149); `FullscreenScreens` takes FLTK's numbers
+  unchecked, since FLTK and the window manager take any.
+- **`FlImages`**: `SetIcons`, `SetDefaultIcons` and `SetDefaultIcon`.
+  FLTK copies the images on both back ends, and Wayland ignores them.
+- **`FlMenus`**: `PopupAt` and `Pulldown`, which do the picked item's
+  `Callback`, as FLTK's item `popup` doesn't. With no window to pop up
+  over FLTK segfaults, and `Popup`, `PopupAt` and `Pulldown` halt 73
+  (150; `HaltPopup`).
+- **`FlText`**: `WrappedRow` and `WrappedColumn`, which FLTK let read one
+  past its rows (151), `RedisplayRange`, and `LineNumberAlign` and
+  `LineNumberFormat`. FLTK copies the format, and uses it as a printf
+  format, so only one number's is taken (153; `HaltLineNumberFormat`,
+  78). Line numbers are drawn only in a shown window.
+- **FLTKAda's `skip_displayed_characters`, `count_displayed_characters`
+  and `findchar_forward`/`backward`** are `Fl_Text_Buffer`'s, not
+  `Fl_Text_Display`'s, which is why they weren't found: bound as
+  `TextBuffer` methods, with positions clamped, which FLTK doesn't do.
+- **`FlGl`**: `TexturePileHeight` and `SetTexturePileHeight`. A pile of 0
+  is a division by zero, and a negative one a segmentation fault, at the
+  next text (152), so less than 1 halts 78 (`HaltGlTexturePile`).
+- **`glutGetProcAddress`**: not bound, decided without the user. It
+  returns a C function's address, which an Oberon program can't call;
+  a program that needs a GL extension's function needs a C++ part, and
+  that part can call `glutGetProcAddress` itself. `glutWarpPointer` and
+  `glutPushWindow` are left out too: they are empty in FLTK.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

@@ -481,6 +481,7 @@ BEGIN
   Same(FlText.AttrGrammar, "Fl_Text_Display::ATTR_GRAMMAR");
   Same(FlText.AttrSpelling, "Fl_Text_Display::ATTR_SPELLING");
   Same(FlText.AttrStrikeThrough, "Fl_Text_Display::ATTR_STRIKE_THROUGH");
+  Same(ORD(FlText.AnyState), "(unsigned)FL_TEXT_EDITOR_ANY_STATE");
   Same(FlBrowsers.ScrollbarHorizontal, "Fl_Browser_::HORIZONTAL");
   Same(FlBrowsers.ScrollbarVertical, "Fl_Browser_::VERTICAL");
   Same(FlBrowsers.ScrollbarBoth, "Fl_Browser_::BOTH");
@@ -603,6 +604,6 @@ BEGIN
   Same(Fl.RGB(255, 0, 0), "fl_rgb_color(255, 0, 0)");
   Same(Fl.RGB(1, 2, 3), "fl_rgb_color(1, 2, 3)");
   Same(Fl.RGB(0, 0, 255), "fl_rgb_color(0, 0, 255)");
-  Check.Check((wrong = 0) & (checked = 584), "each of 584 constants and values is FLTK's");
+  Check.Check((wrong = 0) & (checked = 585), "each of 585 constants and values is FLTK's");
   Check.Summary
 END TestConstants.

@@ -16,6 +16,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <dlfcn.h>
+#if defined(FLTK_USE_X11)
+#include <FL/x11.H>
+#endif
 
 namespace {
 
@@ -78,6 +82,51 @@ int32_t ofltest_shown_pixel(intptr_t w, int32_t x, int32_t y) {
   win->make_current();
   fl_read_image(p, x, y, 1, 1);
   return p[0] << 16 | p[1] << 8 | p[2];
+}
+
+// The number of 32-bit words in shown window w's _NET_WM_ICON property, the
+// icons FLTK gave the window manager: for each, its width, its height and
+// its pixels. -1 if FLTK isn't on X11. Xlib is found with dlsym, as
+// libfltk loaded it, so the tests needn't link it.
+int32_t ofltest_icon_words(intptr_t w) {
+#if defined(FLTK_USE_X11)
+  Display *d = fl_x11_display();
+  if (d == 0) return -1;
+  typedef Atom (*Intern)(Display *, const char *, Bool);
+  typedef int (*Get)(Display *, Window, Atom, long, long, Bool, Atom, Atom *,
+                     int *, unsigned long *, unsigned long *, unsigned char **);
+  typedef int (*Free)(void *);
+  Intern intern = reinterpret_cast<Intern>(dlsym(RTLD_DEFAULT, "XInternAtom"));
+  Get get = reinterpret_cast<Get>(dlsym(RTLD_DEFAULT, "XGetWindowProperty"));
+  Free xfree = reinterpret_cast<Free>(dlsym(RTLD_DEFAULT, "XFree"));
+  if (intern == 0 || get == 0 || xfree == 0) return -1;
+  Atom type;
+  int format;
+  unsigned long n, after;
+  unsigned char *data = 0;
+  Window x = fl_x11_xid(widget(w)->as_window());
+  if (get(d, x, intern(d, "_NET_WM_ICON", False), 0, 1 << 20, False,
+          AnyPropertyType, &type, &format, &n, &after, &data) != Success) {
+    return -1;
+  }
+  if (data) xfree(data);
+  return static_cast<int32_t>(n);
+#else
+  (void)w;
+  return -1;
+#endif
+}
+
+// The screen rectangle of the window FLTK grabs events to (an open menu)
+// in r; 0 if there is none.
+int32_t ofltest_grab(int32_t *r) {
+  Fl_Window *g = Fl::grab();
+  if (g == 0) return 0;
+  r[0] = g->x();
+  r[1] = g->y();
+  r[2] = g->w();
+  r[3] = g->h();
+  return 1;
 }
 
 void ofltest_release(void) {

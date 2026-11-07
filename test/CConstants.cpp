@@ -24,6 +24,7 @@
 #include <FL/Fl_Native_File_Chooser.H>
 #include <FL/Fl_File_Chooser.H>
 #include <FL/Fl_Text_Display.H>
+#include <FL/Fl_Text_Editor.H>
 #include <FL/Fl_File_Browser.H>
 #include <FL/Fl_Tree.H>
 #include <FL/Fl_Table_Row.H>
@@ -505,6 +506,7 @@ const Entry entries[] = {
   {"Fl_Text_Display::ATTR_GRAMMAR", (int32_t)(Fl_Text_Display::ATTR_GRAMMAR)},
   {"Fl_Text_Display::ATTR_SPELLING", (int32_t)(Fl_Text_Display::ATTR_SPELLING)},
   {"Fl_Text_Display::ATTR_STRIKE_THROUGH", (int32_t)(Fl_Text_Display::ATTR_STRIKE_THROUGH)},
+  {"(unsigned)FL_TEXT_EDITOR_ANY_STATE", (int32_t)((unsigned)FL_TEXT_EDITOR_ANY_STATE)},
   {"Fl_Browser_::HORIZONTAL", (int32_t)(Fl_Browser_::HORIZONTAL)},
   {"Fl_Browser_::VERTICAL", (int32_t)(Fl_Browser_::VERTICAL)},
   {"Fl_Browser_::BOTH", (int32_t)(Fl_Browser_::BOTH)},

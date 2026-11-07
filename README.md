@@ -183,9 +183,9 @@ END Hello.
 | `FlInputs` | `Input` and its kinds, `FileInput`, `Output`, `MultilineOutput` |
 | `FlValuators` | sliders, `Counter`, `Dial`, `Roller`, `Spinner`, `Adjuster`, `ValueInput`, `ValueOutput`, `Scrollbar`, `Progress`, `Chart`, `Positioner`, `ClockOutput`, `Clock`, and the presets of each kind |
 | `FlLayout` | `Flex`, `Grid`, `Pack`, `Scroll`, `Tabs`, `Tile`, `Wizard` |
-| `FlMenus` | `MenuBar`, `MenuButton`, `Choice`, `SchemeChoice`, menu items |
+| `FlMenus` | `MenuBar`, `MenuButton`, `Choice`, `SchemeChoice`, menu items; any menu's items popped up or pulled down at a place |
 | `FlDialogs` | messages, questions, input, colors, file choosers, `NativeFileChooser`, `FileChooser`; directories listed, names made relative |
-| `FlText` | `TextBuffer`, `TextDisplay`, `TextEditor`, styles |
+| `FlText` | `TextBuffer`, `TextDisplay`, `TextEditor`, styles, line numbers, an editor's key bindings (the program's procedures or FLTK's own functions) |
 | `FlBrowsers` | `Browser` and its kinds, `CheckBrowser`, `FileBrowser`, `Tree`, `TreeItem` (FLTK's, or the program's own, which draw themselves; widgets in items) |
 | `FlImages` | `Image` (loaded, decoded, from pixels or bits, or tiled), `AnimGIF` (animated GIFs), `Shared` (FLTK's pool), handlers for more formats (`AddHandler`), `FileIcon`, `MultiLabel`; images on widgets, browser lines and menu items; window shapes; `Surface` (offscreen drawing, through a mask), `CopySurface` (drawing onto the clipboard) |
 | `FlPreferences` | `Preferences`: FLTK's settings databases; `Plugin`, `PluginManager`: objects found by class and name, and libraries loaded to add them |
@@ -221,6 +221,10 @@ widgets opened until its `End`.
 - A table's `DrawCell` draws its cells, and a tree item's
   `DrawContent` the item, for an extension of `TreeItem` the program
   adds itself (`Tree.AddItem`, `TreeItem.Replace`).
+- A text editor's keys are bound to the program's procedures, which
+  are given the editor and the key (`TextEditor.AddKeyBinding`), or to
+  FLTK's own functions by number (`BindBuiltin`); a key that types text
+  is always typed.
 
 **Lifetime.** FLTK deletes a group's children with it, and a window
 the user closes may be deleted by the program's callback. pofltk hears of
@@ -253,12 +257,12 @@ prints `assertion failed (n)`:
 | 70 | a widget not open: never opened, or deleted (`Fl.NotOpen`) |
 | 71 | a widget opened twice, or a tree item added twice (`Fl.OpenedTwice`) |
 | 72 | NIL where a widget or timer is needed (`Fl.NilArgument`) |
-| 73 | a closed resource used, or one missing: a closed buffer, image or preferences, a removed tree item (`Fl.ClosedResource`) |
+| 73 | a closed resource used, or one missing: a closed buffer, image or preferences, a removed tree item, no window for a menu to pop up over (`Fl.ClosedResource`) |
 | 74 | an index out of range: a group's child, a grid cell, a browser line, a menu item, a table row (`Fl.IndexOutOfRange`) |
 | 75 | `RepeatTimeout` outside its timer's `Fire`, `HandleDefault` outside the event dispatch (`Fl.NotFiring`) |
 | 76 | a widget that must be a group's child isn't (`Fl.NotAChild`) |
 | 77 | a surface's `Begin` and `End` out of order (`Fl.OutOfOrder`) |
-| 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file descriptor's conditions empty or unknown; a tree's root replaced (`Fl.Unsupported`) |
+| 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file descriptor's conditions empty or unknown; a tree's root replaced; a line number format that isn't one number's; a GL texture pile under 1 (`Fl.Unsupported`) |
 
 ## FLTK's problems
 

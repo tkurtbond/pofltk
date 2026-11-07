@@ -18,7 +18,16 @@ MODULE FlText; (* Text: buffers of text, and the widgets that show and edit them
    (Fl.ClosedResource).
 
    A buffer's Modified runs after every change; an extension may override
-   it. The C++ part is FlText.cpp. *)
+   it.
+
+   An editor's keys are bound to FLTK's own functions (Kf constants) or to
+   the program's (KeyProc), each to a key and a state of Shift, Ctrl, Alt
+   and Meta (Fl.Shift and the rest; AnyState matches any). The newest
+   binding of a key wins; removing it uncovers the one before. The global
+   bindings, of every editor, come before an editor's own. A key that
+   types text with none of Ctrl, Alt and Meta held is typed, and reaches no
+   binding, nor the default key function (doc/fltk-issues.md, 147). The C++
+   part is FlText.cpp. *)
 
 IMPORT SYSTEM, GarbageCollectedHeap, Fl;
 
@@ -47,7 +56,31 @@ CONST
   AttrGrammar* = 8;
   AttrSpelling* = 12;
   AttrStrikeThrough* = 16;
+
+  (* a key binding's state that matches any state (TextEditor.AddKeyBinding) *)
+  AnyState* = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
 (* END generated constants *)
+
+  (* FLTK's own key functions, which a key is bound to (BindBuiltin) or a
+     program's binding calls (Builtin) *)
+  KfDefault* = 0;    (* types the key's character *)
+  KfIgnore* = 1;     (* uses the key, doing nothing *)
+  KfBackspace* = 2; KfEnter* = 3;
+  KfMove* = 4;       (* moves the cursor by the arrow, Home, End or Page key; the next ones likewise *)
+  KfShiftMove* = 5;  (* and extends the selection *)
+  KfCtrlMove* = 6;   (* by words, or to the text's ends *)
+  KfCtrlShiftMove* = 7;
+  KfMetaMove* = 8; KfMetaShiftMove* = 9;
+  KfHome* = 10; KfEnd* = 11; KfLeft* = 12; KfUp* = 13; KfRight* = 14;
+  KfDown* = 15; KfPageUp* = 16; KfPageDown* = 17;
+  KfInsert* = 18;    (* toggles insert mode *)
+  KfDelete* = 19; KfCopy* = 20; KfCut* = 21; KfPaste* = 22;
+  KfSelectAll* = 23; KfUndo* = 24; KfRedo* = 25;
+
+  (* what a key is bound to (TextEditor.BoundKey), beside a Kf number *)
+  KfNone* = -1;      (* nothing *)
+  KfProgram* = -2;   (* a KeyProc *)
+  KfOther* = -3;     (* a function of C++ code's *)
 
   (* the classes, as ofl_text_new numbers them *)
   display = 0; editor = 1;
@@ -87,14 +120,40 @@ TYPE
   (* FLTK's Fl_Text_Editor: a display the user can type in, with FLTK's
      usual keys. *)
   TextEditor* = POINTER TO TextEditorDesc;
-  TextEditorDesc* = RECORD (TextDisplayDesc) END;
+  (* A program's key binding: TRUE if it used the key, which is FLTK's key
+     number (Fl.KeyTab and the rest, or a character's code). The default key
+     function is given the first byte of the key's text instead, 0 if none. *)
+  KeyProc* = PROCEDURE (e: TextEditor; key: INTEGER): BOOLEAN;
+
+  Binding = POINTER TO BindingDesc;
+  BindingDesc = RECORD
+    key: INTEGER; state: SET; proc: KeyProc;
+    next: Binding
+  END;
+
+  TextEditorDesc* = RECORD (TextDisplayDesc)
+    keys: Binding;        (* the program's bindings, newest first *)
+    defaultKey: KeyProc   (* the default key function, if the program's *)
+  END;
+
+  KeyFn = PROCEDURE (self: SYSTEM.ADDRESS; key, state, which: SYSTEM.INT32): SYSTEM.INT32;
 
   ModifiedProc = PROCEDURE (self: SYSTEM.ADDRESS; pos, inserted, deleted, restyled: SYSTEM.INT32);
 
 VAR
   openBuffers-: INTEGER;  (* buffers made and not yet closed or finalized *)
+  globalKeys: Binding;    (* the program's global bindings, newest first *)
 
 PROCEDURE ["C", "ofl_text_register"] CRegister(modified: ModifiedProc);
+PROCEDURE ["C", "ofl_editor_register"] CEditorRegister(key: KeyFn);
+PROCEDURE ["C", "ofl_editor_bind"] CBind(e: SYSTEM.ADDRESS; global, key, state, kf: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_editor_unbind"] CUnbind(e: SYSTEM.ADDRESS; global, key, state: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_editor_unbind_all"] CUnbindAll(e: SYSTEM.ADDRESS; global: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_editor_add_defaults"] CAddDefaults(e: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_editor_bound"] CBound(e: SYSTEM.ADDRESS; global, key, state: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_editor_set_default"] CSetDefault(e: SYSTEM.ADDRESS; kf: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_editor_default"] CDefault(e: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_editor_builtin"] CBuiltin(e: SYSTEM.ADDRESS; kf, key: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_buffer_new"] CBufferNew(self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_buffer_close"] CBufferClose(b: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_buffer_length"] CLength(b: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -130,6 +189,8 @@ PROCEDURE ["C", "ofl_buffer_line_text"] CLineText(b: SYSTEM.ADDRESS; pos: SYSTEM
 PROCEDURE ["C", "ofl_buffer_count_lines"] CCountLines(b: SYSTEM.ADDRESS; start, end: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_buffer_skip_lines"] CSkipLines(b: SYSTEM.ADDRESS; start, n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_buffer_rewind_lines"] CRewindLines(b: SYSTEM.ADDRESS; start, n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_buffer_displayed"] CDisplayed(b: SYSTEM.ADDRESS; skip, start, n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_buffer_findchar"] CFindChar(b: SYSTEM.ADDRESS; back, start, c: SYSTEM.INT32; VAR found: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_buffer_search"] CSearch(b: SYSTEM.ADDRESS; backward, start: SYSTEM.INT32; s: ARRAY OF CHAR; VAR found: SYSTEM.INT32; matchCase: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_text_new"] CNew(class, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_text_set_buffer"] CSetBuffer(d, b: SYSTEM.ADDRESS);
@@ -147,6 +208,12 @@ PROCEDURE ["C", "ofl_text_in_selection"] CInSelection(d: SYSTEM.ADDRESS; x, y: S
 PROCEDURE ["C", "ofl_text_line"] CLine(d: SYSTEM.ADDRESS; what, pos, n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_text_wrap_mode"] CWrapMode(d: SYSTEM.ADDRESS; mode, margin: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_text_show_cursor"] CShowCursor(d: SYSTEM.ADDRESS; on: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_text_wrapped"] CWrapped(d: SYSTEM.ADDRESS; row, column, col: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_text_redisplay_range"] CRedisplayRange(d: SYSTEM.ADDRESS; start, end: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_text_set_linenumber_align"] CSetLineNumberAlign(d: SYSTEM.ADDRESS; a: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_text_linenumber_align"] CLineNumberAlign(d: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_text_set_linenumber_format"] CSetLineNumberFormat(d: SYSTEM.ADDRESS; f: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_text_linenumber_format"] CLineNumberFormat(d: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_text_get"] CGet(d: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_text_set"] CSet(d: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
 
@@ -457,6 +524,29 @@ PROCEDURE (b: TextBuffer) RewindLines*(start, n: INTEGER): INTEGER;
 BEGIN RETURN CRewindLines(H(b), start, n)
 END RewindLines;
 
+(* Characters, not bytes, from start up to target, or the position n
+   characters after start, or the newline before it. Each position is
+   brought into the text. *)
+PROCEDURE (b: TextBuffer) CountDisplayedCharacters*(start, target: INTEGER): INTEGER;
+BEGIN RETURN CDisplayed(H(b), 0, start, target)
+END CountDisplayedCharacters;
+
+PROCEDURE (b: TextBuffer) SkipDisplayedCharacters*(start, n: INTEGER): INTEGER;
+BEGIN RETURN CDisplayed(H(b), 1, start, n)
+END SkipDisplayedCharacters;
+
+(* The character c, a code point, from start on, or before start: TRUE
+   and its position in found, or FALSE and the end searched to. *)
+PROCEDURE (b: TextBuffer) FindCharForward*(start, c: INTEGER; VAR found: INTEGER): BOOLEAN;
+  VAR f: SYSTEM.INT32; ok: BOOLEAN;
+BEGIN ok := CFindChar(H(b), 0, start, c, f) # 0; found := f; RETURN ok
+END FindCharForward;
+
+PROCEDURE (b: TextBuffer) FindCharBackward*(start, c: INTEGER; VAR found: INTEGER): BOOLEAN;
+  VAR f: SYSTEM.INT32; ok: BOOLEAN;
+BEGIN ok := CFindChar(H(b), 1, start, c, f) # 0; found := f; RETURN ok
+END FindCharBackward;
+
 (* TRUE and where s starts, searching from start forward, or backward,
    with or without matching case. *)
 PROCEDURE (b: TextBuffer) SearchForward*(start: INTEGER; s-: ARRAY OF CHAR; matchCase: BOOLEAN; VAR found: INTEGER): BOOLEAN;
@@ -625,6 +715,23 @@ PROCEDURE (d: TextDisplay) RewindLines*(start, n: INTEGER): INTEGER;
 BEGIN RETURN CLine(B(d), 4, start, n)
 END RewindLines;
 
+(* The line of the buffer, counted from the top row's, and the column in
+   it, that row on the screen and its column are in, when wrapping;
+   without wrapping, or for a row not on the screen, row and column
+   themselves. Rows are laid out as the display draws. *)
+PROCEDURE (d: TextDisplay) WrappedRow*(row: INTEGER): INTEGER;
+BEGIN RETURN CWrapped(B(d), row, 0, 0)
+END WrappedRow;
+
+PROCEDURE (d: TextDisplay) WrappedColumn*(row, column: INTEGER): INTEGER;
+BEGIN RETURN CWrapped(B(d), row, column, 1)
+END WrappedColumn;
+
+(* Draws the text from start up to end again, at the next redraw. *)
+PROCEDURE (d: TextDisplay) RedisplayRange*(start, end: INTEGER);
+BEGIN CRedisplayRange(B(d), start, end)
+END RedisplayRange;
+
 (* Wrapping: WrapNone, as to start with; WrapAtColumn margin;
    WrapAtPixel margin; or WrapAtBounds, the display's width. *)
 PROCEDURE (d: TextDisplay) SetWrapMode*(mode, margin: INTEGER);
@@ -703,6 +810,29 @@ PROCEDURE (d: TextDisplay) SetLineNumberColors*(fg, bg: INTEGER);
 BEGIN Set(d, lineNumberFg, fg); Set(d, lineNumberBg, bg)
 END SetLineNumberColors;
 
+(* Where a line number goes in its column: Fl.AlignRight to start with. *)
+PROCEDURE (d: TextDisplay) LineNumberAlign*(): SET;
+BEGIN RETURN SYSTEM.VAL(SET, CLineNumberAlign(Fl.Live(d)))
+END LineNumberAlign;
+
+PROCEDURE (d: TextDisplay) SetLineNumberAlign*(a: SET);
+BEGIN CSetLineNumberAlign(Fl.Live(d), ORD(a))
+END SetLineNumberAlign;
+
+(* A line number's printf format, "%d" to start with. It has at most one
+   conversion, of an integer (d, i, o, u, x or X, with flags, a width and
+   a precision), and "%%"s; anything else halts (Fl.Unsupported), where
+   FLTK would read arguments that aren't there. FLTK keeps a copy, and
+   cuts a number at 15 bytes. *)
+PROCEDURE (d: TextDisplay) LineNumberFormat*(VAR f: ARRAY OF CHAR);
+BEGIN CLineNumberFormat(Fl.Live(d), f, SHORT(LEN(f)))
+END LineNumberFormat;
+
+PROCEDURE (d: TextDisplay) SetLineNumberFormat*(f-: ARRAY OF CHAR);
+  VAR ok: BOOLEAN;
+BEGIN ok := CSetLineNumberFormat(Fl.Live(d), f) # 0; ASSERT(ok, Fl.Unsupported)
+END SetLineNumberFormat;
+
 (* The scrollbars' width; 0 for Fl's. *)
 PROCEDURE (d: TextDisplay) ScrollbarSize*(): INTEGER;
 BEGIN RETURN Get(d, scrollbarSize)
@@ -729,9 +859,160 @@ PROCEDURE (e: TextEditor) TabNav*(): BOOLEAN;
 BEGIN RETURN Get(e, tabNav) # 0
 END TabNav;
 
+(* Key bindings *)
+
+PROCEDURE State(s: SET): SYSTEM.INT32;
+BEGIN RETURN SYSTEM.VAL(SYSTEM.INT32, s)
+END State;
+
+PROCEDURE Add(VAR list: Binding; key: INTEGER; state: SET; proc: KeyProc);
+  VAR b: Binding;
+BEGIN NEW(b); b.key := key; b.state := state; b.proc := proc; b.next := list; list := b
+END Add;
+
+(* Removes list's first binding of key and state exactly. *)
+PROCEDURE Remove(VAR list: Binding; key: INTEGER; state: SET);
+  VAR b, last: Binding;
+BEGIN
+  b := list; last := NIL;
+  WHILE (b # NIL) & ((b.key # key) OR (b.state # state)) DO last := b; b := b.next END;
+  IF b = NIL THEN (* not there *)
+  ELSIF last = NIL THEN list := b.next
+  ELSE last.next := b.next
+  END
+END Remove;
+
+(* list's first binding of key that matches state, as FLTK matches. *)
+PROCEDURE Find(list: Binding; key: INTEGER; state: SET): Binding;
+BEGIN
+  WHILE (list # NIL) & ((list.key # key) OR (list.state # AnyState) & (list.state # state)) DO
+    list := list.next
+  END;
+  RETURN list
+END Find;
+
+(* Binds key, with state, to proc, which must not be NIL. *)
+PROCEDURE (e: TextEditor) AddKeyBinding*(key: INTEGER; state: SET; proc: KeyProc);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(e); ASSERT(proc # NIL, Fl.NilArgument);
+  CBind(h, 0, key, State(state), KfProgram); Add(e.keys, key, state, proc)
+END AddKeyBinding;
+
+(* Binds key, with state, to FLTK's own function kf (KfDefault to KfRedo). *)
+PROCEDURE (e: TextEditor) BindBuiltin*(key: INTEGER; state: SET; kf: INTEGER);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(e); ASSERT((kf >= KfDefault) & (kf <= KfRedo), Fl.IndexOutOfRange);
+  CBind(h, 0, key, State(state), kf)
+END BindBuiltin;
+
+(* Removes the newest binding of key with exactly state, if there is one. *)
+PROCEDURE (e: TextEditor) RemoveKeyBinding*(key: INTEGER; state: SET);
+BEGIN
+  IF CUnbind(Fl.Live(e), 0, key, State(state)) = KfProgram THEN Remove(e.keys, key, state) END
+END RemoveKeyBinding;
+
+(* Removes every binding, FLTK's defaults too: only keys that type text
+   still work, and the default key function. *)
+PROCEDURE (e: TextEditor) RemoveAllKeyBindings*;
+BEGIN CUnbindAll(Fl.Live(e), 0); e.keys := NIL
+END RemoveAllKeyBindings;
+
+(* Adds FLTK's default bindings, as a new editor has them, newer than any
+   already there. *)
+PROCEDURE (e: TextEditor) AddDefaultKeyBindings*;
+BEGIN CAddDefaults(Fl.Live(e))
+END AddDefaultKeyBindings;
+
+(* What key with state is bound to, apart from the global bindings: a Kf
+   number, KfNone, KfOther, or KfProgram with the procedure in proc
+   (otherwise NIL). *)
+PROCEDURE (e: TextEditor) BoundKey*(key: INTEGER; state: SET; VAR proc: KeyProc): INTEGER;
+  VAR k: INTEGER; b: Binding;
+BEGIN
+  k := CBound(Fl.Live(e), 0, key, State(state)); proc := NIL;
+  IF k = KfProgram THEN b := Find(e.keys, key, state); proc := b.proc END;
+  RETURN k
+END BoundKey;
+
+(* The function for a key bound to nothing with none of Shift, Ctrl, Alt
+   and Meta: proc, or none if NIL. *)
+PROCEDURE (e: TextEditor) SetDefaultKeyFunction*(proc: KeyProc);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(e); e.defaultKey := proc;
+  IF proc = NIL THEN CSetDefault(h, KfNone) ELSE CSetDefault(h, KfProgram) END
+END SetDefaultKeyFunction;
+
+(* FLTK's own function kf as the default key function: KfDefault, as to
+   start with, types the key's character. *)
+PROCEDURE (e: TextEditor) SetDefaultBuiltin*(kf: INTEGER);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(e); ASSERT((kf >= KfDefault) & (kf <= KfRedo), Fl.IndexOutOfRange);
+  CSetDefault(h, kf); e.defaultKey := NIL
+END SetDefaultBuiltin;
+
+(* The default key function: as BoundKey says. *)
+PROCEDURE (e: TextEditor) DefaultKeyFunction*(VAR proc: KeyProc): INTEGER;
+  VAR k: INTEGER;
+BEGIN
+  k := CDefault(Fl.Live(e)); proc := NIL;
+  IF k = KfProgram THEN proc := e.defaultKey END;
+  RETURN k
+END DefaultKeyFunction;
+
+(* Calls FLTK's own function kf for key, as a binding would: TRUE if it
+   used the key. *)
+PROCEDURE (e: TextEditor) Builtin*(kf, key: INTEGER): BOOLEAN;
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(e); ASSERT((kf >= KfDefault) & (kf <= KfRedo), Fl.IndexOutOfRange);
+  RETURN CBuiltin(h, kf, key) # 0
+END Builtin;
+
+(* On binds Tab to KfIgnore, as FLTK does, and off removes the newest
+   binding of Tab alone, whatever it is (doc/fltk-issues.md, 148): on
+   twice needs off twice. *)
 PROCEDURE (e: TextEditor) SetTabNav*(on: BOOLEAN);
-BEGIN Set(e, tabNav, Int(on))
+BEGIN
+  IF on THEN e.BindBuiltin(Fl.KeyTab, {}, KfIgnore)
+  ELSE e.RemoveKeyBinding(Fl.KeyTab, {})
+  END
 END SetTabNav;
+
+(* The global bindings: every editor's, before its own. *)
+
+PROCEDURE AddGlobalKeyBinding*(key: INTEGER; state: SET; proc: KeyProc);
+BEGIN
+  ASSERT(proc # NIL, Fl.NilArgument);
+  CBind(0, 1, key, State(state), KfProgram); Add(globalKeys, key, state, proc)
+END AddGlobalKeyBinding;
+
+PROCEDURE BindGlobalBuiltin*(key: INTEGER; state: SET; kf: INTEGER);
+BEGIN
+  ASSERT((kf >= KfDefault) & (kf <= KfRedo), Fl.IndexOutOfRange);
+  CBind(0, 1, key, State(state), kf)
+END BindGlobalBuiltin;
+
+PROCEDURE RemoveGlobalKeyBinding*(key: INTEGER; state: SET);
+BEGIN
+  IF CUnbind(0, 1, key, State(state)) = KfProgram THEN Remove(globalKeys, key, state) END
+END RemoveGlobalKeyBinding;
+
+PROCEDURE RemoveAllGlobalKeyBindings*;
+BEGIN CUnbindAll(0, 1); globalKeys := NIL
+END RemoveAllGlobalKeyBindings;
+
+(* What key with state is bound to globally, as TextEditor.BoundKey says. *)
+PROCEDURE GlobalBoundKey*(key: INTEGER; state: SET; VAR proc: KeyProc): INTEGER;
+  VAR k: INTEGER; b: Binding;
+BEGIN
+  k := CBound(0, 1, key, State(state)); proc := NIL;
+  IF k = KfProgram THEN b := Find(globalKeys, key, state); proc := b.proc END;
+  RETURN k
+END GlobalBoundKey;
 
 (* The dispatcher the C++ part calls. *)
 PROCEDURE ModifiedD(self: SYSTEM.ADDRESS; pos, inserted, deleted, restyled: SYSTEM.INT32);
@@ -739,7 +1020,22 @@ PROCEDURE ModifiedD(self: SYSTEM.ADDRESS; pos, inserted, deleted, restyled: SYST
 BEGIN b := SYSTEM.VAL(TextBuffer, self); b.Modified(pos, inserted, deleted, restyled)
 END ModifiedD;
 
+(* The key dispatcher the C++ part calls: which is 0 for e's bindings, 1
+   the global ones, 2 the default key function. *)
+PROCEDURE KeyD(self: SYSTEM.ADDRESS; key, state, which: SYSTEM.INT32): SYSTEM.INT32;
+  VAR e: TextEditor; b: Binding; s: SET; used: BOOLEAN;
 BEGIN
-  openBuffers := 0;
-  CRegister(ModifiedD)
+  e := SYSTEM.VAL(TextEditor, self); s := SYSTEM.VAL(SET, state); used := FALSE;
+  IF which = 2 THEN
+    IF e.defaultKey # NIL THEN used := e.defaultKey(e, key) END
+  ELSE
+    IF which = 1 THEN b := Find(globalKeys, key, s) ELSE b := Find(e.keys, key, s) END;
+    IF b # NIL THEN used := b.proc(e, key) END
+  END;
+  RETURN Int(used)
+END KeyD;
+
+BEGIN
+  openBuffers := 0; globalKeys := NIL;
+  CRegister(ModifiedD); CEditorRegister(KeyD)
 END FlText.

@@ -19,17 +19,31 @@ TYPE
   END;
 
 VAR
-  win: Fl.Window;
+  win, lwin: Fl.Window;
   b, other, styles: FlText.TextBuffer;
   primary, secondary, lit: FlText.Selection;
   w: Watched;
-  d, d2: FlText.TextDisplay;
+  d, d2, ld: FlText.TextDisplay;
   e: FlText.TextEditor;
   s, t: ARRAY 256 OF CHAR;
   i, j, pos, x, y: INTEGER;
   c: CHAR;
   ok: BOOLEAN;
   answer: Answer;
+
+(* Whether the last capture has anything but its background, the color at
+   x0, y1 - 1, in x0 to x1 - 1 and y0 to y1 - 1. *)
+PROCEDURE Inked(x0, y0, x1, y1: INTEGER): BOOLEAN;
+  VAR x, y, bg: INTEGER; found: BOOLEAN;
+BEGIN
+  bg := Probe.Pixel(x0, y1 - 1); found := FALSE; y := y0;
+  WHILE ~found & (y < y1) DO
+    x := x0;
+    WHILE ~found & (x < x1) DO found := Probe.Pixel(x, y) # bg; INC(x) END;
+    INC(y)
+  END;
+  RETURN found
+END Inked;
 
 PROCEDURE (w: Watched) Modified*(pos, inserted, deleted, restyled: INTEGER);
 BEGIN INC(w.calls); w.pos := pos; w.inserted := inserted; w.deleted := deleted
@@ -187,6 +201,10 @@ BEGIN
   Check.Check((b.LineStart(13) = 10) & (b.LineEnd(13) = 21) & (b.CountLines(0, b.Length()) = 2)
     & (b.SkipLines(0, 2) = 22) & (b.RewindLines(25, 1) = 10), "lines");
   Check.Check((b.WordStart(13) = 10) & (b.WordEnd(13) = 16), "words");
+  Check.Check((b.CountDisplayedCharacters(0, 9) = 9) & (b.CountDisplayedCharacters(-5, 999) = b.Length())
+    & (b.SkipDisplayedCharacters(0, 50) = 9) & (b.SkipDisplayedCharacters(-3, 2) = 2), "characters shown, clamped");
+  Check.Check(b.FindCharForward(0, ORD("s"), i) & (i = 3) & b.FindCharBackward(99, ORD("f"), j) & (j = 0)
+    & ~b.FindCharForward(-4, ORD("z"), pos) & (pos = b.Length()), "FindChar");
   Check.Check(b.SearchForward(0, "LINE", FALSE, i) & (i = 17) & ~b.SearchForward(0, "LINE", TRUE, i)
     & b.SearchBackward(b.Length(), "r", TRUE, i) & (i = 25), "search");
   Check.Check(b.SearchForward(0, "third", TRUE, i) & (i = 22) & ~b.SearchForward(23, "third", TRUE, i)
@@ -253,10 +271,22 @@ BEGIN
   ok := d.MoveDown(); i := d.InsertPosition();
   ok := d.MoveRight(); j := d.InsertPosition();
   d.SetTextFont(Fl.Helvetica);
+
   Check.Check((i = 12) & (j = 13) & (d.LineStart(j) = 8) & (d.LineEnd(1) = 7), "moving the cursor, and lines");
   Check.Check(~d.MoveDown(), "FALSE at the last line");
   d.SetWrapMode(FlText.WrapAtColumn, 3);
   Check.Check(Probe.Capture(d) & (d.CountLines(0, b.Length()) > 1), "wrapping");
+  (* "heXXllo" wraps two to a row in Courier, so "world" is the fifth row *)
+  d.SetTextFont(Fl.Courier); ok := Probe.Capture(d);
+  Check.Check((d.WrappedRow(0) = 0) & (d.WrappedRow(3) = 0) & (d.WrappedRow(4) = 1)
+    & (d.WrappedColumn(0, 1) = 1) & (d.WrappedColumn(1, 1) = 3) & (d.WrappedColumn(3, 1) = 7)
+    & (d.WrappedColumn(4, 1) = 1), "WrappedRow and WrappedColumn: the buffer's line and column of a row's");
+  (* every row, and past the last: FLTK reads one past its rows' starts *)
+  FOR i := 0 TO 20 DO j := d.WrappedRow(i); j := d.WrappedColumn(i, 1) END;
+  Check.Check((d.WrappedRow(99) = 99) & (d.WrappedColumn(-1, 2) = 2), "a row off the screen is itself");
+  d.RedisplayRange(0, 3); d.RedisplayRange(-9, 999);
+  Check.Check(Probe.Capture(d), "RedisplayRange");
+  d.SetTextFont(Fl.Helvetica);
   d.SetWrapMode(FlText.WrapNone, 0);
   Check.Check(Probe.Capture(d) & d.PositionToXY(0, x, y), "PositionToXY of text shown");
 
@@ -301,6 +331,23 @@ BEGIN
   ok := Probe.Key(Fl.EvKeyDown, ORD("z"), {}, "z");
   b.GetText(s);
   Check.Check(s = "zc", "typing over");
+
+  (* Line numbers' format and alignment. FLTK draws line numbers only in a
+     window shown (visible_r), so this display has a window of its own. *)
+  NEW(lwin); Fl.OpenWindow(lwin, 200, 100, "TestText numbers");
+  NEW(ld); FlText.OpenTextDisplay(ld, 0, 0, 200, 100, ""); lwin.End;
+  ld.SetBuffer(b); b.SetText("one");
+  lwin.Show; lwin.WaitForExpose;
+  ld.SetLineNumberWidth(40); ld.LineNumberFormat(s);
+  Check.Check((s = "%d") & (ld.LineNumberAlign() = Fl.AlignRight), "line numbers are %d, on the right, to start with");
+  Check.Check(Probe.Capture(ld) & Inked(4, 4, 36, 30), "and drawn");
+  ld.SetLineNumberFormat("%-4d%%"); ld.LineNumberFormat(s);
+  Check.Check(s = "%-4d%%", "a format with flags, a width and %%");
+  ld.SetLineNumberFormat(""); ld.LineNumberFormat(s);
+  Check.Check((s = "") & Probe.Capture(ld) & ~Inked(4, 4, 36, 30), "one with no number shows none");
+  ld.SetLineNumberFormat("%03x"); ld.SetLineNumberAlign(Fl.AlignLeft);
+  Check.Check((ld.LineNumberAlign() = Fl.AlignLeft) & Probe.Capture(ld) & Inked(4, 4, 36, 30), "SetLineNumberAlign");
+  lwin.Delete;
 
   b.Close;
   win.Delete;

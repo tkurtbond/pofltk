@@ -132,6 +132,18 @@ BEGIN
   Check.Check(win.invalid > before, "a resize makes it not valid");
   Check.Check(win.pw = win.PixelW(), "drawn at its new size");
 
+  Check.Check(FlGl.TexturePileHeight() = 100, "text's texture pile to start with");
+  FlGl.SetTexturePileHeight(1);
+  Check.Check(FlGl.TexturePileHeight() = 1, "a pile of one texture");
+  before := win.draws;
+  win.Redraw; Draws(win); win.Redraw; Draws(win);
+  Check.Check(win.draws >= before + 2, "text drawn with a pile of one");
+  FlGl.TextureReset;
+  Check.Check(FlGl.TexturePileHeight() = 1, "a reset keeps the pile's height");
+  win.Redraw; Draws(win);
+  FlGl.SetTexturePileHeight(100);
+  Check.Check(FlGl.TexturePileHeight() = 100, "the pile set back");
+
   win.MakeCurrent;
   pix[0] := 0X; pix[1] := 1X;
   FlGl.ReadPixels(1, 1, 1, 1, pix);

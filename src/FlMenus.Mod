@@ -126,6 +126,7 @@ PROCEDURE ["C", "ofl_menu_style"] CStyle(m: SYSTEM.ADDRESS; what: SYSTEM.INT32):
 PROCEDURE ["C", "ofl_menu_set_style"] CSetStyle(m: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_global"] CGlobal(m: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_menu_popup"] CPopup(m: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_menu_popup_at"] CPopupAt(m: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32; title: ARRAY OF CHAR; picked, pull: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_sys_menu_about"] CAbout(cb: AboutProc);
 PROCEDURE ["C", "ofl_sys_menu_create_window_menu"] CCreateWindowMenu;
 PROCEDURE ["C", "ofl_sys_menu_style"] CWindowMenuStyle(): SYSTEM.INT32;
@@ -440,13 +441,44 @@ PROCEDURE (m: Menu) SetMenuBox*(b: INTEGER);
 BEGIN CSetStyle(Fl.Live(m), menuBox, b)
 END SetMenuBox;
 
+(* Pops up m's items, any menu's, as a menu with its top left at x, y in
+   m's window, or, m in none, the window of the event being handled, under
+   title, "" for none, and waits until the user picks an item, or closes
+   it. picked, an item or -1, is the one to start on. Returns the item
+   picked, after its Callback, or -1 if none was. With no window to pop up
+   over it halts, as Popup does (Fl.ClosedResource). *)
+PROCEDURE (m: Menu) PopupAt*(x, y: INTEGER; title-: ARRAY OF CHAR; picked: INTEGER): INTEGER;
+  VAR h: SYSTEM.ADDRESS; i: INTEGER;
+BEGIN
+  IF picked = -1 THEN h := Fl.Live(m) ELSE h := Item(m, picked) END;
+  i := CPopupAt(h, x, y, 0, 0, title, picked, 0); ASSERT(i # -2, Fl.ClosedResource);
+  RETURN i
+END PopupAt;
+
+(* The same, pulled down below the rectangle x, y, w, h, at least w wide,
+   or, with picked an item, with that item over the rectangle, as a Choice
+   shows its items. *)
+PROCEDURE (m: Menu) Pulldown*(x, y, w, h, picked: INTEGER): INTEGER;
+  VAR hd: SYSTEM.ADDRESS; i: INTEGER;
+BEGIN
+  IF picked = -1 THEN hd := Fl.Live(m) ELSE hd := Item(m, picked) END;
+  i := CPopupAt(hd, x, y, w, h, "", picked, 1); ASSERT(i # -2, Fl.ClosedResource);
+  RETURN i
+END Pulldown;
+
 (* Menu buttons *)
 
 (* Pops up the menu at the mouse (for a Kind other than 0) or below the
    button, and waits until the user picks an item, or closes it. Returns
-   the item picked, after its Callback, or -1 if none was. *)
+   the item picked, after its Callback, or -1 if none was. A menu pops up
+   over its window, or, in none, the first window shown; with neither, it
+   halts (Fl.ClosedResource), where FLTK crashes (doc/fltk-issues.md,
+   150). *)
 PROCEDURE (m: MenuButton) Popup*(): INTEGER;
-BEGIN RETURN CPopup(Fl.Live(m))
+  VAR i: INTEGER;
+BEGIN
+  i := CPopup(Fl.Live(m)); ASSERT(i # -2, Fl.ClosedResource);
+  RETURN i
 END Popup;
 
 (* 0, a button; or Popup1 to Popup123, a menu with no button, which pops

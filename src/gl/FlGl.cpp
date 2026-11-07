@@ -250,6 +250,8 @@ void ofl_gl_draw_image(const char *data, int32_t x, int32_t y, int32_t w,
 }
 
 void ofl_gl_texture_reset(void) { gl_texture_reset(); }
+int32_t ofl_gl_texture_pile_height(void) { return gl_texture_pile_height(); }
+void ofl_gl_set_texture_pile_height(int32_t max) { gl_texture_pile_height(max); }
 
 // GL itself. GL's float crosses as a double.
 

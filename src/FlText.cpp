@@ -163,11 +163,136 @@ int insert_file(Fl_Text_Buffer *b, const char *file, int pos) {
   return 0;
 }
 
+
+// Key bindings (doc/fltk-issues.md, 147, 148). A Key_Func has no user
+// data, so every binding of the program's is one of three trampolines,
+// which call the Oberon dispatcher FlText's body registers with the
+// editor, the key, the state as handle_key masks it, and which list the
+// binding is in: 0 the editor's, 1 the global one, 2 the default key
+// function. Each list's Oberon procedures are in an Oberon list in FLTK's
+// order, and matched as FLTK matches, so the first match there is the
+// binding FLTK chose.
+typedef int32_t (*KeyFn)(intptr_t self, int32_t key, int32_t state,
+                         int32_t which);
+KeyFn on_key;
+
+typedef Fl_Text_Editor::Key_Func Key_Func;
+typedef Fl_Text_Editor::Key_Binding Key_Binding;
+
+int run_key(int key, Fl_Text_Editor *e, int32_t which) {
+  intptr_t self = ofl::object_of(e);
+  if (self == 0 || on_key == 0) return 0;
+  int state = Fl::event_state() & (FL_SHIFT | FL_CTRL | FL_ALT | FL_META);
+  ofl::Dispatch d;
+  return on_key(self, key, state, which);
+}
+int mine_key(int key, Fl_Text_Editor *e) { return run_key(key, e, 0); }
+int global_key(int key, Fl_Text_Editor *e) { return run_key(key, e, 1); }
+int default_key(int c, Fl_Text_Editor *e) { return run_key(c, e, 2); }
+
+// FLTK's own functions, in pofltk's numbers (FlText's Kf constants).
+const Key_Func builtins[] = {
+    Fl_Text_Editor::kf_default,    Fl_Text_Editor::kf_ignore,
+    Fl_Text_Editor::kf_backspace,  Fl_Text_Editor::kf_enter,
+    Fl_Text_Editor::kf_move,       Fl_Text_Editor::kf_shift_move,
+    Fl_Text_Editor::kf_ctrl_move,  Fl_Text_Editor::kf_c_s_move,
+    Fl_Text_Editor::kf_meta_move,  Fl_Text_Editor::kf_m_s_move,
+    Fl_Text_Editor::kf_home,       Fl_Text_Editor::kf_end,
+    Fl_Text_Editor::kf_left,       Fl_Text_Editor::kf_up,
+    Fl_Text_Editor::kf_right,      Fl_Text_Editor::kf_down,
+    Fl_Text_Editor::kf_page_up,    Fl_Text_Editor::kf_page_down,
+    Fl_Text_Editor::kf_insert,     Fl_Text_Editor::kf_delete,
+    Fl_Text_Editor::kf_copy,       Fl_Text_Editor::kf_cut,
+    Fl_Text_Editor::kf_paste,      Fl_Text_Editor::kf_select_all,
+    Fl_Text_Editor::kf_undo,       Fl_Text_Editor::kf_redo};
+const int32_t nbuiltins = sizeof builtins / sizeof builtins[0];
+
+// What f is: a builtin's number, -1 none, -2 the program's, -3 another
+// (C++ code's, or a platform's extra binding).
+int32_t kind(Key_Func f) {
+  if (f == 0) return -1;
+  if (f == mine_key || f == global_key || f == default_key) return -2;
+  for (int32_t i = 0; i < nbuiltins; i++) {
+    if (f == builtins[i]) return i;
+  }
+  return -3;
+}
+
+// The editor's protected lists and default function, reached through a
+// class derived from Fl_Text_Editor, which is never made.
+struct Reach : Fl_Text_Editor {
+  static Key_Binding *Fl_Text_Editor::*mine() { return &Reach::key_bindings; }
+  static Key_Binding **global() { return &Reach::global_key_bindings; }
+  static Key_Func Fl_Text_Editor::*dflt() {
+    return &Reach::default_key_function_;
+  }
+};
+
+Fl_Text_Editor *editor(intptr_t e) { return ofl::as<Fl_Text_Editor>(e); }
+
+// The list of e's editor, or the global list if global.
+Key_Binding **list(intptr_t e, int32_t global) {
+  if (global) return Reach::global();
+  return &(editor(e)->*Reach::mine());
+}
+
+// FLTK's own add_key_binding, remove_key_binding and remove_all, for
+// either list: they are members, and the global list has no editor.
+void add(Key_Binding **l, int key, int state, Key_Func f) {
+  Key_Binding *kb = new Key_Binding;
+  kb->key = key;
+  kb->state = state;
+  kb->function = f;
+  kb->next = *l;
+  *l = kb;
+}
+
+void clear(Key_Binding **l) {
+  while (*l) {
+    Key_Binding *next = (*l)->next;
+    delete *l;
+    *l = next;
+  }
+}
+
+// FLTK never frees the global list, which pofltk's add made.
+struct GlobalList {
+  ~GlobalList() { clear(Reach::global()); }
+} global_list;
+// Whether f is a printf format for one int, or none, as FLTK passes
+// linenumber_format() each line's number (snprintf): %% and at most one
+// conversion of d, i, o, u, x or X, with flags, a width and a precision
+// but no length or *. Anything else reads arguments that aren't there.
+bool number_format_ok(const char *f) {
+  int conversions = 0;
+  for (; *f; f++) {
+    if (*f != '%') continue;
+    f++;
+    if (*f == '%') continue;
+    while (*f && strchr("-+ #0", *f)) f++;
+    while (*f >= '0' && *f <= '9') f++;
+    if (*f == '.') {
+      f++;
+      while (*f >= '0' && *f <= '9') f++;
+    }
+    if (*f == 0 || !strchr("diouxX", *f)) return false;
+    conversions++;
+  }
+  return conversions <= 1;
+}
+
+// mNVisibleLines, the rows mLineStarts has (protected).
+struct Rows : Fl_Text_Display {
+  using Fl_Text_Display::mNVisibleLines;
+};
+
 }  // namespace
 
 extern "C" {
 
 void ofl_text_register(ModifiedFn modified) { on_modified = modified; }
+
+void ofl_editor_register(KeyFn key) { on_key = key; }
 
 // Buffers
 
@@ -363,6 +488,31 @@ int32_t ofl_buffer_rewind_lines(intptr_t b, int32_t start, int32_t n) {
   return buffer(b)->rewind_lines(start, n);
 }
 
+// Characters, not bytes, from start to target, or n of them from start,
+// stopping at a newline. FLTK doesn't clamp either position.
+int32_t ofl_buffer_displayed(intptr_t b, int32_t skip, int32_t start,
+                             int32_t n) {
+  Fl_Text_Buffer *t = buffer(b);
+  int len = t->length();
+  start = t->utf8_align(start < 0 ? 0 : start > len ? len : start);
+  if (skip) return t->skip_displayed_characters(start, n);
+  return t->count_displayed_characters(start, n < start ? start : n > len ? len : n);
+}
+
+// 1 and the position in *found if the character c is found from start,
+// forward or back.
+int32_t ofl_buffer_findchar(intptr_t b, int32_t back, int32_t start,
+                            int32_t c, int32_t *found) {
+  Fl_Text_Buffer *t = buffer(b);
+  int len = t->length();
+  start = t->utf8_align(start < 0 ? 0 : start > len ? len : start);
+  int f = 0;
+  unsigned u = static_cast<unsigned>(c);
+  int r = back ? t->findchar_backward(start, u, &f) : t->findchar_forward(start, u, &f);
+  *found = f;
+  return r != 0;
+}
+
 // 1 and the position in *found if s is found from start. FLTK's search
 // matching case reads past the end of the text (doc/fltk-issues.md, 36),
 // so that one is done here, a byte at a time with byte_at, which checks
@@ -525,6 +675,42 @@ void ofl_text_wrap_mode(intptr_t d, int32_t mode, int32_t margin) {
   display(d)->wrap_mode(mode, margin);
 }
 
+// The buffer's row or column of row on the screen, wrapped. FLTK reads one
+// past its rows for row = mNVisibleLines (doc/fltk-issues.md, 151), so
+// that is checked here, and returns what FLTK does for rows outside.
+int32_t ofl_text_wrapped(intptr_t d, int32_t row, int32_t column, int32_t col) {
+  Fl_Text_Display *t = display(d);
+  if (row < 0 || row >= t->*(&Rows::mNVisibleLines)) return col ? column : row;
+  return col ? t->wrapped_column(row, column) : t->wrapped_row(row);
+}
+
+void ofl_text_redisplay_range(intptr_t d, int32_t start, int32_t end) {
+  display(d)->redisplay_range(start, end);
+}
+
+// Line numbers' alignment and printf format: 0 if f isn't one FLTK can
+// use (number_format_ok). FLTK copies the format.
+void ofl_text_set_linenumber_align(intptr_t d, int32_t a) {
+  display(d)->linenumber_align(static_cast<Fl_Align>(a));
+  display(d)->redraw();
+}
+
+int32_t ofl_text_linenumber_align(intptr_t d) {
+  return static_cast<int32_t>(display(d)->linenumber_align());
+}
+
+int32_t ofl_text_set_linenumber_format(intptr_t d, const char *f) {
+  if (!number_format_ok(f)) return 0;
+  display(d)->linenumber_format(f);
+  display(d)->redraw();
+  return 1;
+}
+
+void ofl_text_linenumber_format(intptr_t d, char *buf, int32_t n) {
+  const char *f = display(d)->linenumber_format();
+  ofl::copy_out(f ? f : "", buf, n);
+}
+
 void ofl_text_show_cursor(intptr_t d, int32_t on) {
   display(d)->show_cursor(on);
 }
@@ -570,10 +756,71 @@ void ofl_text_set(intptr_t d, int32_t what, int32_t v) {
     case 10: t->scrollbar_size(v); break;
     case 11: t->shortcut(v); break;
     case 12: if (e) e->insert_mode(v); break;
-    case 13: if (e) e->tab_nav(v); break;
     default: t->textfont(v);
   }
   t->redraw();
+}
+
+// Key bindings. global: 1 the global list, 0 e's (e is then unused for
+// the global list). kf: a builtin's number, or -2 the program's.
+void ofl_editor_bind(intptr_t e, int32_t global, int32_t key, int32_t state,
+                     int32_t kf) {
+  Key_Func f = global ? global_key : mine_key;
+  if (kf >= 0 && kf < nbuiltins) f = builtins[kf];
+  add(list(e, global), key, state, f);
+}
+
+// Removes the first binding of key and state exactly, as FLTK's
+// remove_key_binding does, and says what it was (kind).
+int32_t ofl_editor_unbind(intptr_t e, int32_t global, int32_t key,
+                          int32_t state) {
+  Key_Binding **l = list(e, global);
+  for (; *l; l = &(*l)->next) {
+    if ((*l)->key == key && (*l)->state == state) {
+      Key_Binding *cur = *l;
+      int32_t k = kind(cur->function);
+      *l = cur->next;
+      delete cur;
+      return k;
+    }
+  }
+  return -1;
+}
+
+void ofl_editor_unbind_all(intptr_t e, int32_t global) {
+  clear(list(e, global));
+}
+
+void ofl_editor_add_defaults(intptr_t e) {
+  Fl_Text_Editor *t = editor(e);
+  t->add_default_key_bindings(&(t->*Reach::mine()));
+}
+
+// What key and state are bound to, as FLTK's bound_key_function finds it.
+int32_t ofl_editor_bound(intptr_t e, int32_t global, int32_t key,
+                         int32_t state) {
+  Fl_Text_Editor *t = editor(e);
+  return kind(t->bound_key_function(key, state, *list(e, global)));
+}
+
+// The default key function: kf a builtin, -1 none, -2 the program's.
+void ofl_editor_set_default(intptr_t e, int32_t kf) {
+  Key_Func f = 0;
+  if (kf >= 0 && kf < nbuiltins) f = builtins[kf];
+  else if (kf == -2) f = default_key;
+  editor(e)->default_key_function(f);
+}
+
+int32_t ofl_editor_default(intptr_t e) {
+  return kind(editor(e)->*Reach::dflt());
+}
+
+// FLTK's own function kf, called with key: a callback it does, which can
+// delete the editor, is a dispatch, so the deletion waits.
+int32_t ofl_editor_builtin(intptr_t e, int32_t kf, int32_t key) {
+  if (kf < 0 || kf >= nbuiltins) return 0;
+  ofl::Dispatch d;
+  return builtins[kf](key, editor(e));
 }
 
 }  // extern "C"

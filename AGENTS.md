@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-10-31, Phases 0 to 23 of PLAN.md are done, and `README.md`
+As of 2026-11-06, Phases 0 to 24 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
@@ -181,8 +181,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     and key events sent as the window system would; the modal window (a
     dialog) and keys sent to it; whether FLTK uses Wayland; and how
     many things a widget keeps (`Kept`, `Ref::keep`); pipes
-    (`Pipe`, `Write`, `Read`, `Close`), for `TestLoop`'s fd watches; and
-    what a shown window shows (`ShownPixel`), on either back end.
+    (`Pipe`, `Write`, `Read`, `Close`), for `TestLoop`'s fd watches;
+    what a shown window shows (`ShownPixel`), on either back end; and
+    where the grab is (`Grab`), a pop-up menu's window.
   - `images/`: one 4x2 image, red left and blue right, in each format
     `TestImages` reads; `anim.gif`, three frames of it, for
     `TestAnimGIF`; and for `TestImageFiles` and `TestFileIcons`, `rb.xbm`,
@@ -637,12 +638,15 @@ held only in C++ memory**.
     can't see a hidden item, so a hidden submenu is hidden after it is
     filled (79);
   - `Fl_Menu_::menu` sets the value to the first item; items added
-    leave none, and a menu button shows its value under the mouse.
+    leave none, and a menu button shows its value under the mouse;
+  - a pop-up or pull-down of a menu in no window, with no window shown,
+    segfaults, and `Fl_Menu_Item::popup` and `pulldown` do no callback
+    (150): `FlMenus` halts 73, and calls `picked`.
 - **Dialogs**: `fl_message` and the rest take a printf format, so pass
   text as `"%s"`; `fl_file_chooser`, and `Fl_Native_File_Chooser` using
   FLTK's chooser, keep their title pointer (`doc/fltk-issues.md`, 30,
   31).
-- **Text** (`doc/fltk-issues.md`, 34 to 36):
+- **Text** (`doc/fltk-issues.md`, 34 to 36, 147, 148, 151, 153):
   - a text buffer and its displays don't detach from each other, so a
     buffer deleted first is used after it is freed: `FlText` reference
     counts buffers;
@@ -654,7 +658,14 @@ held only in C++ memory**.
     clamps the start;
   - `insertfile`, and so `loadfile`, cut the text at a Latin-1 or
     CP1252 byte in the file's last bytes, with no warning (141): the
-    shim reads files itself, decoding as FLTK does.
+    shim reads files itself, decoding as FLTK does;
+  - a key that types text never reaches an editor's key binding (147);
+    `tab_nav(0)` removes whatever Tab alone is bound to (148);
+  - `wrapped_row` and `wrapped_column` read one past the rows for a row
+    equal to their count (151), and a display lays its rows out only when
+    drawn itself, not its window drawn into a surface;
+  - the line number format is copied and used as a printf format, and
+    line numbers are drawn only in a shown window (153).
 - **Browsers** (`doc/fltk-issues.md`, 37 to 40):
   - `column_widths`, `Fl_File_Browser::filter` and `load` keep their
     pointers: the shim keeps copies;
@@ -785,6 +796,9 @@ held only in C++ memory**.
   `Begin` and `End`, and `Draw` must call the base's to show them. Wayland
   adds `FL_DOUBLE` to every mode. FLTK without GL still installs GL's
   headers.
+- **GL text's texture pile** (`doc/fltk-issues.md`, 152): a height of 0
+  divides by zero, and a negative one segfaults, at the next text drawn
+  with textures (GL 3 or later, or a texture rectangle extension).
 - **GLUT** (`doc/fltk-issues.md`, 112): numbers unchecked, strings kept,
   and hiding or destroying a window in its display function is a use after
   free in `Fl::flush`. Any event makes its window current. Windows past
@@ -926,6 +940,12 @@ held only in C++ memory**.
 - **`Fl_Shortcut_Button`** takes keys until it loses the focus, and by
   default calls back only then (`FL_WHEN_RELEASE`). A nice slider has
   `FL_FLAT_BOX`. `Fl_Positioner` has `FL_DOWN_BOX`, against its header.
+- **Full screen and iconize** (`doc/fltk-issues.md`, 149): a window shown
+  with no resizable widget gets a fixed size range for good, so
+  `fullscreen()` does nothing; `fullscreen_screens` is unchecked, and
+  Wayland ignores it; `iconize` of a window not shown shows it minimized,
+  and of a shown one needs a window manager on X11. Window icons and
+  default icons are copied, and Wayland ignores them.
 - **Screens**: `Fl::screen_num` is 0 for a point on no screen.
   xvfb-run's default screen is 640x480; `tools/with-sway.sh`'s output
   is 1280x800.
@@ -989,7 +1009,12 @@ None at present.
   skipped, on OpenBSD. After the three to-do items (2026-11-06), 2383, 2373 (3
   skipped), 2178 and 2169 (2 skipped) here, the valgrind runs with the
   stricter `vg-check.sh`; 2383 on NetBSD and FreeBSD and 2375, 1
-  skipped, on OpenBSD.
+  skipped, on OpenBSD. After Phase 24 (2026-11-07), 2458 (1 skipped:
+  `Iconize` needs a window manager on X11), 2400 (8 skipped), 2249 (1
+  skipped) and 2229 (7 skipped) here; 2458, 1 skipped, on NetBSD and
+  FreeBSD and 2450, 2 skipped, on OpenBSD. One `test-headless` log showed
+  2462, with TestGlut's last four checks and its "All checks passed."
+  twice, after a stray line; three reruns of TestGlut printed them once.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

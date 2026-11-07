@@ -3,7 +3,7 @@ MODULE TestWidget; (* Widget, group and window properties; colors and schemes *)
 (* Each property set reads back as set, through FLTK. Drawing them is
    tested by pixels in Phase 2. *)
 
-IMPORT Out, Fl, Check;
+IMPORT Out, Fl, FlDraw, Check;
 
 VAR
   win: Fl.Window;
@@ -16,7 +16,8 @@ VAR
   sx, sy, sw, sh, wx, wy, ww, wh: INTEGER;
   r, gr, bl: INTEGER;
   shown: BOOLEAN;
-  n: INTEGER;
+  n, lw, lh, fw, fh: INTEGER;
+  other: Fl.Window;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 300, 200, "TestWidget");
@@ -199,6 +200,49 @@ BEGIN
   menu.End;
   Check.Check(menu.X() = 10, "placed");
   menu.Delete;
+
+  (* measuring and redrawing a label: g.Clear deleted c *)
+  NEW(c); Fl.OpenBox(c, 220, 20, 50, 20, ""); win.Add(c);
+  c.SetLabel("Hello world"); c.SetLabelFont(Fl.Courier); c.SetLabelSize(14);
+  c.MeasureLabel(0, lw, lh); FlDraw.SetFont(Fl.Courier, 14); FlDraw.Measure("Hello world", fw, fh);
+  Check.Check((lw = fw) & (lh = fh) & (lw > 0), "MeasureLabel, as FlDraw.Measure");
+  c.MeasureLabel(lw DIV 2, fw, fh);
+  Check.Check((fw <= lw DIV 2) & (fh = 2 * lh), "MeasureLabel wrapped");
+  c.SetLabel(""); c.MeasureLabel(0, lw, lh);
+  Check.Check((lw = 0) & (lh = 0), "MeasureLabel of no label");
+  c.SetLabel("c"); c.SetAlign(Fl.AlignBottom);
+  n := 0; WHILE (win.Damage() # {}) & (n < 100) DO shown := Fl.Check(); INC(n) END;
+  c.RedrawLabel;
+  Check.Check((win.Damage() # {}) & (c.Damage() = {}), "RedrawLabel of a label outside its box damages the window");
+  c.SetBoxType(Fl.FlatBox); c.SetAlign(Fl.AlignCenter);
+  n := 0; WHILE (win.Damage() # {}) & (n < 100) DO shown := Fl.Check(); INC(n) END;
+  c.RedrawLabel;
+  Check.Check(c.Damage() # {}, "RedrawLabel of a label inside its box damages the box");
+
+  (* Full screen on given screens, and minimized. win was shown with no
+     resizable widget, which fixed its size range, and Fullscreen does
+     nothing for a window that can't be resized: SizeRange first. *)
+  win.Fullscreen;
+  Check.Check(~win.FullscreenActive(), "Fullscreen of a window of fixed size does nothing");
+  win.SizeRange(100, 100, 0, 0);
+  win.FullscreenScreens(0, 0, 0, 0);
+  win.Fullscreen;
+  n := 0; WHILE ~win.FullscreenActive() & (n < 100) DO Fl.Wait(0.01D0); INC(n) END;
+  Check.Check(win.FullscreenActive(), "full screen, on screen 0's edges");
+  win.FullscreenScreens(-1, -1, -1, -1);
+  win.FullscreenOff;
+  n := 0; WHILE win.FullscreenActive() & (n < 100) DO Fl.Wait(0.01D0); INC(n) END;
+  Check.Check(~win.FullscreenActive(), "and off");
+  NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
+  other.Iconize; shown := Fl.Check();
+  Check.Check(other.Shown(), "Iconize of a window not shown shows it, minimized");
+  other.Delete;
+  IF Fl.Has(Fl.Wayland) THEN
+    win.Iconize;
+    n := 0; WHILE win.Visible() & (n < 200) DO Fl.Wait(0.01D0); INC(n) END;
+    Check.Check(~win.Visible(), "Iconize hides a shown window")
+  ELSE Check.Skip("Iconize hides a shown window: X11 needs a window manager")
+  END;
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "all deleted");

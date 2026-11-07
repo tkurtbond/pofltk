@@ -2709,3 +2709,164 @@ and says so in an alert.
 **Confirmed:** on Xvfb with `xdotool`, 2026-11-06: a stroke begun at the
 top left dot starts there with the new `Fonts`, and at the second dot
 with the old; both save the same table, and the new one shows the alert.
+
+## 147. A key that types text never reaches a key binding
+
+**What happens:** an `Fl_Text_Editor` binding of a key that types text,
+such as `q` with no modifier or with Shift, is never called, and neither
+is the default key function for it: the editor types the character. Its
+documentation says the default key function gets the keys bound to
+nothing. Found 2026-11-06, binding the key bindings (Phase 24).
+
+**Cause:** `Fl_Text_Editor::handle_key` (`src/Fl_Text_Editor.cxx:639`)
+calls `Fl::compose` first, which takes any key with text and no Ctrl,
+Alt or Meta as text to insert, and returns before the bindings are
+searched. Only keys `compose` refuses, the function keys and those with
+Ctrl, Alt or Meta, reach `bound_key_function` and
+`default_key_function_`.
+
+**Effect on pofltk:** none to work around: a binding is the program's
+choice. `FlText`'s module comment says which keys can be bound.
+
+**Confirmed:** `TestKeys` ("a key that types text is typed, not given the
+default (147)"), on Xvfb and headless sway, 2026-11-06.
+
+## 148. `tab_nav(0)` removes whatever Tab is bound to
+
+**What happens:** `Fl_Text_Editor::tab_nav(0)` removes the newest
+binding of Tab with no modifier, whatever it is: a program's own binding
+of Tab, which then uncovers an older one, and not the `kf_ignore` that
+`tab_nav(1)` added, if a binding of the program's is newer.
+
+**Cause:** `tab_nav` (`src/Fl_Text_Editor.cxx:824`) is
+`add_key_binding(FL_Tab, 0, kf_ignore)` or `remove_key_binding(FL_Tab,
+0)`, which removes the first exact match, and `tab_nav()` is whether that
+match is `kf_ignore`.
+
+**Effect on pofltk:** `TextEditor.SetTabNav(FALSE)` does what FLTK does,
+as its comment says, and keeps the Oberon list of bindings in step
+through the same removal as `RemoveKeyBinding`.
+
+**Confirmed:** by the source; `TestKeys` checks `SetTabNav` both ways.
+
+## 149. Full screen, a window's fixed size, and iconize
+
+**What happens:**
+
+- A window shown with no resizable widget and no size range gets a size
+  range of its own size, for good, and `fullscreen()` of it then does
+  nothing: setting a resizable widget afterwards doesn't help.
+- `fullscreen_screens` checks no screen number but for a negative one,
+  which means the window's own screen. Wayland ignores the numbers.
+- `iconize()` of a window not shown shows it, minimized; of a shown one,
+  it needs a window manager on X11, and does nothing on a bare Xvfb.
+
+**Cause:** `Fl_Window::default_size_range` (`src/Fl_Window.cxx:797`),
+called as the window is shown, sets `size_range(w(), h(), w(), h())` and
+marks the range set; `fullscreen()` (`src/Fl_Window_fullscreen.cxx:39`)
+returns unless `is_resizable()`. `fullscreen_screens`
+(`src/Fl_Window_fullscreen.cxx:72`); X11 passes the numbers to the window
+manager (`src/Fl_x.cxx:2458`), and `Fl_Wayland_Window_Driver::fullscreen_on`
+reads none. `Fl_Window::iconize` (`src/Fl_Window_iconize.cxx:20`) uses
+`show_next_window_iconic` for a window not shown; X11's driver asks the
+window manager (`XIconifyWindow`).
+
+**Effect on pofltk:** `Window.Fullscreen`'s comment says a window of
+fixed size can't go full screen, and that `SizeRange` fixes it;
+`FullscreenScreens` and `Iconize` say what FLTK does.
+
+**Confirmed:** `TestWidget`, on Xvfb and headless sway, 2026-11-06:
+`Fullscreen` of a window shown without a resizable widget does nothing,
+and does after `SizeRange`; `Iconize` of a window not shown shows it;
+`Iconize` of a shown one is skipped on X11 with no window manager.
+
+## 150. A menu popped up in no window, with none shown, crashes
+
+**What happens:** `Fl_Menu_Item::popup` or `pulldown` of a menu, or
+`Fl_Menu_Button::popup` of a button in no window, with no window shown,
+is a segmentation fault. And neither `Fl_Menu_Item::popup` nor
+`pulldown` calls the picked item's callback: they return the item.
+
+**Cause:** `Fl_Menu_Item::pulldown` (`src/Fl_Menu.cxx:995`), which
+`popup` calls too, takes the window from the widget, or, in none,
+`Fl::first_window()`, and calls its `screen_num()` without a test
+(`:1000`). `Fl_Menu_Button::popup` calls
+`picked`, which does the callback; the item's own popup doesn't.
+
+**Effect on pofltk:** `Menu.Popup`, `PopupAt` and `Pulldown` halt with
+`Fl.ClosedResource` (73) when there is no window to pop up over
+(`HaltPopup`); the shim calls the menu's `picked` for the item chosen, so
+its `Callback` is done, as `Popup`'s is.
+
+**Confirmed:** a scratch program segfaulted, on Xvfb, 2026-11-06;
+`HaltPopup` halts 73 on Xvfb and headless sway; `TestMenus` checks
+`PopupAt` and `Pulldown`, on X11 alone (issue 28).
+
+## 151. `wrapped_row` and `wrapped_column` read one past the rows
+
+**What happens:** `Fl_Text_Display::wrapped_row(row)` and
+`wrapped_column(row, column)`, with `row` equal to the number of rows the
+display shows, read past the end of the display's line starts. Valgrind
+shows an invalid read of 4 bytes after a block of `mNVisibleLines * 4`.
+
+**Cause:** both (`src/Fl_Text_Display.cxx:1217`, `:1245`) test
+`row > mNVisibleLines`, not `>=`, then read `mLineStarts[row]`, an array
+of `mNVisibleLines`.
+
+**Effect on pofltk:** the shim returns what FLTK returns for a row
+outside (the row or the column it is given) for `row >= mNVisibleLines`,
+reaching the protected count through a class derived from
+`Fl_Text_Display`. A display lays out its rows only when it is drawn
+itself, not when its window is drawn into an image surface, so
+`TextDisplay.WrappedRow` is right only after a draw of the display.
+
+**Confirmed:** a scratch program under valgrind, on Xvfb, 2026-11-06;
+`TestText` checks rows past the end under `make valgrind-headless`.
+
+## 152. A texture pile of 0 or less crashes GL text
+
+**What happens:** after `gl_texture_pile_height(0)`, the next text
+`gl_draw` draws with textures is a division by zero (SIGFPE); after a
+negative height, a segmentation fault. FLTK takes both.
+
+**Cause:** the setter (`src/gl_draw.cxx:491`) makes a
+`gl_texture_fifo(max)`, which `calloc`s `max` entries, NULL for a
+negative one, and `compute_texture` (`:415`) does
+`current = (current + 1) % size_`. Textures are used for text where GL
+is version 3 or later, or has a texture rectangle extension (`:79`), as
+Mesa's does.
+
+**Effect on pofltk:** `FlGl.SetTexturePileHeight` halts with
+`Fl.Unsupported` (78) for less than 1 (`HaltGlTexturePile`).
+
+**Confirmed:** a scratch program drawing text in an `Fl_Gl_Window` on
+Xvfb (Mesa, GL 4.6 compatibility), 2026-11-06: a pile of 1 draws, 0 is
+SIGFPE and -3 a segmentation fault. A first try, with no `ortho()`,
+crashed with neither: its text's raster position was invalid, and
+`draw_string_with_texture` returns before the pile then.
+
+## 153. Line numbers: a printf format, and shown windows alone
+
+**What happens:**
+
+- `Fl_Text_Display::linenumber_format` is used as a printf format, with
+  each line's number as its one argument, so a format with another
+  conversion, a `%s` or a `%n`, or two, reads or writes arguments that
+  aren't there.
+- A display's line numbers are drawn only in a shown window, not when its
+  window, never shown, is drawn into an image surface.
+
+**Cause:** `draw_line_numbers` (`src/Fl_Text_Display.cxx`) does
+`snprintf(lineNumString, sizeof(lineNumString), linenumber_format(),
+lineNum)`, into 16 bytes, and returns first if `!visible_r()` (`:3190`).
+The format is copied (`fl_strdup`, `:349`).
+
+**Effect on pofltk:** `TextDisplay.SetLineNumberFormat` takes `%%` and at
+most one `d`, `i`, `o`, `u`, `x` or `X` conversion, with flags, a width
+and a precision, and halts with `Fl.Unsupported` (78) for anything else
+(`HaltLineNumberFormat`). `TestText` checks line numbers in a shown
+window.
+
+**Confirmed:** by the source, and `TestText` on Xvfb and headless sway,
+2026-11-06: in a capture of a window never shown, no line number was
+drawn.

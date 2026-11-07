@@ -14,6 +14,8 @@ PROCEDURE ["C", "ofltest_write"] CWrite(fd: SYSTEM.INT32; s: ARRAY OF CHAR): SYS
 PROCEDURE ["C", "ofltest_read"] CRead(fd: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_close"] CClose(fd: SYSTEM.INT32);
 PROCEDURE ["C", "ofltest_pixel"] CPixel(x, y: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_grab"] CGrab(VAR r: ARRAY OF SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofltest_icon_words"] CIconWords(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_shown_pixel"] CShownPixel(w: SYSTEM.ADDRESS; x, y: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_release"] CRelease;
 PROCEDURE ["C", "ofltest_mouse"] CMouse(win: SYSTEM.ADDRESS; event, x, y, button, state, clicks: SYSTEM.INT32): SYSTEM.INT32;
@@ -38,6 +40,22 @@ END Capture;
 PROCEDURE Kept*(w: Fl.Widget): INTEGER;
 BEGIN RETURN CKept(w.h)
 END Kept;
+
+(* The screen rectangle of the window FLTK grabs events to, an open menu;
+   FALSE if there is none. *)
+PROCEDURE Grab*(VAR x, y, w, h: INTEGER): BOOLEAN;
+  VAR r: ARRAY 4 OF SYSTEM.INT32; ok: BOOLEAN;
+BEGIN
+  ok := CGrab(r) # 0;
+  IF ok THEN x := r[0]; y := r[1]; w := r[2]; h := r[3] END;
+  RETURN ok
+END Grab;
+
+(* The 32-bit words of the icons shown window w gave the window manager:
+   for each, its width, height and pixels; -1 off X11. *)
+PROCEDURE IconWords*(w: Fl.Window): INTEGER;
+BEGIN RETURN CIconWords(w.h)
+END IconWords;
 
 (* Pixel x, y of what shown window w shows, as Fl.RGB gives it. *)
 PROCEDURE ShownPixel*(w: Fl.Window; x, y: INTEGER): INTEGER;

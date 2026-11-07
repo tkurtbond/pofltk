@@ -201,6 +201,7 @@ PROCEDURE ["C", "ofl_tree_icon"] CTreeIcon(t: SYSTEM.ADDRESS; what: SYSTEM.INT32
 PROCEDURE ["C", "ofl_tree_item_icon"] CTreeItemIcon(t, p: SYSTEM.ADDRESS; what: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_image"] CWidgetImage(w: SYSTEM.ADDRESS; slot: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_icon"] CWindowIcon(w, i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_icons"] CWindowIcons(w: SYSTEM.ADDRESS; is: ARRAY OF SYSTEM.ADDRESS; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_window_shape"] CWindowShape(w, i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_image_cursor"] CWindowCursor(w, i: SYSTEM.ADDRESS; hotx, hoty: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_image_tiled"] CTiled(t: SYSTEM.ADDRESS; w, h: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -566,6 +567,41 @@ END SetInactiveImage;
 PROCEDURE SetIcon*(win: Fl.Window; i: Image);
 BEGIN CWindowIcon(Fl.Live(win), Handle(i))
 END SetIcon;
+
+(* The handles of icons[0] to icons[n - 1], to give FLTK, which copies
+   them. *)
+PROCEDURE Icons(w: SYSTEM.ADDRESS; icons-: ARRAY OF Image; n: INTEGER);
+  VAR hs: POINTER TO ARRAY OF SYSTEM.ADDRESS; k: INTEGER;
+BEGIN
+  ASSERT((n >= 0) & (n <= LEN(icons)), Fl.IndexOutOfRange);
+  IF n = 0 THEN NEW(hs, 1) ELSE NEW(hs, n) END;
+  FOR k := 0 TO n - 1 DO
+    ASSERT(icons[k] # NIL, Fl.NilArgument);
+    hs[k] := Hd(icons[k])
+  END;
+  CWindowIcons(w, hs^, n)
+END Icons;
+
+(* The icons the window system may show for win, of different sizes, from
+   which it picks: icons[0] to icons[n - 1], copied; n 0 for none. An image
+   with no pixels to read (a tiled one, a Bitmap) is left out. Wayland has
+   none, and ignores them. *)
+PROCEDURE SetIcons*(win: Fl.Window; icons-: ARRAY OF Image; n: INTEGER);
+BEGIN Icons(Fl.Live(win), icons, n)
+END SetIcons;
+
+(* The same, for every window shown from now on with no icon of its own. *)
+PROCEDURE SetDefaultIcons*(icons-: ARRAY OF Image; n: INTEGER);
+BEGIN Icons(0, icons, n)
+END SetDefaultIcons;
+
+(* One default icon; NIL for none. *)
+PROCEDURE SetDefaultIcon*(i: Image);
+  VAR a: ARRAY 1 OF Image;
+BEGIN
+  a[0] := i;
+  IF i = NIL THEN Icons(0, a, 0) ELSE Icons(0, a, 1) END
+END SetDefaultIcon;
 
 (* Shapes win as i's pixels that aren't transparent, or for an image
    with no alpha, aren't black, scaled to win's size, and takes away its

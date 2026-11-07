@@ -609,6 +609,8 @@ PROCEDURE ["C", "ofl_widget_delete"] CDelete(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_show"] CShow(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_hide"] CHide(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_redraw"] CRedraw(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_widget_redraw_label"] CRedrawLabel(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_widget_measure_label"] CMeasureLabel(w: SYSTEM.ADDRESS; wrap: SYSTEM.INT32; VAR ww, hh: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_do_callback"] CDoCallback(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_visible"] CVisible(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_default_callback"] CDefaultCallback(w: SYSTEM.ADDRESS);
@@ -748,6 +750,8 @@ PROCEDURE ["C", "ofl_window_modal"] CModal(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_fullscreen"] CFullscreen(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_fullscreen_off"] CFullscreenOff(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_fullscreen_active"] CFullscreenActive(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_window_fullscreen_screens"] CFullscreenScreens(w: SYSTEM.ADDRESS; top, bottom, left, right: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_window_iconize"] CIconize(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_set_color"] CSetIndexColor(i, c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_get_rgb"] CGetRGB(c: SYSTEM.INT32; VAR r, g, b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_linespacing"] CMenuLinespacing(): SYSTEM.INT32;
@@ -917,6 +921,20 @@ END Visible;
 PROCEDURE (w: Widget) Redraw*;
 BEGIN CRedraw(Live(w))
 END Redraw;
+
+(* Redraws w's label alone, and for a label outside w, the part of its
+   window under it. *)
+PROCEDURE (w: Widget) RedrawLabel*;
+BEGIN CRedrawLabel(Live(w))
+END RedrawLabel;
+
+(* The size of w's label, text and image, in its font, wrapped at wrap
+   pixels, or not if wrap is 0; 0 0 for no label. It sets the current
+   font (FlDraw) to the label's. *)
+PROCEDURE (w: Widget) MeasureLabel*(wrap: INTEGER; VAR width, height: INTEGER);
+  VAR ww, hh: SYSTEM.INT32;
+BEGIN CMeasureLabel(Live(w), wrap, ww, hh); width := ww; height := hh
+END MeasureLabel;
 
 (* Calls w's Callback, as FLTK does. *)
 PROCEDURE (w: Widget) DoCallback*;
@@ -1325,6 +1343,10 @@ PROCEDURE (w: Window) Modal*(): BOOLEAN;
 BEGIN RETURN CModal(Live(w)) # 0
 END Modal;
 
+(* Fills the screen with the window, unless the window can't be resized:
+   one with neither a resizable widget nor a size range. Showing such a
+   window fixes its size range for good, so a resizable widget set later
+   doesn't help; SizeRange does (doc/fltk-issues.md, 149). *)
 PROCEDURE (w: Window) Fullscreen*;
 BEGIN CFullscreen(Live(w))
 END Fullscreen;
@@ -1332,6 +1354,19 @@ END Fullscreen;
 PROCEDURE (w: Window) FullscreenOff*;
 BEGIN CFullscreenOff(Live(w))
 END FullscreenOff;
+
+(* The screens a full screen window spans: the ones whose top, bottom,
+   left and right edges it takes, numbered as Fl.ScreenXYWH numbers them;
+   any negative is the window's own screen, as to start with. Wayland
+   ignores them. *)
+PROCEDURE (w: Window) FullscreenScreens*(top, bottom, left, right: INTEGER);
+BEGIN CFullscreenScreens(Live(w), top, bottom, left, right)
+END FullscreenScreens;
+
+(* Minimizes the window, or shows it minimized if it isn't shown. *)
+PROCEDURE (w: Window) Iconize*;
+BEGIN CIconize(Live(w))
+END Iconize;
 
 PROCEDURE (w: Window) FullscreenActive*(): BOOLEAN;
 BEGIN RETURN CFullscreenActive(Live(w)) # 0

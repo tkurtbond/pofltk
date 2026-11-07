@@ -133,6 +133,8 @@ PROCEDURE ["C", "ofl_gl_draw_at"] CDrawAt(s: ARRAY OF CHAR; x, y: LONGREAL);
 PROCEDURE ["C", "ofl_gl_draw_in"] CDrawIn(s: ARRAY OF CHAR; x, y, w, h, align: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_gl_draw_image"] CDrawImage(data: ARRAY OF CHAR; x, y, w, h, d: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_gl_texture_reset"] CTextureReset;
+PROCEDURE ["C", "ofl_gl_texture_pile_height"] CTexturePileHeight(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_set_texture_pile_height"] CSetTexturePileHeight(max: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_gl_begin"] CBegin(mode: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_gl_end"] CEnd;
 PROCEDURE ["C", "ofl_gl_clear"] CClear(mask: SYSTEM.INT32);
@@ -385,6 +387,18 @@ END DrawImage;
 PROCEDURE TextureReset*;
 BEGIN CTextureReset
 END TextureReset;
+
+(* How many strings' textures FLTK keeps for text, 100 to start with. *)
+PROCEDURE TexturePileHeight*(): INTEGER;
+BEGIN RETURN CTexturePileHeight()
+END TexturePileHeight;
+
+(* Frees the textures kept, and keeps max from now on. FLTK takes 0 and
+   crashes at the next text drawn (a division by 0), and a negative max
+   (doc/fltk-issues.md, 152): max < 1 halts with Fl.Unsupported. *)
+PROCEDURE SetTexturePileHeight*(max: INTEGER);
+BEGIN ASSERT(max >= 1, Fl.Unsupported); CSetTexturePileHeight(max)
+END SetTexturePileHeight;
 
 (* GL *)
 

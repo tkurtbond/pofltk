@@ -18,6 +18,7 @@ VAR
   label: ARRAY 64 OF CHAR;
   new, open, file, k: INTEGER;
   i, j, tile, tiled, copy: FlImages.Image;
+  icons: ARRAY 2 OF FlImages.Image;
   shaped: Fl.Window;
   s, t: FlImages.Surface;
   bits: ARRAY 64 OF CHAR;
@@ -524,6 +525,54 @@ BEGIN
   ok := Fl.Check();
   shaped.SetCursor(Fl.CursorDefault);
   Check.Check(FlImages.openImages = n, "SetCursor, in a window shown and not, keeps nothing of the image");
+  shaped.Delete;
+
+  (* Icons: FLTK copies them, and X11's gives the window manager each one's
+     width, height and pixels (Probe.IconWords); a tiled image is left out.
+     Wayland ignores them. *)
+  NEW(shaped); Fl.OpenWindow(shaped, 40, 40, "icons"); shaped.End;
+  shaped.Show; ok := Fl.Check();
+  n := FlImages.openImages;
+  NEW(icons[0]); FlImages.OpenRGB(icons[0], bits, 4, 2, 3, 0);
+  NEW(icons[1]); FlImages.OpenRGB(icons[1], bits, 2, 1, 3, 0);
+  FlImages.SetIcons(shaped, icons, 2); icons[0].Close; icons[1].Close;
+  ok := Fl.Check();
+  Check.Check(FlImages.openImages = n, "SetIcons keeps nothing of the images");
+  IF Probe.IconWords(shaped) >= 0 THEN
+    Check.Check(Probe.IconWords(shaped) = 2 + 4 * 2 + 2 + 2 * 1, "SetIcons: both, on X11")
+  ELSE Check.Skip("SetIcons: both, on X11")
+  END;
+  NEW(j); FlImages.OpenRGB(j, bits, 4, 2, 3, 0);
+  NEW(icons[0]); FlImages.OpenTiled(icons[0], j, 8, 8); j.Close;
+  FlImages.SetIcons(shaped, icons, 1); icons[0].Close;
+  ok := Fl.Check();
+  IF Probe.IconWords(shaped) >= 0 THEN
+    Check.Check(Probe.IconWords(shaped) = 0, "SetIcons leaves out a tiled image")
+  ELSE Check.Skip("SetIcons leaves out a tiled image")
+  END;
+  shaped.Delete;
+  NEW(j); FlImages.OpenRGB(j, bits, 4, 2, 3, 0);
+  FlImages.SetDefaultIcon(j); j.Close;
+  NEW(shaped); Fl.OpenWindow(shaped, 40, 40, "default icon"); shaped.End;
+  shaped.Show; ok := Fl.Check();
+  Check.Check(FlImages.openImages = n, "SetDefaultIcon keeps nothing of the image");
+  IF Probe.IconWords(shaped) >= 0 THEN
+    Check.Check(Probe.IconWords(shaped) = 2 + 4 * 2, "a window shown after SetDefaultIcon has it")
+  ELSE Check.Skip("a window shown after SetDefaultIcon has it")
+  END;
+  FlImages.SetIcons(shaped, icons, 0);
+  IF Probe.IconWords(shaped) >= 0 THEN
+    Check.Check(Probe.IconWords(shaped) = 2 + 4 * 2, "SetIcons of none goes back to the default")
+  ELSE Check.Skip("SetIcons of none goes back to the default")
+  END;
+  shaped.Delete;
+  FlImages.SetDefaultIcons(icons, 0);
+  NEW(shaped); Fl.OpenWindow(shaped, 40, 40, "no icon"); shaped.End;
+  shaped.Show; ok := Fl.Check();
+  IF Probe.IconWords(shaped) >= 0 THEN
+    Check.Check(Probe.IconWords(shaped) = 0, "and SetDefaultIcons of none removes it")
+  ELSE Check.Skip("and SetDefaultIcons of none removes it")
+  END;
   shaped.Delete;
 
   i.Close; i.Close;

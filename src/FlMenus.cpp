@@ -376,16 +376,48 @@ void ofl_menu_global(intptr_t m) {
 
 // Menu buttons
 
-// The index of the item picked, after its callback; -1 if none was.
-// Under Wayland a menu popped up over a window shown but not yet on the
-// screen is a fatal protocol error (doc/fltk-issues.md, 28), so this waits
-// for the window first, which takes no time once it is there.
+// The window a menu of m pops up over, m's or, m in none, the first one
+// shown, or 0 for none: FLTK's pulldown takes the first window, unchecked,
+// and crashes with none (doc/fltk-issues.md, 150). Under Wayland a menu
+// popped up over a window shown but not yet on the screen is a fatal
+// protocol error (28), so this waits for the window first, which takes no
+// time once it is there.
+Fl_Window *pop_over(Fl_Menu_ *m) {
+  Fl_Window *top = m->window() ? m->top_window() : Fl::first_window();
+  if (top && top->shown()) top->wait_for_expose();
+  return top;
+}
+
+// The index of the item picked, after its callback; -1 if none was, -2 if
+// there is no window to pop up over.
 int32_t ofl_menu_popup(intptr_t m) {
   Fl_Menu_Button *b = ofl::as<Fl_Menu_Button>(m);
-  Fl_Window *top = b->top_window();
-  if (top && top->shown()) top->wait_for_expose();
+  if (pop_over(b) == 0) return -2;
   if (b->popup() == 0) return -1;
   return b->value();
+}
+
+// Pops up m's items with the top left of the menu at x, y, in m's window
+// (pull 0), or pulls them down below the rectangle x, y, w, h (pull 1),
+// with item picked over it, or none for -1. title, "" for none, is a
+// heading above a popped up menu. As ofl_menu_popup, though the index is
+// the item's before its callback, which may change the menu.
+int32_t ofl_menu_popup_at(intptr_t m, int32_t x, int32_t y, int32_t w,
+                          int32_t h, const char *title, int32_t picked,
+                          int32_t pull) {
+  Fl_Menu_ *mn = menu(m);
+  if (pop_over(mn) == 0) return -2;
+  const Fl_Menu_Item *items = mn->menu_end();
+  if (items == 0) return -1;
+  const Fl_Menu_Item *init = picked >= 0 ? items + picked : 0;
+  Fl_Widget_Tracker t(mn);
+  const Fl_Menu_Item *p =
+      pull ? items->pulldown(x, y, w, h, init, mn)
+           : items->popup(x, y, *title ? title : 0, init, mn);
+  if (p == 0 || !t.exists()) return -1;
+  int32_t i = static_cast<int32_t>(p - items);
+  mn->picked(p);
+  return i;
 }
 
 // System menu bars. These change FLTK's one system menu bar under macOS,

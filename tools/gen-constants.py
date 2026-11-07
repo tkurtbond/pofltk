@@ -282,6 +282,8 @@ add("int", [(camel(k) + "Cursor", "Fl_Text_Display::" + k + "_CURSOR") for k in
 section("a style's attributes (TextDisplay.AddStyle): a line kind, plus a background")
 add("int", [("Attr" + camel(k), "Fl_Text_Display::ATTR_" + k) for k in
             "BGCOLOR BGCOLOR_EXT UNDERLINE GRAMMAR SPELLING STRIKE_THROUGH".split()])
+section("a key binding's state that matches any state (TextEditor.AddKeyBinding)")
+add("set", [("AnyState", "(unsigned)FL_TEXT_EDITOR_ANY_STATE")])
 module("FlBrowsers")
 section("which scrollbars a browser shows (BrowserBase.SetScrollbars)")
 add("int", [("Scrollbar" + camel(k), "Fl_Browser_::" + k) for k in
@@ -484,7 +486,7 @@ HEADERS = ("#include <FL/Fl.H>\n#include <FL/Enumerations.H>\n#include <FL/fl_dr
            "#include <FL/Fl_Scroll.H>\n#include <FL/Fl_Tabs.H>\n"
            "#include <FL/Fl_Menu_Item.H>\n#include <FL/Fl_Menu_Button.H>\n#include <FL/Fl_Sys_Menu_Bar.H>\n#include <FL/fl_ask.H>\n"
            "#include <FL/Fl_Native_File_Chooser.H>\n#include <FL/Fl_File_Chooser.H>\n"
-           "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
+           "#include <FL/Fl_Text_Display.H>\n#include <FL/Fl_Text_Editor.H>\n#include <FL/Fl_File_Browser.H>\n#include <FL/Fl_Tree.H>\n"
            "#include <FL/Fl_Table_Row.H>\n#include <FL/Fl_Anim_GIF_Image.H>\n#include <FL/Fl_File_Icon.H>\n#include <FL/Fl_Terminal.H>\n#include <FL/Fl_Paged_Device.H>\n"
            "#include <stdint.h>\n#include <stdio.h>\n")
 

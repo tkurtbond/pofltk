@@ -339,6 +339,14 @@ void ofl_widget_delete(intptr_t w) {
 void ofl_widget_show(intptr_t w) { ofl::widget(w)->show(); }
 void ofl_widget_hide(intptr_t w) { ofl::widget(w)->hide(); }
 void ofl_widget_redraw(intptr_t w) { ofl::widget(w)->redraw(); }
+void ofl_widget_redraw_label(intptr_t w) { ofl::widget(w)->redraw_label(); }
+
+// wrap is the width to wrap at, 0 for none: measure_label takes it in w.
+void ofl_widget_measure_label(intptr_t w, int32_t wrap, int32_t *ww, int32_t *hh) {
+  int W = wrap, H = 0;
+  ofl::widget(w)->measure_label(W, H);
+  *ww = W; *hh = H;
+}
 void ofl_widget_do_callback(intptr_t w) { ofl::widget(w)->do_callback(); }
 
 int32_t ofl_widget_visible(intptr_t w) {
@@ -609,6 +617,15 @@ void ofl_window_fullscreen(intptr_t w) { ofl::as<Fl_Window>(w)->fullscreen(); }
 void ofl_window_fullscreen_off(intptr_t w) {
   ofl::as<Fl_Window>(w)->fullscreen_off();
 }
+
+// FLTK checks no screen number; any negative one is the window's own
+// screen. Wayland ignores them (Fl_Wayland_Window_Driver::fullscreen_on).
+void ofl_window_fullscreen_screens(intptr_t w, int32_t top, int32_t bottom,
+                                   int32_t left, int32_t right) {
+  ofl::as<Fl_Window>(w)->fullscreen_screens(top, bottom, left, right);
+}
+
+void ofl_window_iconize(intptr_t w) { ofl::as<Fl_Window>(w)->iconize(); }
 
 int32_t ofl_window_fullscreen_active(intptr_t w) {
   return ofl::as<Fl_Window>(w)->fullscreen_active() ? 1 : 0;
