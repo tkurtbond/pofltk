@@ -2503,6 +2503,9 @@ PROCEDURE ["C", "ofl_enable_im"] CEnableIM(on: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_version"] CVersion(): LONGREAL;
 PROCEDURE ["C", "ofl_api_version"] CApiVersion(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_abi_version"] CAbiVersion(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_built_version"] CBuiltVersion(): LONGREAL;
+PROCEDURE ["C", "ofl_built_api_version"] CBuiltApiVersion(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_built_abi_version"] CBuiltAbiVersion(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_abi_check"] CAbiCheck(): SYSTEM.INT32;
 
 PROCEDURE Int(b: BOOLEAN): SYSTEM.INT32;
@@ -3035,6 +3038,21 @@ END ApiVersion;
 PROCEDURE AbiVersion*(): INTEGER;
 BEGIN RETURN CAbiVersion()
 END AbiVersion;
+
+(* FLTK's FL_VERSION, FL_API_VERSION and FL_ABI_VERSION: the versions of
+   the headers pofltk was built with, which Version, ApiVersion and
+   AbiVersion, the library running, should match. *)
+PROCEDURE BuiltVersion*(): LONGREAL;
+BEGIN RETURN CBuiltVersion()
+END BuiltVersion;
+
+PROCEDURE BuiltApiVersion*(): INTEGER;
+BEGIN RETURN CBuiltApiVersion()
+END BuiltApiVersion;
+
+PROCEDURE BuiltAbiVersion*(): INTEGER;
+BEGIN RETURN CBuiltAbiVersion()
+END BuiltAbiVersion;
 
 (* Whether the library running suits pofltk's C++ parts. *)
 PROCEDURE AbiCheck*(): BOOLEAN;

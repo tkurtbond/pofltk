@@ -357,7 +357,7 @@ BEGIN
 END TestEvents;
 
 PROCEDURE TestScreens;
-  VAR h, v, s: LONGREAL;
+  VAR h, v, s, bv: LONGREAL;
 BEGIN
   Fl.ScreenDPI(0, h, v);
   Check.Check((h >= 0.0D0) & (v >= 0.0D0), "ScreenDPI");
@@ -372,6 +372,10 @@ BEGIN
   Check.Check(Fl.Version() >= 1.04D0, "Version");
   Check.Check(Fl.ApiVersion() >= 10400, "ApiVersion");
   Check.Check(Fl.AbiVersion() >= 10400, "AbiVersion");
+  v := Fl.Version(); bv := Fl.BuiltVersion();
+  Check.Check(v = bv, "BuiltVersion");
+  Check.Check(Fl.BuiltApiVersion() = Fl.ApiVersion(), "BuiltApiVersion");
+  Check.Check(Fl.BuiltAbiVersion() = Fl.AbiVersion(), "BuiltAbiVersion");
   Check.Check(Fl.AbiCheck(), "AbiCheck")
 END TestScreens;
 

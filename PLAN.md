@@ -2915,10 +2915,37 @@ GL; and last the unit tests and the demo launcher.
   1 and 7 skipped; every valgrind error summary 0); `make test` 2517 on
   NetBSD and FreeBSD and 2509 on OpenBSD; the FLTK variants as in
   AGENTS.md's poc 0.11.2 notes.
-- **Phase 26: Layout.** `resize-example1` to `5c` (10), sharing
+- **Phase 26: Layout** [done]. `resize-example1` to `5c` (10), sharing
   `resize-arrows.cxx` as an example module; `flex_demo`, `flex_login`,
   `grid_alignment`, `grid_buttons`, `grid_dialog`, `grid_login`,
   `fltk-versions` (17).
+
+  Done 2026-11-07. Every port matches FLTK's build with no fuzz, shot
+  for shot, through clicks, typing and resizing. No FLTK problem was
+  found. Findings:
+  - `resize-arrows.cxx` is `examples/ResizeArrows.Mod`, an example
+    module with no C++ part, which the makefile lists in a new
+    `EXAMPLEMODS`, so the examples are rebuilt when it changes.
+  - `fltk-versions` compares the headers' `FL_VERSION`,
+    `FL_API_VERSION` and `FL_ABI_VERSION` with the library's. poc has
+    no preprocessor, so these are `Fl.BuiltVersion`, `BuiltApiVersion`
+    and `BuiltAbiVersion`: the headers pofltk's C++ parts were compiled
+    with, the only gap the phase found, bound and tested
+    (`TestStatics`). Its platform is `Fl.Has(Fl.X11)` or
+    `Has(Fl.Wayland)`, which open the display, as its
+    `fl_open_display()` does.
+  - `Fl_Flex`'s `margin(m, g)` is the margins and the gap, not a left
+    and top margin; `Fl_Grid::layout(rows, cols, margin, gap)` sets the
+    margins and gaps before the layout, so a port calls `SetMargins` and
+    `SetGap` before `SetLayout`.
+  - A grid cell's `align()` after `widget()` is the same as passing the
+    alignment to `widget()`, so the ports pass it to `Place`.
+
+  Counts: `make test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway` give 2537, 2516, 2284 and 2264 `ok` lines here (1, 8,
+  1 and 7 skipped; every valgrind error summary 0); `make test` 2537 on
+  NetBSD and FreeBSD and 2529 on OpenBSD; the FLTK variants as in
+  AGENTS.md's poc 0.11.2 notes.
 - **Phase 27: Drawing and images.** `animated`, `arc`, `clipboard`,
   `contrast`, `coordinates`, `curve`, `icon`, `image`, `label`,
   `line_style`, `line_style_docs`, `pixmap`, `rotated_text`,

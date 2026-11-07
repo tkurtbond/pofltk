@@ -1533,5 +1533,9 @@ double ofl_version(void) { return Fl::version(); }
 int32_t ofl_api_version(void) { return Fl::api_version(); }
 int32_t ofl_abi_version(void) { return Fl::abi_version(); }
 int32_t ofl_abi_check(void) { return Fl::abi_check(FL_ABI_VERSION); }
+// The headers' versions, which pofltk's C++ parts were compiled with.
+double ofl_built_version(void) { return FL_VERSION; }
+int32_t ofl_built_api_version(void) { return FL_API_VERSION; }
+int32_t ofl_built_abi_version(void) { return FL_ABI_VERSION; }
 
 }  // extern "C"

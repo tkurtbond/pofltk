@@ -181,7 +181,12 @@ the system's colours; `Show` does neither.
     `Buttons`, `ColBrowser`, `FastSlow`, `Iconize`, `Inactive`,
     `Input`, `Message`, `Minimum`, `NativeFileChooser`, `Navigation`,
     `Output`, `Pack`, `Radio`, `Resize`, `ResizeBox`, `Scroll`,
-    `Tabs`, `Tile`, `TwoWin`, `Valuators`, `WindowFocus`, `Wizard`.
+    `Tabs`, `Tile`, `TwoWin`, `Valuators`, `WindowFocus`, `Wizard`;
+  - layout: `ResizeExample1` to `ResizeExample5c` (how a group's
+    resizable widget decides what grows, with `examples/ResizeArrows`,
+    an example module, showing the sizes), `FlexDemo`, `FlexLogin`,
+    `GridAlignment`, `GridButtons`, `GridDialog`, `GridLogin`; and
+    `FltkVersions`, the headers' and the library's versions.
 
 ## Modules
 

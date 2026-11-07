@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-11-07, Phases 0 to 25 of PLAN.md are done, and `README.md`
+As of 2026-11-07, Phases 0 to 26 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
 (planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
@@ -217,8 +217,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   click's y. `make` builds them. They wait for the user, so
   `make test` runs each for `EXAMPLETIME` seconds and checks it is still
   running then. `Pipe.Mod` and `Pipe.cpp` are an example module with a
-  C++ part (`popen`), listed in `EXAMPLECXX`; examples are built with
-  `-import-path examples` to find it.
+  C++ part (`popen`), listed in `EXAMPLECXX`; `ResizeArrows.Mod` is one
+  with none (FLTK's `resize-arrows.cxx`), listed in `EXAMPLEMODS`.
+  Examples are built with `-import-path examples` to find them.
 - `GNUmakefile`: build and test (Build, below).
 - `build/`: poc and clang output (ignored by git).
 - `PLAN.md`: design, decisions and findings, by section and phase.
@@ -266,8 +267,8 @@ make clean      # rm -rf build
   a library, tests, halts and examples of its own, and `MISSING`.
 - **A new module** needs its name added to `MODULES`, and a new header to
   `HEADERS`. A test module with a C++ part goes in `TESTCXX`, an example
-  in `EXAMPLES`, and an example's module with a C++ part in
-  `EXAMPLECXX`. `EXAMPLES` is one long line: edit it by matching its
+  in `EXAMPLES`, an example's module with a C++ part in
+  `EXAMPLECXX`, and one without in `EXAMPLEMODS`. `EXAMPLES` is one long line: edit it by matching its
   text, as `sed 's/^\(EXAMPLES := .*Last\)$/\1 New/'`, not by line
   number. An example that needs a command line under `make test` gets
   one in `EXAMPLEARGS`, as `name=argument`. One that ends by itself
@@ -1060,7 +1061,14 @@ None at present.
   4 skipped, with neither Cairo nor Pango; 2227, 20 skipped, with no
   SVG, printing or GL; 2455 with no Forms; 2331 with no GL; 2515 with no
   GLEW; 2473 with no cairo; and on a Wayland FLTK without
-  `FLTK_HAVE_CAIRO`, 2517 on Xvfb and 2496 on sway.
+  `FLTK_HAVE_CAIRO`, 2517 on Xvfb and 2496 on sway. After Phase 26
+  (2026-11-07), 2537 (1 skipped), 2516 (8 skipped), 2284 (1 skipped)
+  and 2264 (7 skipped) here; 2537, 1 skipped, on NetBSD and FreeBSD and
+  2529, 2 skipped, on OpenBSD; 2527, 4 skipped, with neither Cairo nor
+  Pango; 2247, 20 skipped, with no SVG, printing or GL; 2475 with no
+  Forms; 2351 with no GL; 2535 with no GLEW; 2493 with no cairo; and on
+  a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2537 on Xvfb and 2516 on
+  sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
