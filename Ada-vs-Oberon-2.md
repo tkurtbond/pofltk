@@ -88,7 +88,7 @@ against pofltk's code.
 - **Issue 116** said a bad byte becomes U+FFFD. FLTK's default build
   decodes 80–9F as CP1252 and other bad bytes as Latin-1.
 - **The FlGlut overlay guard** rests on a wrong claim (FLTKAda-BUGS 91);
-  already in `000-todo.org`.
+  already in `000-todo.org`. Removed later that day (issue 145).
 
 ### Fixed, 2026-11-06
 
@@ -119,9 +119,11 @@ and 135 amended) and PLAN.md ("FLTKAda's findings"):
 
 F10 and F11 (bytes dropped on long lines) can't be fixed in a binding.
 
-The `vg-check.sh` `operator new` gap in `000-todo.org` probably doesn't
-apply: pofltk's valgrind logs write it demangled, "operator new(unsigned
-long)", which the pattern matches; FLTKAda's write it mangled (`_Znwm`).
+The `vg-check.sh` `operator new` gap in `000-todo.org` doesn't apply:
+pofltk's valgrind logs write it demangled, "operator new(unsigned long)",
+which the pattern matches; FLTKAda's write it mangled (`_Znwm`). Checking
+it later that day found other gaps (`strdup`, `std::`, a C++ part's
+anonymous namespace), now closed (PLAN.md, "The three to-do items").
 
 ## 3. Why FLTKAda has so many more lines
 

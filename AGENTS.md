@@ -494,8 +494,13 @@ font, the drawing back end, or the FPU:
   (`--errors-for-leak-kinds=none`).
 - **`test/vg-check.sh` fails on any leak record whose allocator is
   pofltk's**: the first frame after `malloc`/`calloc`/`realloc`/
-  `operator new` is an `ofl_` function, the `ofl` namespace, or an `Fl*`
-  module.
+  `operator new`, and after `strdup`, `asprintf` and the like and the
+  standard library's templates (`std::`), is an `ofl_` function, the
+  `ofl` namespace, an `Fl*` module, or C++ in a `build/` program (a C++
+  part's anonymous namespace or statics). The `strdup` and `std::`
+  skips and the `build/` rule were added 2026-11-06, when a leak of each kind in `FlText.cpp` (a `strdup`, a
+  `std::string`'s buffer, a `malloc` in `insert_file`) passed the old
+  script; 26 of its records failed the new, and only 6 the old.
   - So **a test must delete every widget it opens**, or it fails
     `make valgrind`.
   - A box never deleted was caught this way. Before the
@@ -784,7 +789,14 @@ held only in C++ memory**.
   and hiding or destroying a window in its display function is a use after
   free in `Fl::flush`. Any event makes its window current. Windows past
   the 31st share number 32. `glutSwapBuffers` in a display function does
-  nothing. `glutMainLoop` is `Fl::run`, and returns.
+  nothing. `glutMainLoop` is `Fl::run`, and returns. The display and
+  overlay procedures are called unchecked, so a NULL one crashes (145): the
+  shim always gives FLTK its own. The overlay takes a window hidden or never
+  shown: it is `glDrawBuffer(GL_FRONT)` on the current context (145), and
+  once made it is drawn at every flush, after a hide too.
+- **The vector font** (`doc/fltk-issues.md`, 146): a dot is column * 8 +
+  row, so the top left one is a 0, ending its letter; `Fonts.Mod` stores
+  each command plus 1, and its saved table leaves that dot out.
 - **GL text** (`doc/fltk-issues.md`, 134, 135): `gl_draw` of text with no
   width crashes in making its texture: a line feed, `0X`, U+200B, and so
   `glutBitmapCharacter` of them, on both back ends, so the shim draws only
@@ -974,6 +986,9 @@ None at present.
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2356 on Xvfb and 2346 on sway.
   After FLTKAda's findings (2026-11-06), 2380, 2370 (3 skipped), 2175
   and 2166 (2 skipped) here; 2380 on NetBSD and FreeBSD and 2372, 1
+  skipped, on OpenBSD. After the three to-do items (2026-11-06), 2383, 2373 (3
+  skipped), 2178 and 2169 (2 skipped) here, the valgrind runs with the
+  stricter `vg-check.sh`; 2383 on NetBSD and FreeBSD and 2375, 1
   skipped, on OpenBSD.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and

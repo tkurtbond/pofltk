@@ -1,4 +1,4 @@
-* TODO Work on FLTKada reports pofltk's valgrind shim may miss leaks from new
+* DONE Work on FLTKada reports pofltk's valgrind shim may miss leaks from new
 pofltk's valgrind shim may miss leaks from new, since the replacement
 allocator reports the same frame for every program; that's your other
 repo, so I'm only reporting it.
@@ -6,3 +6,52 @@ repo, so I'm only reporting it.
 pofltk's test/vg-check.sh has the same operator new gap that FLTKAda's
 copy had, so it probably misses leaks from new in pofltk's shim. I
 haven't checked it there.
+
+Done 2026-11-06: the operator new gap didn't apply, but strdup, std::
+and anonymous-namespace leaks were missed; fixed (PLAN.md, "The three
+to-do items").
+
+* DONE Work on FLTKAda reports examples/Fonts.Mod can't record the top left dot
+Found 2026-11-05 by FLTKAda, porting FLTK's test/fonts.cxx; recorded
+there as FLTK-issues.md F30.
+
+In the vector font editor (F1), a click on the top left dot adds
+nothing, so a stroke begun there starts at the second dot. Each
+letter's strokes are a row of vec ended by 0X, and a dot is stored as
+column * 8 + row, so the top left dot is 0X too. AddCmd finds the first
+0X, writes the dot's 0X there, and the row is unchanged. fonts.cxx has
+the same bug (add_point_cb, vec[255][128]), which Fonts.Mod copied.
+
+The saved table (SaveCB) is a C string per letter, so a 0 inside one
+would end it. FLTKAda's port leaves the dot out on purpose, with a
+comment; a fix that records it would need another encoding, such as
+storing column * 8 + row + 1, for both the editor and the saved table.
+Not checked in pofltk itself: this is from reading Fonts.Mod, which
+shares fonts.cxx's encoding.
+
+Done 2026-11-06: confirmed, and fixed by storing each command plus 1;
+the saved table leaves the dot out, with an alert (doc/fltk-issues.md,
+146).
+
+* DONE Work on FLTKAda reports FlGlut's overlay guard rests on a wrong claim
+Found 2026-11-05 by FLTKAda, porting FLTK's test/glut_test.cxx;
+recorded there as FLTKAda-BUGS.md 91.
+
+src/gl/FlGlut.cpp:332 says "make_overlay_current crashes on a window
+not shown", and can_overlay makes glutEstablishOverlay and
+glutUseLayer(GLUT_OVERLAY) do nothing for one. FLTKAda copied the
+guard, raising instead, and its glut_test port stopped where
+glut_test.cxx calls glutEstablishOverlay after glutHideWindow. On X11
+and Wayland, make_overlay_current is make_overlay and then
+glDrawBuffer(GL_FRONT) (Fl_Gl_Overlay.cxx:69-72,
+Fl_X11_Gl_Window_Driver.cxx:230, Fl_Wayland_Gl_Window_Driver.cxx:255).
+A scratch C++ program made both calls on a hidden GLUT window and on an
+Fl_Glut_Window never shown. It ran to the end on Xvfb and on headless
+sway, with no errors under valgrind. pofltk's guard is harmless,
+since it only skips the call, but it isn't needed, and it makes a
+hidden window's overlay calls do nothing where FLTK's take effect.
+Not checked in pofltk itself.
+
+Done 2026-11-06: confirmed, and the guard removed. Checking it found that
+a NIL display or overlay procedure crashed; fixed too
+(doc/fltk-issues.md, 145).

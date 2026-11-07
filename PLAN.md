@@ -2593,8 +2593,32 @@ fails without its fix.
 - **Issue 116 was wrong**: a bad byte decodes as CP1252 or Latin-1, not
   U+FFFD. `FlUtf8.Encode`'s comment now says a surrogate is encoded as
   it is, and `TestUtf8` checks both.
-- Not done: FLTKAda-BUGS 91, the claim under `FlGlut`'s overlay guard,
-  stays in `000-todo.org`.
+- FLTKAda-BUGS 91, the claim under `FlGlut`'s overlay guard, was done
+  next (below).
+
+### The three to-do items `[done]`
+
+2026-11-06, from `000-todo.org`, each reported by FLTKAda:
+
+- **`test/vg-check.sh` missed leaks.** The `operator new` gap FLTKAda
+  found doesn't apply (pofltk's logs write it demangled, which the
+  pattern matched, and the mangled form is now matched too), but a
+  scratch program leaking each way showed two others: a leak through
+  `strdup` or a `std::` template was charged to libc or libstdc++, and
+  one in a C++ part's anonymous namespace had no `ofl` name. The script
+  now skips those allocators, and takes any non-Oberon frame in a
+  `build/` program as pofltk's. Three deliberate leaks in `FlText.cpp`
+  gave 26 failing records, against 6 with the old script; the real logs
+  give none.
+- **`examples/Fonts.Mod` lost the top left dot** (`doc/fltk-issues.md`,
+  146). The editor stores each command plus 1; the saved table stays in
+  FLTK's encoding, the only one its reader knows, and leaves that dot out
+  with an alert. Decided without the user: changing the saved encoding
+  would make tables FLTK can't use.
+- **`FlGlut`'s overlay guard** (FLTKAda-BUGS 91; `doc/fltk-issues.md`,
+  145): the claim was wrong, and the guard is gone. Checking it found
+  that a NIL display or overlay procedure crashed at the next draw: the
+  shim now always gives FLTK its own. `TestGlut` checks both.
 
 ## Open questions
 

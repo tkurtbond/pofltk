@@ -2650,3 +2650,62 @@ longer title after the first dialog, and fails with the old shim: a
 short text sits inside its `std::string`, so the panel's label was
 overwritten in place, not freed, and valgrind saw nothing. Passes with
 the new, on Xvfb, 2026-11-06.
+
+## 145. GLUT's display and overlay procedures are called unchecked
+
+**What happens:** `glutDisplayFunc(NULL)` or `glutOverlayDisplayFunc(NULL)`
+is taken, and the window's next draw, or overlay draw, calls through
+NULL and crashes. Real GLUT takes a NULL overlay display procedure as
+none. Found 2026-11-06, checking FLTKAda-BUGS 91 (below).
+
+**Cause:** `Fl_Glut_Window::draw` and `draw_overlay`
+(`src/glut_compatibility.cxx:53`, `:69`) call `display()` and
+`overlaydisplay()` without a test; `FL/glut.H` stores what it is given.
+Once a window has an overlay (`make_overlay` sets `overlay` to the window
+itself, and nothing clears it, not even `hide()`), every flush calls
+`draw_overlay` (`Fl_Gl_Window::flush`).
+
+**Effect on pofltk:** `FlGlut.DisplayFunc(NIL)` and
+`OverlayDisplayFunc(NIL)` passed NULL. The shim now always gives FLTK
+`run_display` and `run_overlay`, and `run` does nothing for a window whose
+procedure is NIL.
+
+FLTKAda-BUGS 91 was about pofltk's own claim, not FLTK's: `FlGlut.cpp`
+said `make_overlay_current` crashes on a window not shown, and skipped
+`glutEstablishOverlay` and `glutUseLayer(GLUT_OVERLAY)` on one. It is
+`make_overlay` and then the driver's `glDrawBuffer(GL_FRONT)` on whatever
+context is current (`Fl_Gl_Overlay.cxx:69`,
+`Fl_X11_Gl_Window_Driver.cxx:230`, `Fl_Wayland_Gl_Window_Driver.cxx:255`),
+and doesn't crash. The guard is gone, so an overlay established while a
+window is hidden is drawn when it is shown, as FLTK's is.
+
+**Confirmed:** scratch programs on Xvfb and headless sway, under
+valgrind with no errors: the overlay calls on a window never shown, on
+one hidden, and on each while another window's context is current; and
+a NIL procedure on a shown window, which crashed with the old shim.
+`TestGlut` ("an overlay established while hidden is drawn when shown",
+"NIL display procedures draw nothing") fails, then segfaults, with the
+old shim, and passes with the new, on both back ends, 2026-11-06.
+
+## 146. The vector font table can't hold its top left dot
+
+**What happens:** FLTK's OpenGL vector font (`font_data`) stores each
+letter as a C string of commands, a dot being column * 8 + row, so the
+dot at column 0, row 0 is a 0 byte, which ends the letter. FLTK's
+editor of that table, `test/fonts.cxx`, therefore never records a click
+on that dot: a stroke begun there starts at the next dot. Found by
+FLTKAda (its FLTK-issues.md F30), confirmed in pofltk 2026-11-06.
+
+**Cause:** `add_point_cb` (`test/fonts.cxx:151`) writes the dot over the
+letter's ending 0; the decoder
+(`src/drivers/OpenGL/Fl_OpenGL_Graphics_Driver_font.cxx:122`) stops at 0.
+
+**Effect on pofltk:** `examples/Fonts.Mod`, a port of the editor, had
+the same bug. It now stores each command plus 1, so the dot is
+recorded and drawn. Its saved table is FLTK's encoding, for
+`font_data`, which has no way to write that dot, so `Save` leaves it out
+and says so in an alert.
+
+**Confirmed:** on Xvfb with `xdotool`, 2026-11-06: a stroke begun at the
+top left dot starts there with the new `Fonts`, and at the second dot
+with the old; both save the same table, and the new one shows the alert.

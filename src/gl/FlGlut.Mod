@@ -425,7 +425,9 @@ PROCEDURE SetCursor*(c: INTEGER);
 BEGIN CSetCursor(c)
 END SetCursor;
 
-(* The overlay. It takes a window shown, and these do nothing on one not. *)
+(* The overlay, of the current window, shown or not: FLTK's is the front
+   buffer of the current context, drawn after the window's display
+   procedure, from the first EstablishOverlay or PostOverlayRedisplay on. *)
 
 PROCEDURE EstablishOverlay*;
 BEGIN CEstablishOverlay
@@ -570,7 +572,8 @@ BEGIN
 END DetachMenu;
 
 (* Callbacks of the current window, NIL for none, with no effect if there
-   is none current. *)
+   is none current. A NIL display procedure draws nothing, where FLTK's own
+   would call through NIL. *)
 
 PROCEDURE DisplayFunc*(f: DisplayProc);
 BEGIN CDisplayFunc(f)

@@ -1,13 +1,21 @@
 MODULE Fonts; (* FLTK's test/fonts.cxx: every font the system has, at its sizes; F1 opens an editor of vector fonts *)
 
 (* FLTK's copies each font's sizes at the start. This asks for a font's
-   as it is picked, as it can with no pointer of FLTK's to keep. *)
+   as it is picked, as it can with no pointer of FLTK's to keep.
+
+   FLTK's editor stores a dot as column * 8 + row, and 0 ends a letter, so
+   its top left dot, 0, is never recorded (FLTKAda's FLTK-issues.md, F30).
+   This one stores each command plus 1, so the dot is kept and drawn. The
+   saved table is in FLTK's encoding, for its OpenGL driver's font_data
+   (Fl_OpenGL_Graphics_Driver_font.cxx), which has no way to write that
+   dot: Save leaves it out, and says so. *)
 
 IMPORT Files, OutStr, Strings, Fl, FlBrowsers, FlButtons, FlDialogs, FlDraw, FlLayout, FlUtf8;
 
 CONST
   maxSizes = 256;
   points = 128;  (* of a character in the editor *)
+  gap = 64;  (* in FLTK's encoding, as a point is column * 8 + row *)
 
 TYPE
   FontDisplay = POINTER TO RECORD (Fl.BoxDesc)
@@ -18,7 +26,7 @@ TYPE
 
   (* An editor's dot, which adds its point to the character. *)
   Dot = POINTER TO RECORD (FlButtons.ButtonDesc)
-    point: CHAR
+    point: INTEGER  (* FLTK's command *)
   END;
 
   MainWindow = POINTER TO RECORD (Fl.DoubleWindowDesc) END;
@@ -33,7 +41,7 @@ VAR
   pickedSize: INTEGER;
   label: ARRAY 1000H OF CHAR;
   currentChar: INTEGER;
-  vec: ARRAY 256, points + 1 OF CHAR;
+  vec: ARRAY 256, points + 1 OF CHAR;  (* FLTK's commands, each plus 1; 0X ends *)
 
 PROCEDURE (d: FontDisplay) Draw*;
 BEGIN
@@ -122,16 +130,15 @@ BEGIN
   FlDraw.LineStyle(FlDraw.Solid + FlDraw.CapRound + FlDraw.JoinRound, 10);
   rendering := FALSE;
   i := 0;
-  cmd := ORD(vec[currentChar, 0]);
-  WHILE cmd # 0 DO
+  WHILE vec[currentChar, i] # 0X DO
+    cmd := ORD(vec[currentChar, i]) - 1;
     IF cmd > 63 THEN
-      IF (cmd = 64) & rendering THEN FlDraw.EndLine; rendering := FALSE END
+      IF (cmd = gap) & rendering THEN FlDraw.EndLine; rendering := FALSE END
     ELSE
       IF ~rendering THEN FlDraw.BeginLine; rendering := TRUE END;
       FlDraw.Vertex((cmd DIV 8) * 16 + 18, (cmd MOD 8) * 32 + 26)
     END;
-    INC(i);
-    cmd := ORD(vec[currentChar, i])
+    INC(i)
   END;
   IF rendering THEN FlDraw.EndLine END;
   FlDraw.LineStyle(FlDraw.Solid, 1);
@@ -140,13 +147,13 @@ BEGIN
   FlDraw.PopClip
 END Draw;
 
-(* Adds a point to the current character, while it has room. *)
-PROCEDURE AddCmd(cmd: CHAR);
+(* Adds FLTK's command cmd to the current character, while it has room. *)
+PROCEDURE AddCmd(cmd: INTEGER);
   VAR i: INTEGER;
 BEGIN
   i := 0;
   WHILE (i < points) & (vec[currentChar, i] # 0X) DO INC(i) END;
-  IF i < points THEN vec[currentChar, i] := cmd END;
+  IF i < points THEN vec[currentChar, i] := CHR(cmd + 1) END;
   letter.Redraw
 END AddCmd;
 
@@ -155,7 +162,7 @@ BEGIN AddCmd(w(Dot).point)
 END AddPointCB;
 
 PROCEDURE AddGapCB(w: Fl.Widget);
-BEGIN AddCmd(CHR(64))
+BEGIN AddCmd(gap)
 END AddGapCB;
 
 PROCEDURE ClearCB(w: Fl.Widget);
@@ -216,9 +223,10 @@ PROCEDURE SaveCB(w: Fl.Widget);
     filename: ARRAY 1024 OF CHAR;
     f: Files.File;
     r: Files.Rider;
-    i, k: INTEGER;
+    i, k, lost: INTEGER;
 BEGIN
   filename := "";
+  lost := 0;
   IF FlDialogs.ChooseFile("Save font as:", "", filename, FALSE) THEN
     f := Files.New(filename);
     IF f = NIL THEN
@@ -236,7 +244,9 @@ BEGIN
           Put(r, 22X);
           k := 0;
           WHILE vec[i, k] # 0X DO
-            Put(r, "\"); PutDigits(r, ORD(vec[i, k]), 8);
+            IF vec[i, k] = 1X THEN INC(lost)  (* the top left dot *)
+            ELSE Put(r, "\"); PutDigits(r, ORD(vec[i, k]) - 1, 8)
+            END;
             INC(k)
           END;
           Put(r, 22X)
@@ -246,7 +256,10 @@ BEGIN
       END;
       Put(r, "};"); Put(r, 0AX); Put(r, 0AX);
       Files.Register(f);
-      Files.Close(f)
+      Files.Close(f);
+      IF lost > 0 THEN
+        FlDialogs.Alert("FLTK's table has no way to write the top left dot, so it was left out.")
+      END
     END
   END
 END SaveCB;
@@ -275,7 +288,7 @@ BEGIN
     FOR j := 0 TO 7 DO
       NEW(d); FlButtons.OpenButton(d, i * 16 + 13, j * 32 + 21, 10, 10, "");
       d.SetBoxType(Fl.OvalBox);
-      d.point := CHR(i * 8 + j);
+      d.point := i * 8 + j;
       d.action := AddPointCB
     END
   END;

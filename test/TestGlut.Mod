@@ -18,7 +18,7 @@ VAR
   motions, passive, entries, entered, visible, invisible, idles, timer,
   picked, menuState, menuStatus, picks, hiding, rethinking, dying: INTEGER;
   answerPick: BOOLEAN;
-  fontDraws: INTEGER;
+  fontDraws, overlays: INTEGER;
   pixels: ARRAY 3 * FontW * FontH OF CHAR;
 
 PROCEDURE Display;
@@ -32,6 +32,10 @@ BEGIN
   red := ORD(p[0]);
   FlGlut.SwapBuffers
 END Display;
+
+PROCEDURE OverlayDisplay;
+BEGIN INC(overlays)
+END OverlayDisplay;
 
 (* Hides the current window, as it draws. *)
 PROCEDURE Hiding;
@@ -292,11 +296,33 @@ BEGIN
   i := 0;
   WHILE (invisible = 0) & (i < Limit) DO Waits; INC(i) END;
   Check.Check(invisible > 0, "visibility hears it hidden");
-  FlGlut.ShowWindow;
-  Waits;
+  (* the overlay is glDrawBuffer on the current context, so a hidden window
+     takes it as a shown one does *)
   FlGlut.SetWindow(n);
+  overlays := 0;
+  FlGlut.OverlayDisplayFunc(OverlayDisplay);
   FlGlut.EstablishOverlay;
+  FlGlut.UseLayer(FlGlut.Overlay);
   FlGlut.UseLayer(FlGlut.Normal);
+  FlGlut.PostOverlayRedisplay;
+  Check.Check(overlays = 0, "nor drawn while hidden");
+  FlGlut.ShowWindow;
+  i := 0;
+  WHILE (overlays = 0) & (i < Limit) DO Waits; INC(i) END;
+  Check.Check(overlays > 0, "an overlay established while hidden is drawn when shown");
+  (* FLTK calls these unchecked; NIL draws nothing. Wayland redraws the
+     subwindow with its parent. *)
+  FlGlut.SetWindow(n2);
+  FlGlut.DisplayFunc(NIL);
+  FlGlut.SetWindow(n);
+  FlGlut.OverlayDisplayFunc(NIL);
+  FlGlut.DisplayFunc(NIL);
+  draws := 0;
+  FlGlut.PostRedisplay;
+  FlGlut.PostOverlayRedisplay;
+  Waits; Waits;
+  Check.Check(draws = 0, "NIL display procedures draw nothing");
+  FlGlut.SetWindow(n);
   FlGlut.RemoveOverlay;
 
   FlGlut.SetWindow(n);

@@ -67,10 +67,13 @@ int displaying = 0;
 
 // What FLTK calls, with the window drawn current, in place of the procedures
 // the program gave it, so that FlGlut knows it is inside Fl::flush. A window
-// going can be drawn before it has gone, and has no number by then.
+// going can be drawn before it has gone, and has no number by then. FLTK
+// calls its display and overlay procedures unchecked, so they are always
+// these, and a NIL one draws nothing here (glut_compatibility.cxx, draw and
+// draw_overlay; doc/fltk-issues.md, 145).
 void run(void (*const *of)()) {
   int n = glut_window->number;
-  if (destroyed[n]) return;
+  if (destroyed[n] || !of[n]) return;
   displaying++;
   of[n]();
   displaying--;
@@ -331,18 +334,16 @@ void ofl_glut_set_cursor(int32_t c) {
   glutSetCursor(static_cast<Fl_Cursor>(c));
 }
 
-// The overlay: make_overlay_current crashes on a window not shown.
+// The overlay. FLTK's is glDrawBuffer(GL_FRONT) on whatever context is
+// current (Fl_Gl_Overlay.cxx, and each driver's make_overlay_current), so
+// a window hidden or never shown takes it as a shown one does.
 
-static bool can_overlay() { return glut_window && glut_window->shown(); }
-
-void ofl_glut_establish_overlay(void) {
-  if (can_overlay()) glutEstablishOverlay();
-}
+void ofl_glut_establish_overlay(void) { glutEstablishOverlay(); }
 
 void ofl_glut_remove_overlay(void) { glutRemoveOverlay(); }
 
 void ofl_glut_use_layer(int32_t layer) {
-  if (layer == GLUT_NORMAL || can_overlay()) glutUseLayer(layer);
+  glutUseLayer(layer);
 }
 
 void ofl_glut_post_overlay_redisplay(void) { glutPostOverlayRedisplay(); }
@@ -481,7 +482,7 @@ void ofl_glut_detach_menu(int32_t b) { glutDetachMenu(b); }
 void ofl_glut_display_func(void (*f)()) {
   if (!glut_window) return;
   display_of[glut_window->number] = f;
-  glutDisplayFunc(f ? run_display : 0);
+  glutDisplayFunc(run_display);
 }
 void ofl_glut_reshape_func(void (*f)(int, int)) { glutReshapeFunc(f); }
 
@@ -510,7 +511,7 @@ void ofl_glut_special_func(void (*f)(int, int, int)) { glutSpecialFunc(f); }
 void ofl_glut_overlay_display_func(void (*f)()) {
   if (!glut_window) return;
   overlay_of[glut_window->number] = f;
-  glutOverlayDisplayFunc(f ? run_overlay : 0);
+  glutOverlayDisplayFunc(run_overlay);
 }
 
 // Fonts
