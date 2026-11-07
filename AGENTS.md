@@ -230,7 +230,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 | FLTK docs (HTML) | `/usr/share/doc/fltk-devel/html/` |
 | FLTK 1.3 | also installed (`fltk1.3`, runtime only); never build against it |
 | FLUID | `fltk-fluid-1.4.5` |
-| poc | `/usr/bin/poc` (Peaseblossom RPM 0.10.1); `poc(1)`; `/usr/share/doc/peaseblossom/users-guide.md` (§9, "Calling C") and `reference-guide.md` |
+| poc | `/usr/bin/poc` (Peaseblossom RPM 0.11.2); `poc(1)`; `/usr/share/doc/peaseblossom/users-guide.md` (§9, "Calling C") and `reference-guide.md` |
 | poc source | `~/Repos/Oberon/Peaseblossom` |
 | FLTKAda | `/usr/local/sw/src/tkb/fltkada` (`AGENTS.md`, `doc/binding_architecture.md`, `progress.txt`, `test/`) |
 | polibfyaml | `~/Repos/Oberon/polibfyaml` (`AGENTS.md`, `GNUmakefile`, `test/Check.Mod`, `test/poc-gc.supp`) |
@@ -438,7 +438,8 @@ plain X11 drawing. The agent can ssh to it as the user and as root.
   match DejaVu Sans, Serif and Sans Mono. `fc-match sans` checks it.
 - Tested there 2026-10-08: `make test` passes, with the poc 0.4.1
   package (`/usr/local/bin/poc`); 2026-10-15 with poc 0.6.0, all 823
-  `ok` lines; and 2026-10-30 with poc 0.10.1, all 823.
+  `ok` lines; 2026-10-30 with poc 0.10.1, all 823; and 2026-11-07
+  with poc 0.11.2, 2450, 2 skipped.
 
 ### Testing on NetBSD i386 (yishana)
 
@@ -450,18 +451,18 @@ to it as the user and as root.
 - **FLTK** is pkgsrc's: `FLTK_CONFIG=/usr/pkg/bin/fltk-config`. Its
   image libraries name a `-lpng` pkgsrc doesn't install, which the
   makefile drops (`doc/fltk-issues.md`, 71).
-- **poc** is 0.10.1 in `/usr/pkg/bin` (2026-10-30); put `/usr/pkg/bin`
+- **poc** is 0.11.2 in `/usr/pkg/bin` (2026-11-07); put `/usr/pkg/bin`
   first on `PATH` (ssh doesn't).
 - **The display**: Xvfb is X11's, `/usr/X11R7/bin/Xvfb`; start it by
   hand as on cymoril. No sway, and no valgrind on NetBSD.
 - Tested there 2026-10-08: `make test` passes, all 814 checks;
-  2026-10-15 with poc 0.6.0, all 823 `ok` lines; and 2026-10-30 with
-  poc 0.10.1, all 823.
+  2026-10-15 with poc 0.6.0, all 823 `ok` lines; 2026-10-30 with
+  poc 0.10.1, all 823; and 2026-11-07 with poc 0.11.2, 2458, 1 skipped.
 
 ### The other BSD hosts
 
-Surveyed 2026-10-30; each has poc 0.10.1, and the agent can ssh to each
-as the user.
+Surveyed 2026-10-30; each has poc 0.11.2 (2026-11-07), and the agent can
+ssh to each as the user.
 
 - **artos**: NetBSD 11.0 on amd64, set up as yishana is: pkgsrc's FLTK
   1.4.5 with Pango, Xvfb, no sway or valgrind. `make test` passed
@@ -512,7 +513,7 @@ font, the drawing back end, or the FPU:
     that the script still catches a deliberate leak whenever you change
     it.
 
-## Confirmed facts (poc 0.3.1 to 0.10.1, FLTK 1.4.5)
+## Confirmed facts (poc 0.3.1 to 0.11.2, FLTK 1.4.5)
 
 Each was confirmed by a program that ran, in the session of 2026-10-06
 unless it says otherwise.
@@ -971,6 +972,16 @@ workaround.
 
 None at present.
 
+- **poc 0.11.2** (2026-11-07): pofltk builds with it unchanged, and
+  `make test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway` pass here (2458, 2437, 2249 and 2229 `ok` lines, 1, 8,
+  1 and 7 skipped; every valgrind error summary 0), as `make test` does
+  on all six BSDs (2458, 1 skipped, on NetBSD and FreeBSD; 2450, 2
+  skipped, on OpenBSD). The changes since 0.10.1 that could touch pofltk
+  all fail at compile time, none silently: 0.11.0 refuses a function
+  called as a statement and adds predeclared unsigned types and `VAL`;
+  0.11.1 emits a string literal in an array index, which before failed
+  to build (poc's ongoing bug 18).
 - **poc 0.10.1** (2026-10-30): pofltk builds with it unchanged, before
   Phase 14: `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` pass here (823, 819, 753 and 749 `ok` lines; every
