@@ -3071,11 +3071,54 @@ GL; and last the unit tests and the demo launcher.
   2301, 20 skipped, with no SVG, printing or GL; 2529 with no Forms;
   2405 with no GL; 2589 with no GLEW; 2547 with no cairo; and on a
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2591 on Xvfb and 2570 on sway.
-- **Phase 30: OpenGL.** `CubeView` (`CubeViewUI.fl`), `fractals`
+- **Phase 30: OpenGL** [done]. `CubeView` (`CubeViewUI.fl`), `fractals`
   (with `fracviewer`, through GLUT), `fullscreen`, `glpuzzle` (1512,
   GLUT), `handle_events`, `shape` (6), in `GLEXAMPLES`. Binds the
   window's maximize procedures, which `fullscreen` needs without GL
   too.
+
+  Done 2026-11-08. Every shot of all 6 matches FLTK's build with no
+  fuzz. Found:
+  - `Fl`: `Window.Maximize`, `UnMaximize`, `MaximizeActive`,
+    `SetBorder`, `Border`, `ScreenNum` and `SetScreenNum` (halt 74 off
+    the screens; `HaltScreenNum`), and `Widget.SetVisible`
+    (`set_visible`, `clear_visible`), which `fullscreen` needs for a
+    window opened outside its group and added to it: without it the
+    window isn't shown. Maximizing does nothing to a window not shown,
+    not at the top level, not resizable or full screen. `TestWidget`
+    checks them, on X11 and Wayland.
+  - `FlGl`: display lists, culling, depth, lights and materials, the
+    matrix mode and `MultMatrixf`, attributes, `GetFloat` and
+    `GetInteger`, and selection (`SelectBuffer`, `RenderMode`, names).
+    GL keeps the selection buffer, so `FlGl` makes its own, kept, and
+    `SelectBuffer` in select mode halts 77 (`HaltGlSelectBuffer`).
+    The select buffer's depths are unsigned: `glpuzzle`'s port compares
+    them as `HUGEINT`s.
+  - `FlGlut`: all of GLUT's shapes, solid or wire. The torus clamps
+    its counts and the sphere and cone size tables from theirs, so
+    counts are 1 to `MaxCount` (halt 74, `HaltGlutShape`).
+  - `FlGlu`, GLU's view matrices and quadrics, a fourth optional part,
+    `pofltk-glu` (`HAVE_GLU`), since GLU is neither FLTK's nor GL's:
+    `Fractals` and `GlPuzzle` need it. A closed `Quadric` halts 73
+    (`HaltGluClosed`); `PickMatrix` checks its viewport (74,
+    `HaltGluPickMatrix`).
+  - `fractals` and `glpuzzle` animate in an idle procedure or a timer,
+    by the clock. They were compared with a preloaded shim that fixes
+    `time()` and `gettimeofday`, and caps the program's idle calls and
+    its `Fl::add_timeout`s, which it knows by the handler's address:
+    the port's timer chain is a tail call, so its return address is in
+    libfltk.
+  - No FLTK bug found.
+
+  Counts: 2678 (1 skipped), 2655 (9 skipped: maximizing is the
+  compositor's under Wayland), 2392 (1 skipped) and 2370 (8 skipped)
+  for `test-headless`, `test-sway`, `valgrind-headless` and
+  `valgrind-sway`; 2678, 1 skipped, on NetBSD and FreeBSD and 2670, 2
+  skipped, on OpenBSD; 2668, 4 skipped, with neither Cairo nor Pango;
+  2320, 20 skipped, with no SVG, printing or GL; 2616 with no Forms;
+  2424 with no GL; 2676 with no GLEW; 2634 with no cairo; 2656 with no
+  GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2678 on Xvfb and
+  2655 on sway.
 - **Phase 31: Games.** `blocks` (1092), `checkers` (1363, and 1272 of
   `checkers_pieces`), `sudoku` (1443) (3). `blocks` and `sudoku` play
   sounds through ALSA only where FLTK's `test/` was built with its

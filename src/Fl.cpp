@@ -354,6 +354,12 @@ int32_t ofl_widget_visible(intptr_t w) {
   return ofl::widget(w)->visible() ? 1 : 0;
 }
 
+// The flag alone: no FL_SHOW or FL_HIDE, and no redraw.
+void ofl_widget_set_visible(intptr_t w, int32_t v) {
+  if (v) ofl::widget(w)->set_visible();
+  else ofl::widget(w)->clear_visible();
+}
+
 // What FLTK does with no callback of the program's: queue the widget
 // for Fl::readqueue, or for a window, Fl::atclose, which hides it.
 void ofl_widget_default_callback(intptr_t w) {
@@ -665,6 +671,40 @@ void ofl_window_free_position(intptr_t w) {
 
 int32_t ofl_window_fullscreen_active(intptr_t w) {
   return ofl::as<Fl_Window>(w)->fullscreen_active() ? 1 : 0;
+}
+
+// Each does nothing unless the window is shown, at the top level,
+// resizable and not full screen (Fl_Window::maximize).
+void ofl_window_maximize(intptr_t w) { ofl::as<Fl_Window>(w)->maximize(); }
+
+void ofl_window_un_maximize(intptr_t w) {
+  ofl::as<Fl_Window>(w)->un_maximize();
+}
+
+int32_t ofl_window_maximize_active(intptr_t w) {
+  return ofl::as<Fl_Window>(w)->maximize_active() ? 1 : 0;
+}
+
+// A shown window's border changes at once on X11 (sendxjunk) and under
+// Wayland, where FLTK hides and shows a window libdecor doesn't decorate
+// (Fl_Wayland_Window_Driver::use_border).
+void ofl_window_set_border(intptr_t w, int32_t b) {
+  ofl::as<Fl_Window>(w)->border(b);
+}
+
+int32_t ofl_window_border(intptr_t w) {
+  return ofl::as<Fl_Window>(w)->border() ? 1 : 0;
+}
+
+// A subwindow's screen is its top window's; a window shown on none, or
+// never shown, gives 0 (Fl_Window_Driver::screen_num).
+int32_t ofl_window_screen_num(intptr_t w) {
+  return ofl::as<Fl_Window>(w)->screen_num();
+}
+
+// Ignored once the window is shown (Fl_Window::screen_num(int)).
+void ofl_window_set_screen_num(intptr_t w, int32_t n) {
+  ofl::as<Fl_Window>(w)->screen_num(n);
 }
 
 int32_t ofl_window_decorated_w(intptr_t w) {

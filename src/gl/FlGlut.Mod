@@ -33,8 +33,11 @@ MODULE FlGlut; (* FLTK's GLUT emulation: windows, menus and callbacks in GLUT's 
    a stroke font is lines, drawn at the origin, a capital 100 units tall,
    so scale it. Only the stroke fonts' measures work outside a drawing.
 
-   GLUT's shapes (glutSolidCube and the rest) and glutGetProcAddress aren't
-   bound, as FlGl binds only a part of GL: draw with FlGl, or from a C++ part.
+   GLUT's shapes are procedures with solid, TRUE for glutSolid and FALSE for
+   glutWire: Cube(TRUE, 1.0) is glutSolidCube(1.0). Their counts of slices,
+   stacks, sides and rings are 1 to MaxCount, so the tables GLUT makes
+   from them stay small. glutGetProcAddress isn't bound, as FlGl binds only
+   a part of GL: draw with FlGl, or from a C++ part.
 
    The C++ part is FlGlut.cpp. *)
 
@@ -183,6 +186,9 @@ CONST
   StrokeRoman* = 7;
   StrokeMonoRoman* = 8;
 
+  (* the most slices, stacks, sides or rings a shape takes *)
+  MaxCount* = 65536;
+
 TYPE
   (* A GLUT window as a widget: Open it, with its parent group current, and
      it is GLUT's current window to set callbacks on after MakeCurrent. *)
@@ -222,6 +228,11 @@ PROCEDURE ["C", "ofl_glut_stroke_height"] CStrokeHeight(font: SYSTEM.INT32): LON
 PROCEDURE ["C", "ofl_glut_stroke_length"] CStrokeLength(font: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_stroke_string"] CStrokeString(font: SYSTEM.INT32; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_glut_stroke_width"] CStrokeWidth(font, c: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_sphere"] CSphere(solid: SYSTEM.INT32; r: LONGREAL; slices, stacks: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_glut_cone"] CCone(solid: SYSTEM.INT32; base, height: LONGREAL; slices, stacks: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_glut_torus"] CTorus(solid: SYSTEM.INT32; inner, outer: LONGREAL; sides, rings: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_glut_sized"] CSized(solid, shape: SYSTEM.INT32; size: LONGREAL);
+PROCEDURE ["C", "ofl_glut_solid"] CSolid(solid, shape: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_glut_alive"] CAlive(win: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_destroy_window"] CDestroyWindow(win: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_glut_post_redisplay"] CPostRedisplay;
@@ -706,5 +717,51 @@ END StrokeString;
 PROCEDURE StrokeWidth*(font: INTEGER; c: CHAR): INTEGER;
 BEGIN CheckStroke(font); RETURN CStrokeWidth(font, ORD(c))
 END StrokeWidth;
+
+(* GLUT's shapes *)
+
+PROCEDURE Int(b: BOOLEAN): SYSTEM.INT32;
+BEGIN IF b THEN RETURN 1 ELSE RETURN 0 END
+END Int;
+
+PROCEDURE CheckCounts(a, b: INTEGER);
+BEGIN ASSERT((a >= 1) & (a <= MaxCount) & (b >= 1) & (b <= MaxCount), Fl.IndexOutOfRange)
+END CheckCounts;
+
+PROCEDURE Sphere*(solid: BOOLEAN; radius: LONGREAL; slices, stacks: INTEGER);
+BEGIN CheckCounts(slices, stacks); CSphere(Int(solid), radius, slices, stacks)
+END Sphere;
+
+PROCEDURE Cone*(solid: BOOLEAN; base, height: LONGREAL; slices, stacks: INTEGER);
+BEGIN CheckCounts(slices, stacks); CCone(Int(solid), base, height, slices, stacks)
+END Cone;
+
+PROCEDURE Torus*(solid: BOOLEAN; innerRadius, outerRadius: LONGREAL; sides, rings: INTEGER);
+BEGIN CheckCounts(sides, rings); CTorus(Int(solid), innerRadius, outerRadius, sides, rings)
+END Torus;
+
+PROCEDURE Cube*(solid: BOOLEAN; size: LONGREAL);
+BEGIN CSized(Int(solid), 0, size)
+END Cube;
+
+PROCEDURE Teapot*(solid: BOOLEAN; size: LONGREAL);
+BEGIN CSized(Int(solid), 1, size)
+END Teapot;
+
+PROCEDURE Tetrahedron*(solid: BOOLEAN);
+BEGIN CSolid(Int(solid), 0)
+END Tetrahedron;
+
+PROCEDURE Octahedron*(solid: BOOLEAN);
+BEGIN CSolid(Int(solid), 1)
+END Octahedron;
+
+PROCEDURE Dodecahedron*(solid: BOOLEAN);
+BEGIN CSolid(Int(solid), 2)
+END Dodecahedron;
+
+PROCEDURE Icosahedron*(solid: BOOLEAN);
+BEGIN CSolid(Int(solid), 3)
+END Icosahedron;
 
 END FlGlut.

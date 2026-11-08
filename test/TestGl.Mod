@@ -1,6 +1,6 @@
 MODULE TestGl; (* FlGl: OpenGL windows, FLTK's GL drawing, and GL's calls *)
 
-IMPORT Fl, FlGl, FlDraw, Check, Probe;
+IMPORT Fl, FlGl, FlGlut, FlDraw, Check, Probe;
 
 CONST Limit = 500; (* of waits, so that valgrind has time *)
 
@@ -14,6 +14,12 @@ TYPE
     tw, th: INTEGER
   END;
 
+  (* A window whose first draw checks GL's lists, lights, matrices,
+     queries and selection, and GLUT's shapes. *)
+  More = POINTER TO RECORD (FlGl.GlWindowDesc)
+    draws: INTEGER
+  END;
+
   (* A plain window, drawing with GL through Start. *)
   Plain = POINTER TO RECORD (Fl.WindowDesc)
     draws: INTEGER;
@@ -22,6 +28,7 @@ TYPE
 
 VAR
   win, win2: Red;
+  more: More;
   plain: Plain;
   kid: Fl.Box;
   group: Fl.Window;
@@ -61,6 +68,231 @@ END Draw;
 PROCEDURE (w: Red) DrawOverlay*;
 BEGIN INC(w.overlays)
 END DrawOverlay;
+
+(* The pixel at the window's centre, as red, green and blue. *)
+PROCEDURE Centre(w: More; VAR r, g, b: INTEGER);
+  VAR p: ARRAY 4 OF CHAR;
+BEGIN
+  FlGl.Flush;
+  FlGl.ReadPixels(w.PixelW() DIV 2, w.PixelH() DIV 2, 1, 1, p);
+  r := ORD(p[0]); g := ORD(p[1]); b := ORD(p[2])
+END Centre;
+
+PROCEDURE Is(w: More; r, g, b: INTEGER): BOOLEAN;
+  VAR pr, pg, pb: INTEGER;
+BEGIN
+  Centre(w, pr, pg, pb);
+  RETURN (pr = r) & (pg = g) & (pb = b)
+END Is;
+
+(* Clears to black, colour and depth. *)
+PROCEDURE Black;
+BEGIN
+  FlGl.ClearColor(0.0, 0.0, 0.0, 1.0);
+  FlGl.ClearDepth(1.0D0);
+  FlGl.Clear(FlGl.ColorBufferBit + FlGl.DepthBufferBit)
+END Black;
+
+(* A square over all the view, at depth z, its front facing the viewer. *)
+PROCEDURE Square(z: REAL);
+BEGIN
+  FlGl.Begin(FlGl.Quads);
+  FlGl.Normal3f(0.0, 0.0, 1.0);
+  FlGl.Vertex3f(-1.0, -1.0, z); FlGl.Vertex3f(1.0, -1.0, z);
+  FlGl.Vertex3f(1.0, 1.0, z); FlGl.Vertex3f(-1.0, 1.0, z);
+  FlGl.End
+END Square;
+
+PROCEDURE Set(VAR a: ARRAY OF REAL; x, y, z, t: REAL);
+BEGIN a[0] := x; a[1] := y; a[2] := z; a[3] := t
+END Set;
+
+PROCEDURE Lists(w: More);
+  VAR n: INTEGER;
+BEGIN
+  n := FlGl.GenLists(1);
+  Check.Check(n > 0, "a display list's number");
+  FlGl.NewList(n, FlGl.Compile);
+  FlGl.Color3f(0.0, 1.0, 0.0);
+  Square(0.0);
+  FlGl.EndList;
+  Check.Check(Is(w, 0, 0, 0), "Compile doesn't draw");
+  FlGl.Color3f(1.0, 0.0, 0.0);
+  FlGl.CallList(n);
+  Check.Check(Is(w, 0, 255, 0), "a list drawn");
+  FlGl.DeleteLists(n, 1);
+  Check.Check(FlGl.GetError() = FlGl.NoError, "lists without an error")
+END Lists;
+
+PROCEDURE Matrices(w: More);
+  VAR m: ARRAY 16 OF REAL; v: ARRAY 4 OF INTEGER; i: INTEGER;
+BEGIN
+  FlGl.MatrixMode(FlGl.Projection);
+  FlGl.LoadIdentity;
+  FlGl.Ortho(0.0D0, 2.0D0, 0.0D0, 2.0D0, -1.0D0, 1.0D0);
+  Check.Check(FlGl.GetFloat(FlGl.ProjectionMatrix, m), "the projection matrix can be read");
+  Check.Check((m[0] = 1.0) & (m[5] = 1.0) & (m[12] = -1.0) & (m[13] = -1.0), "it is the one Ortho made");
+  Check.Check(FlGl.GetInteger(FlGl.MatrixModeNow, v) & (v[0] = FlGl.Projection), "the matrix mode");
+  FlGl.LoadIdentity;
+  FlGl.MatrixMode(FlGl.Modelview);
+  FlGl.LoadIdentity;
+  FOR i := 0 TO 15 DO m[i] := 0.0 END;
+  m[0] := 2.0; m[5] := 3.0; m[10] := 1.0; m[15] := 1.0; m[12] := 0.5;
+  FlGl.MultMatrixf(m);
+  FOR i := 0 TO 15 DO m[i] := 9.0 END;
+  Check.Check(FlGl.GetFloat(FlGl.ModelviewMatrix, m) & (m[0] = 2.0) & (m[5] = 3.0) & (m[12] = 0.5) & (m[1] = 0.0),
+    "MultMatrixf");
+  FlGl.LoadIdentity;
+  Check.Check(FlGl.GetInteger(FlGl.ViewportArea, v) & (v[0] = 0) & (v[1] = 0)
+    & (v[2] = w.PixelW()) & (v[3] = w.PixelH()), "the viewport, as integers");
+  Check.Check(~FlGl.GetFloat(1, m), "GetFloat of a pname GL doesn't know");
+  Check.Check(~FlGl.GetInteger(86A3H, v), "GetInteger of a list of formats");
+  Check.Check(FlGl.GetError() = FlGl.NoError, "and no error left behind")
+END Matrices;
+
+PROCEDURE Attribs(w: More);
+  VAR v: ARRAY 1 OF INTEGER;
+BEGIN
+  FlGl.PushAttrib(FlGl.EnableBit);
+  FlGl.Enable(FlGl.DepthTest);
+  Check.Check(FlGl.GetInteger(FlGl.DepthTest, v) & (v[0] = 1), "a cap, as a query");
+  FlGl.PopAttrib;
+  Check.Check(FlGl.GetInteger(FlGl.DepthTest, v) & (v[0] = 0), "PopAttrib puts it back");
+
+  Black;
+  FlGl.Enable(FlGl.DepthTest);
+  FlGl.DepthFunc(FlGl.Never);
+  FlGl.Color3f(1.0, 1.0, 1.0);
+  Square(0.0);
+  Check.Check(Is(w, 0, 0, 0), "DepthFunc(Never) draws nothing");
+  FlGl.DepthFunc(FlGl.Less);
+  Square(0.5);
+  FlGl.Color3f(1.0, 0.0, 0.0);
+  Square(0.6);
+  Check.Check(Is(w, 255, 255, 255), "DepthFunc(Less) keeps the nearer");
+  FlGl.ClearDepth(0.0D0);
+  FlGl.Clear(FlGl.DepthBufferBit);
+  Square(0.0);
+  Check.Check(Is(w, 255, 255, 255), "ClearDepth(0) leaves nothing nearer");
+  FlGl.Disable(FlGl.DepthTest);
+
+  Black;
+  FlGl.Enable(FlGl.CullFace);
+  FlGl.SetCullFace(FlGl.Front);
+  Square(0.0);
+  Check.Check(Is(w, 0, 0, 0), "the front culled");
+  FlGl.SetCullFace(FlGl.Back);
+  Square(0.0);
+  Check.Check(Is(w, 255, 0, 0), "the back culled");
+  FlGl.Disable(FlGl.CullFace);
+  FlGl.GlFinish;
+  Check.Check(FlGl.GetError() = FlGl.NoError, "no error")
+END Attribs;
+
+PROCEDURE Lights(w: More);
+  VAR a: ARRAY 4 OF REAL; d: ARRAY 3 OF REAL; r, g, b: INTEGER;
+BEGIN
+  Black;
+  Set(a, 0.0, 0.0, 0.0, 1.0);
+  FlGl.LightModel(FlGl.LightModelAmbient, a);
+  FlGl.Enable(FlGl.Lighting);
+  FlGl.Enable(FlGl.Light0);
+  d[0] := 0.0; d[1] := 0.0; d[2] := 1.0;
+  FlGl.Light(FlGl.Light0, FlGl.Position, d);  (* w 0: from far off *)
+  Set(a, 1.0, 1.0, 1.0, 1.0);
+  FlGl.Light(FlGl.Light0, FlGl.Diffuse, a);
+  Set(a, 0.0, 0.0, 1.0, 1.0);
+  FlGl.Material(FlGl.Front, FlGl.Diffuse, a);
+  Set(a, 0.0, 0.0, 0.0, 1.0);
+  FlGl.Material(FlGl.Front, FlGl.Ambient, a);
+  FlGl.Color3f(1.0, 0.0, 0.0);
+  Square(0.0);
+  Centre(w, r, g, b);
+  Check.Check((r = 0) & (g = 0) & (b >= 250), "a lit square of the material's colour");
+  FlGl.SetColorMaterial(FlGl.Front, FlGl.Diffuse);
+  FlGl.Enable(FlGl.ColorMaterial);
+  FlGl.Color3f(0.0, 1.0, 0.0);
+  Square(0.0);
+  Centre(w, r, g, b);
+  Check.Check((r = 0) & (g >= 250) & (b = 0), "ColorMaterial: the colour's");
+  FlGl.Disable(FlGl.ColorMaterial);
+  FlGl.Disable(FlGl.Lighting);
+  FlGl.Disable(FlGl.Light0);
+  Check.Check(FlGl.GetError() = FlGl.NoError, "no error")
+END Lights;
+
+PROCEDURE Selection(w: More);
+  VAR v: ARRAY 1 OF INTEGER; hits: INTEGER;
+BEGIN
+  Check.Check(FlGl.SelectSize() = 0, "no selection buffer to start with");
+  FlGl.SelectBuffer(64);
+  Check.Check(FlGl.SelectSize() = 64, "a selection buffer");
+  Check.Check(FlGl.RenderMode(FlGl.Select) = 0, "select mode");
+  Check.Check(FlGl.GetInteger(FlGl.RenderModeNow, v) & (v[0] = FlGl.Select), "in select mode");
+  FlGl.InitNames;
+  FlGl.PushName(0);
+  FlGl.LoadName(7);
+  Square(0.0);
+  FlGl.LoadName(8);
+  FlGl.PushMatrix; FlGl.Translatef(5.0, 0.0, 0.0); Square(0.0); FlGl.PopMatrix;
+  FlGl.PushName(-1);
+  Check.Check(FlGl.GetInteger(FlGl.NameStackDepth, v) & (v[0] = 2), "the name stack's depth");
+  Square(0.0);
+  FlGl.PopName;
+  hits := FlGl.RenderMode(FlGl.Render);
+  Check.Check(hits = 2, "two hit records");
+  Check.Check((FlGl.SelectValue(0) = 1) & (FlGl.SelectValue(3) = 7), "the first, of name 7");
+  Check.Check((FlGl.SelectValue(4) = 2) & (FlGl.SelectValue(7) = 8) & (FlGl.SelectValue(8) = -1),
+    "the second, of two names, the last unsigned");
+  Check.Check(FlGl.GetError() = FlGl.NoError, "no error");
+  FlGl.SelectBuffer(1);
+  Check.Check(FlGl.SelectSize() = 1, "another buffer");
+  Check.Check(FlGl.RenderMode(FlGl.Select) = 0, "select mode again");
+  FlGl.InitNames; FlGl.PushName(1);
+  Square(0.0);
+  Check.Check(FlGl.RenderMode(FlGl.Render) = -1, "an overflow")
+END Selection;
+
+PROCEDURE Shapes(w: More);
+BEGIN
+  Black;
+  FlGl.Color3f(1.0, 1.0, 1.0);
+  FlGlut.Cube(TRUE, 1.0D0);
+  Check.Check(Is(w, 255, 255, 255), "a solid cube");
+  Black;
+  FlGlut.Cube(FALSE, 1.0D0);
+  Check.Check(Is(w, 0, 0, 0), "a wire cube is only edges");
+  FlGlut.Sphere(TRUE, 0.5D0, 8, 8);
+  Check.Check(Is(w, 255, 255, 255), "a sphere");
+  Black;
+  FlGlut.Torus(TRUE, 0.1D0, 0.5D0, 8, 8);
+  Check.Check(Is(w, 0, 0, 0), "a torus has a hole");
+  FlGlut.Cone(TRUE, 0.5D0, 0.5D0, 8, 1); FlGlut.Cone(FALSE, 0.5D0, 0.5D0, 1, 1);
+  FlGlut.Sphere(FALSE, 0.5D0, 1, 1); FlGlut.Torus(FALSE, 0.1D0, 0.5D0, 1, 1);
+  FlGlut.Teapot(TRUE, 0.5D0); FlGlut.Teapot(FALSE, 0.5D0);
+  FlGlut.Tetrahedron(TRUE); FlGlut.Tetrahedron(FALSE);
+  FlGlut.Octahedron(TRUE); FlGlut.Octahedron(FALSE);
+  FlGlut.Dodecahedron(TRUE); FlGlut.Dodecahedron(FALSE);
+  FlGlut.Icosahedron(TRUE); FlGlut.Icosahedron(FALSE);
+  Check.Check(FlGl.GetError() = FlGl.NoError, "GLUT's shapes, without an error")
+END Shapes;
+
+PROCEDURE (w: More) Draw*;
+BEGIN
+  INC(w.draws);
+  IF w.draws = 1 THEN
+    FlGl.Viewport(0, 0, w.PixelW(), w.PixelH());
+    FlGl.MatrixMode(FlGl.Projection); FlGl.LoadIdentity;
+    FlGl.MatrixMode(FlGl.Modelview); FlGl.LoadIdentity;
+    Black;
+    Lists(w);
+    Matrices(w);
+    Attribs(w);
+    Lights(w);
+    Selection(w);
+    Shapes(w)
+  END
+END Draw;
 
 PROCEDURE (w: Plain) Draw*;
 BEGIN
@@ -202,6 +434,15 @@ BEGIN
   Draws(win2);
   Check.Check(win2.r = 255, "a window after a deleted one draws");
   win2.Delete;
+
+  NEW(more);
+  FlGl.OpenGlWindow(more, 40, 40, "");
+  more.End;
+  more.Show;
+  before := 0;
+  WHILE (more.draws = 0) & (before < Limit) DO Fl.Wait(0.02D0); INC(before) END;
+  Check.Check(more.draws > 0, "the window of GL's calls draws");
+  more.Delete;
 
   IF FlGl.CanStart() THEN
     NEW(plain);

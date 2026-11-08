@@ -10,6 +10,9 @@
 #include <FL/gl.h>
 #include <FL/platform.H>
 
+#include <memory>
+#include <vector>
+
 // How many draw()s of GL windows are running. FlGlut.cpp's window counts
 // too. Fl_Gl_Window::mode() must not be called inside one.
 int ofl_gl_drawing = 0;
@@ -329,6 +332,123 @@ void ofl_gl_read_pixels(int32_t x, int32_t y, int32_t w, int32_t h,
   glReadPixels(x, y, w, h, GL_RGB, GL_UNSIGNED_BYTE, data);
   glPixelStorei(GL_PACK_ALIGNMENT, old);
 }
+
+// Display lists, lighting, materials and the matrices, for FLTK's GLUT
+// programs (PLAN.md, Phase 30).
+void ofl_gl_new_list(int32_t list, int32_t mode) { glNewList(list, mode); }
+void ofl_gl_end_list(void) { glEndList(); }
+void ofl_gl_call_list(int32_t list) { glCallList(list); }
+int32_t ofl_gl_gen_lists(int32_t n) { return glGenLists(n); }
+void ofl_gl_delete_lists(int32_t list, int32_t n) { glDeleteLists(list, n); }
+
+void ofl_gl_cull_face(int32_t mode) { glCullFace(mode); }
+void ofl_gl_depth_func(int32_t func) { glDepthFunc(func); }
+void ofl_gl_clear_depth(double d) { glClearDepth(d); }
+void ofl_gl_gl_finish(void) { glFinish(); }
+void ofl_gl_color_material(int32_t face, int32_t mode) {
+  glColorMaterial(face, mode);
+}
+
+// GL reads up to 4 values for any of these parameters, so they are copied
+// into 4, the rest 0, from as many as Oberon gives.
+namespace {
+struct Four {
+  GLfloat v[4];
+  Four(const float *p, int32_t n) {
+    for (int i = 0; i < 4; i++) v[i] = i < n ? p[i] : 0.0f;
+  }
+};
+}  // namespace
+
+void ofl_gl_light(int32_t light, int32_t pname, const float *v, int32_t n) {
+  glLightfv(light, pname, Four(v, n).v);
+}
+
+void ofl_gl_light_model(int32_t pname, const float *v, int32_t n) {
+  glLightModelfv(pname, Four(v, n).v);
+}
+
+void ofl_gl_material(int32_t face, int32_t pname, const float *v,
+                     int32_t n) {
+  glMaterialfv(face, pname, Four(v, n).v);
+}
+
+void ofl_gl_matrix_mode(int32_t mode) { glMatrixMode(mode); }
+void ofl_gl_mult_matrixf(const float *m) { glMultMatrixf(m); }
+
+void ofl_gl_normal3f(double x, double y, double z) {
+  glNormal3f(f(x), f(y), f(z));
+}
+
+void ofl_gl_push_attrib(int32_t mask) { glPushAttrib(mask); }
+void ofl_gl_pop_attrib(void) { glPopAttrib(); }
+
+// Every value GL gives, as glGet* writes them, into a buffer larger than
+// any of them but the lists of formats, which are refused; up to n go to
+// Oberon. 0 for a parameter GL doesn't know.
+namespace {
+bool is_list(int32_t pname) {
+  return pname == 0x86A3     // GL_COMPRESSED_TEXTURE_FORMATS
+         || pname == 0x87FF  // GL_PROGRAM_BINARY_FORMATS
+         || pname == 0x8DF8;  // GL_SHADER_BINARY_FORMATS
+}
+}  // namespace
+
+int32_t ofl_gl_get_float(int32_t pname, float *out, int32_t n) {
+  GLfloat v[64] = {0};
+  if (is_list(pname)) return 0;
+  while (glGetError() != GL_NO_ERROR) {
+  }
+  glGetFloatv(pname, v);
+  if (glGetError() != GL_NO_ERROR) return 0;
+  for (int i = 0; i < n && i < 64; i++) out[i] = v[i];
+  return 1;
+}
+
+int32_t ofl_gl_get_integer(int32_t pname, int32_t *out, int32_t n) {
+  GLint v[64] = {0};
+  if (is_list(pname)) return 0;
+  while (glGetError() != GL_NO_ERROR) {
+  }
+  glGetIntegerv(pname, v);
+  if (glGetError() != GL_NO_ERROR) return 0;
+  for (int i = 0; i < n && i < 64; i++) out[i] = v[i];
+  return 1;
+}
+
+// GL keeps the selection buffer's pointer, for whichever context it was
+// given to, until another is given there; so every buffer is kept till the
+// program ends, and the last is the one read.
+namespace {
+std::vector<std::unique_ptr<std::vector<GLuint> > > select_buffers;
+}
+
+int32_t ofl_gl_render_mode_now(void) {
+  GLint m = GL_RENDER;
+  glGetIntegerv(GL_RENDER_MODE, &m);
+  return m;
+}
+
+void ofl_gl_select_buffer(int32_t size) {
+  select_buffers.emplace_back(new std::vector<GLuint>(size));
+  glSelectBuffer(size, select_buffers.back()->data());
+}
+
+int32_t ofl_gl_select_size(void) {
+  return select_buffers.empty()
+             ? 0
+             : static_cast<int32_t>(select_buffers.back()->size());
+}
+
+uint32_t ofl_gl_select_value(int32_t i) {
+  return (*select_buffers.back())[i];
+}
+
+int32_t ofl_gl_render_mode(int32_t mode) { return glRenderMode(mode); }
+void ofl_gl_init_names(void) { glInitNames(); }
+void ofl_gl_load_name(uint32_t name) { glLoadName(name); }
+void ofl_gl_push_name(uint32_t name) { glPushName(name); }
+void ofl_gl_pop_name(void) { glPopName(); }
 
 void ofl_gl_version(char *buf, int32_t n) {
   ofl::copy_out(reinterpret_cast<const char *>(glGetString(GL_VERSION)), buf,

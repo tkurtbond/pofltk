@@ -35,7 +35,8 @@ OPTIONAL = {"FlForms": ("src/forms/FlForms.Mod", "Forms", "#include <FL/forms.H>
                        "#pragma clang diagnostic ignored \"-Wcast-function-type-mismatch\"\n"
                        "#include <FL/glut.H>\n"
                        "#pragma clang diagnostic pop\n"),
-            "FlCairo": ("src/cairo/FlCairo.Mod", "Cairo", "#include <cairo.h>\n")}
+            "FlCairo": ("src/cairo/FlCairo.Mod", "Cairo", "#include <cairo.h>\n"),
+            "FlGlu": ("src/glu/FlGlu.Mod", "Glu", "#include <FL/glu.h>\n")}
 current = None
 
 def module(name):
@@ -410,6 +411,43 @@ add("int", [("Zero", "GL_ZERO"), ("One", "GL_ONE"), ("SrcAlpha", "GL_SRC_ALPHA")
             ("OneMinusSrcAlpha", "GL_ONE_MINUS_SRC_ALPHA")])
 section("GetError's result when there is none")
 add("int", [("NoError", "GL_NO_ERROR")])
+section("Enable and Disable's caps for lighting")
+add("int", [("Light%d" % i, "GL_LIGHT%d" % i) for i in range(8)] +
+           [("Normalize", "GL_NORMALIZE"), ("ColorMaterial", "GL_COLOR_MATERIAL")])
+section("Light's, LightModel's and Material's parameters")
+add("int", [("Ambient", "GL_AMBIENT"), ("Diffuse", "GL_DIFFUSE"), ("Specular", "GL_SPECULAR"),
+            ("Emission", "GL_EMISSION"), ("Shininess", "GL_SHININESS"),
+            ("AmbientAndDiffuse", "GL_AMBIENT_AND_DIFFUSE"), ("Position", "GL_POSITION"),
+            ("SpotDirection", "GL_SPOT_DIRECTION"), ("SpotExponent", "GL_SPOT_EXPONENT"),
+            ("SpotCutoff", "GL_SPOT_CUTOFF"), ("ConstantAttenuation", "GL_CONSTANT_ATTENUATION"),
+            ("LinearAttenuation", "GL_LINEAR_ATTENUATION"),
+            ("QuadraticAttenuation", "GL_QUADRATIC_ATTENUATION"),
+            ("LightModelAmbient", "GL_LIGHT_MODEL_AMBIENT"),
+            ("LightModelLocalViewer", "GL_LIGHT_MODEL_LOCAL_VIEWER"),
+            ("LightModelTwoSide", "GL_LIGHT_MODEL_TWO_SIDE")])
+section("faces, for Material, SetCullFace and SetColorMaterial")
+add("int", [("Front", "GL_FRONT"), ("Back", "GL_BACK"), ("FrontAndBack", "GL_FRONT_AND_BACK")])
+section("DepthFunc's tests")
+add("int", [("Never", "GL_NEVER"), ("Less", "GL_LESS"), ("Equal", "GL_EQUAL"),
+            ("Lequal", "GL_LEQUAL"), ("Greater", "GL_GREATER"), ("Notequal", "GL_NOTEQUAL"),
+            ("Gequal", "GL_GEQUAL"), ("Always", "GL_ALWAYS")])
+section("MatrixMode's matrices")
+add("int", [("Modelview", "GL_MODELVIEW"), ("Projection", "GL_PROJECTION"),
+            ("Texture", "GL_TEXTURE")])
+section("what GetFloat and GetInteger give")
+add("int", [("ModelviewMatrix", "GL_MODELVIEW_MATRIX"),
+            ("ProjectionMatrix", "GL_PROJECTION_MATRIX"), ("ViewportArea", "GL_VIEWPORT"),
+            ("MatrixModeNow", "GL_MATRIX_MODE"), ("RenderModeNow", "GL_RENDER_MODE"),
+            ("NameStackDepth", "GL_NAME_STACK_DEPTH")])
+section("NewList's modes")
+add("int", [("Compile", "GL_COMPILE"), ("CompileAndExecute", "GL_COMPILE_AND_EXECUTE")])
+section("RenderMode's modes")
+add("int", [("Render", "GL_RENDER"), ("Select", "GL_SELECT"), ("Feedback", "GL_FEEDBACK")])
+section("what PushAttrib saves, added together")
+add("int", [("CurrentBit", "GL_CURRENT_BIT"), ("EnableBit", "GL_ENABLE_BIT"),
+            ("LightingBit", "GL_LIGHTING_BIT"), ("PolygonBit", "GL_POLYGON_BIT"),
+            ("TransformBit", "GL_TRANSFORM_BIT"),
+            ("ViewportBit", "GL_VIEWPORT_BIT"), ("AllAttribBits", "GL_ALL_ATTRIB_BITS")])
 
 module("FlCairo")
 section("Context.SelectFontFace's slant")
@@ -423,6 +461,15 @@ add("int", [("Antialias" + k.capitalize(), "CAIRO_ANTIALIAS_%s" % k) for k in
 section("Pattern.SetExtend's modes")
 add("int", [("Extend" + k.capitalize(), "CAIRO_EXTEND_%s" % k) for k in
             "NONE REPEAT REFLECT PAD".split()])
+
+module("FlGlu")
+section("Quadric.DrawStyle's styles")
+add("int", [("Fill", "GLU_FILL"), ("Line", "GLU_LINE"), ("Silhouette", "GLU_SILHOUETTE"),
+            ("Point", "GLU_POINT")])
+section("Quadric.Normals' kinds")
+add("int", [("NormalsNone", "GLU_NONE"), ("NormalsFlat", "GLU_FLAT"), ("NormalsSmooth", "GLU_SMOOTH")])
+section("Quadric.Orientation's directions")
+add("int", [("Outside", "GLU_OUTSIDE"), ("Inside", "GLU_INSIDE")])
 
 module("FlGlut")
 section("display modes (InitDisplayMode), added together")

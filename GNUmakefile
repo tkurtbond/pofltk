@@ -90,7 +90,7 @@ MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs F
 HEADERS := src/pofltk.h
 LIBSRC  := $(MODULES:%=src/%.Mod) $(MODULES:%=src/%.cpp) $(HEADERS)
 # Test modules with a C++ part (test/<Module>.cpp).
-TESTCXX := CCairoConstants CConstants CFormsConstants CGlConstants CGlutConstants Probe
+TESTCXX := CCairoConstants CConstants CFormsConstants CGlConstants CGluConstants CGlutConstants Probe
 TESTSRC := $(TESTCXX:%=test/%.Mod) $(TESTCXX:%=test/%.cpp)
 # Example modules, not programs, with a C++ part (examples/<Module>.cpp).
 EXAMPLECXX := Pipe
@@ -110,6 +110,8 @@ FORMSLIBDIR  := $(BUILD)/lib-forms
 GLLIBRARY := pofltk-gl
 GLLIBDIR  := $(BUILD)/lib-gl
 CAIROLIBRARY := pofltk-cairo
+GLULIBRARY := pofltk-glu
+GLULIBDIR  := $(BUILD)/lib-glu
 CAIROLIBDIR  := $(BUILD)/lib-cairo
 
 # $(call variant-flags,<variant>) gives poc's flags for a variant: OC-g gives
@@ -134,12 +136,12 @@ TESTARGS := -o hello --help -g 120x80 -ti Title -s plastic -nokbd rest more
 # Programs that must halt (test/<name>.Mod), as name:ASSERT-code. poc's
 # ASSERT(x, n) prints "assertion failed (n)" on standard error and exits
 # with status 10, so `make test` requires both.
-HALTTESTS := HaltCursorTiled:78 HaltCursorHot:74 HaltFrame:74 HaltArrow:74 HaltDrawImage:74 HaltOverlay:77 HaltScroll:77 HaltAntialias:77 HaltMakeCurrent:77 HaltOffscreenCopy:77 HaltAbort:42 HaltFontNumber:74 HaltFontGap:74 HaltFontFrom:74 HaltGetBoxtype:74 HaltContrastMode:74 HaltGrabHidden:77 HaltHandleEvent:77 HaltScreenDPI:74 HaltReleaseColor:74 HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74 HaltPluginTwice:71 HaltPluginName:74 HaltPluginAt:74 HaltPluginManager:70 HaltUtf8Offset:74 HaltImageInLine:77 HaltDashLong:74 HaltDashValue:74 HaltMaskBegun:77 HaltMaskTwice:77 HaltMaskDepth:78 HaltKeyFunction:74 HaltPopup:73 HaltLineNumberFormat:78 HaltInputIndex:74 HaltLabelMargin:74
+HALTTESTS := HaltCursorTiled:78 HaltCursorHot:74 HaltFrame:74 HaltArrow:74 HaltDrawImage:74 HaltOverlay:77 HaltScroll:77 HaltAntialias:77 HaltMakeCurrent:77 HaltOffscreenCopy:77 HaltAbort:42 HaltFontNumber:74 HaltFontGap:74 HaltFontFrom:74 HaltGetBoxtype:74 HaltContrastMode:74 HaltGrabHidden:77 HaltHandleEvent:77 HaltScreenDPI:74 HaltScreenNum:74 HaltReleaseColor:74 HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74 HaltPluginTwice:71 HaltPluginName:74 HaltPluginAt:74 HaltPluginManager:70 HaltUtf8Offset:74 HaltImageInLine:77 HaltDashLong:74 HaltDashValue:74 HaltMaskBegun:77 HaltMaskTwice:77 HaltMaskDepth:78 HaltKeyFunction:74 HaltPopup:73 HaltLineNumberFormat:78 HaltInputIndex:74 HaltLabelMargin:74
 ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree HandleEvents
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
@@ -169,8 +171,8 @@ endif
 
 # FlGl and FlGlut need libfltk_gl and GL, likewise (PLAN.md, Phase 21).
 GLTESTS := TestGl TestGlConstants TestGlut TestGlutConstants
-GLHALTS := HaltGlutBitmapFont:74 HaltGlutStrokeFont:74 HaltGlutBitmapText:77 HaltGlutStrokeText:77 HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72 HaltGlTexturePile:78
-GLEXAMPLES := Cube GlOverlay GlutTest GlutCube
+GLHALTS := HaltGlutBitmapFont:74 HaltGlutStrokeFont:74 HaltGlutBitmapText:77 HaltGlutStrokeText:77 HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72 HaltGlTexturePile:78 HaltGlSelectBuffer:77 HaltGlutShape:74
+GLEXAMPLES := Cube GlOverlay GlutTest GlutCube Shape Fullscreen CubeView
 GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
 # fltk-config says which GL libraries, on some systems. A static FLTK with
 # Wayland needs EGL's too.
@@ -193,6 +195,23 @@ ifeq ($(HAVE_GL),yes)
   EXAMPLES += $(GLEXAMPLES)
 else
   MISSING += OpenGL
+endif
+# FlGlu needs GLU, which is neither FLTK's nor GL's, and FlGl to be any use.
+GLUTESTS := TestGlu TestGluConstants
+GLUHALTS := HaltGluClosed:73 HaltGluPickMatrix:74
+GLUEXAMPLES := Fractals GlPuzzle
+GLUSRC := src/glu/FlGlu.Mod src/glu/FlGlu.cpp
+HAVE_GLU := $(if $(HAVE_GL),$(shell pkg-config --exists glu 2>/dev/null && echo yes))
+GLU_CFLAGS := $(addprefix -c-flag ,$(shell pkg-config --cflags glu 2>/dev/null))
+GLU_LIBS := $(shell pkg-config --libs glu 2>/dev/null)
+GLUUSE := $(GLUSE) -library-path $(GLULIBDIR) $(GLU_CFLAGS)
+ifeq ($(HAVE_GLU),yes)
+  OPTIONAL += $(GLULIBRARY)
+  TESTS += $(GLUTESTS)
+  HALTTESTS += $(GLUHALTS)
+  EXAMPLES += $(GLUEXAMPLES)
+else
+  MISSING += GLU
 endif
 # FlCairo needs cairo, with X11's surface where FLTK has X11, not an FLTK
 # built for it (PLAN.md, Phase 22).
@@ -253,6 +272,9 @@ $(GL3EXAMPLES:%=$(BUILD)/%): $(GLLIBDIR)/$(GLLIBRARY)-OC.stamp
 CAIROPROGRAMS := $(CAIROTESTS:%=$(BUILD)/%) $(CAIROEXAMPLES:%=$(BUILD)/%) $(foreach h,$(CAIROHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
 $(CAIROPROGRAMS): MORE := $(CAIROUSE)
 $(CAIROPROGRAMS): $(CAIROLIBDIR)/$(CAIROLIBRARY)-OC.stamp
+GLUPROGRAMS := $(GLUTESTS:%=$(BUILD)/%) $(GLUEXAMPLES:%=$(BUILD)/%) $(foreach h,$(GLUHALTS),$(BUILD)/$(firstword $(subst :, ,$(h))))
+$(GLUPROGRAMS): MORE := $(GLUUSE)
+$(GLUPROGRAMS): $(GLLIBDIR)/$(GLLIBRARY)-OC.stamp $(GLULIBDIR)/$(GLULIBRARY)-OC.stamp
 
 # The libraries, one stamp for each variant. FLTK's -link flags go in the
 # manifest. An optional part imports pofltk, so it is built again with it.
@@ -280,6 +302,12 @@ $(CAIROLIBDIR)/$(CAIROLIBRARY)-%.stamp: $(CAIROSRC) $(LIBDIR)/$(LIBRARY)-%.stamp
 	mkdir -p $(CAIROLIBDIR)
 	cd src/cairo && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -library-path $(abspath $(LIBDIR)) -output-dir $(abspath $(CAIROLIBDIR)) \
 	  $(CFLAGS) $(CAIRO_CFLAGS) $(PARTLINK) $(CAIRO_LIBS:%=-link %) -library $(CAIROLIBRARY) FlCairo.Mod
+	touch $@
+
+$(GLULIBDIR)/$(GLULIBRARY)-%.stamp: $(GLUSRC) $(LIBDIR)/$(LIBRARY)-%.stamp
+	mkdir -p $(GLULIBDIR)
+	cd src/glu && $(POC) $(call variant-flags,$*) $(POC_LIBRARY_FLAGS) -library-path $(abspath $(LIBDIR)) -output-dir $(abspath $(GLULIBDIR)) \
+	  $(CFLAGS) $(GLU_CFLAGS) $(PARTLINK) $(foreach f,$(GLU_LIBS) $(GL_LIBS),-link $(f)) -library $(GLULIBRARY) FlGlu.Mod
 	touch $@
 
 # The -I and -D flags go on for the C++ parts of test and example modules.
@@ -389,7 +417,8 @@ install-library = $(POC) $(call variant-flags,$(3)) -library-path $(LIBDIR) -lib
 INSTALLS := $(LIBDIR)/$(LIBRARY) \
   $(if $(filter $(FORMSLIBRARY),$(OPTIONAL)),$(FORMSLIBDIR)/$(FORMSLIBRARY)) \
   $(if $(filter $(GLLIBRARY),$(OPTIONAL)),$(GLLIBDIR)/$(GLLIBRARY)) \
-  $(if $(filter $(CAIROLIBRARY),$(OPTIONAL)),$(CAIROLIBDIR)/$(CAIROLIBRARY))
+  $(if $(filter $(CAIROLIBRARY),$(OPTIONAL)),$(CAIROLIBDIR)/$(CAIROLIBRARY)) \
+  $(if $(filter $(GLULIBRARY),$(OPTIONAL)),$(GLULIBDIR)/$(GLULIBRARY))
 
 install: $(foreach v,$(VARIANTS),$(INSTALLS:%=%-$(v).stamp))
 	$(foreach v,$(VARIANTS),$(foreach i,$(INSTALLS),$(call install-library,$(notdir $(i)),$(dir $(i)),$(v))))
@@ -399,8 +428,8 @@ install: $(foreach v,$(VARIANTS),$(INSTALLS:%=%-$(v).stamp))
 # alone, and removes a directory only when nothing is left in it. The
 # triple is poc's target.
 library-files = $(1).library lib$(1).a lib$(1).so lib$(1).so.0.0
-INSTALLED_FILES := $(foreach l,$(LIBRARY) $(FORMSLIBRARY) $(GLLIBRARY) $(CAIROLIBRARY),$(call library-files,$(l))) \
-  $(foreach m,$(MODULES) FlForms FlGl FlGlut FlCairo,$(m).sym $(m).owner)
+INSTALLED_FILES := $(foreach l,$(LIBRARY) $(FORMSLIBRARY) $(GLLIBRARY) $(CAIROLIBRARY) $(GLULIBRARY),$(call library-files,$(l))) \
+  $(foreach m,$(MODULES) FlForms FlGl FlGlut FlCairo FlGlu,$(m).sym $(m).owner)
 
 uninstall:
 	@triple=$$($(POC) -version | sed -n 's/^target \([^ ]*\).*/\1/p'); \

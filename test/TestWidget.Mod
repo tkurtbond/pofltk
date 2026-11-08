@@ -69,6 +69,28 @@ BEGIN
   b.Delete
 END Margins;
 
+(* A window opened as a top level, then added to another: shown with it
+   only once it is set visible. *)
+PROCEDURE Visibility;
+  VAR outer, sub: Fl.Window; b: Fl.Box; n: INTEGER;
+BEGIN
+  NEW(outer); Fl.OpenWindow(outer, 60, 60, "outer"); outer.End;
+  NEW(sub); Fl.OpenWindowAt(sub, 10, 10, 20, 20, ""); sub.End;
+  NEW(b); Fl.OpenBox(b, 0, 0, 10, 10, ""); outer.Add(b);
+  b.SetVisible(FALSE);
+  Check.Check(~b.Visible(), "SetVisible(FALSE)");
+  b.SetVisible(TRUE);
+  Check.Check(b.Visible(), "SetVisible(TRUE)");
+  Check.Check(~sub.Visible(), "a top-level window isn't visible");
+  outer.Add(sub);
+  Check.Check(~sub.Visible(), "nor once added to a window");
+  sub.SetVisible(TRUE);
+  outer.Show;
+  n := 0; WHILE ~sub.Shown() & (n < 100) DO Fl.Wait(0.01D0); INC(n) END;
+  Check.Check(sub.Shown(), "set visible, it is shown with the window");
+  outer.Delete
+END Visibility;
+
 PROCEDURE Click(x, y: INTEGER): BOOLEAN;
   VAR used: BOOLEAN;
 BEGIN
@@ -311,6 +333,41 @@ BEGIN
   win.FullscreenOff;
   n := 0; WHILE win.FullscreenActive() & (n < 100) DO Fl.Wait(0.01D0); INC(n) END;
   Check.Check(~win.FullscreenActive(), "and off");
+  (* Maximized: at once by FLTK on X11 with no window manager, by the
+     compositor later under Wayland. *)
+  NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
+  other.SizeRange(50, 50, 0, 0); other.Maximize;
+  Check.Check(~other.MaximizeActive(), "Maximize of a window not shown does nothing");
+  other.Delete;
+  ww := win.W(); wh := win.H();
+  win.Maximize;
+  Check.Check(win.MaximizeActive(), "Maximize");
+  IF ~Fl.Has(Fl.Wayland) THEN
+    Fl.ScreenWorkArea(0, sx, sy, sw, sh);
+    Check.Check((win.X() = sx) & (win.Y() = sy) & (win.W() = sw) & (win.H() = sh),
+      "fills the work area, with no window manager")
+  ELSE Check.Skip("Maximize fills the work area: the compositor decides under Wayland")
+  END;
+  win.UnMaximize;
+  Check.Check(~win.MaximizeActive(), "UnMaximize");
+  IF ~Fl.Has(Fl.Wayland) THEN
+    Check.Check((win.W() = ww) & (win.H() = wh), "gives the window back its size")
+  END;
+  Check.Check(win.Border(), "a border, to start with");
+  win.SetBorder(FALSE); shown := Fl.Check();
+  Check.Check(~win.Border() & win.Shown(), "no border");
+  win.SetBorder(TRUE); shown := Fl.Check();
+  Check.Check(win.Border() & win.Shown(), "a border again");
+  NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
+  other.SetBorder(FALSE);
+  Check.Check(~other.Border(), "no border, before it is shown");
+  other.Delete;
+  Check.Check(win.ScreenNum() = 0, "a window on the only screen is on 0");
+  NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
+  Check.Check(other.ScreenNum() = 0, "a window never shown is on 0");
+  other.SetScreenNum(Fl.ScreenCount() - 1);
+  Check.Check(other.ScreenNum() = Fl.ScreenCount() - 1, "SetScreenNum");
+  other.Delete;
   NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
   other.Iconize; shown := Fl.Check();
   Check.Check(other.Shown(), "Iconize of a window not shown shows it, minimized");
@@ -333,6 +390,7 @@ BEGIN
 
   win.Delete;
   Margins;
+  Visibility;
   Check.Check(Fl.OpenWidgets() = 0, "all deleted");
   Check.Summary
 END TestWidget.

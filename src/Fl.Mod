@@ -613,6 +613,7 @@ PROCEDURE ["C", "ofl_widget_redraw_label"] CRedrawLabel(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_measure_label"] CMeasureLabel(w: SYSTEM.ADDRESS; wrap: SYSTEM.INT32; VAR ww, hh: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_do_callback"] CDoCallback(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_visible"] CVisible(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_widget_set_visible"] CSetVisible(w: SYSTEM.ADDRESS; v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_default_callback"] CDefaultCallback(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_default_callback"] CWindowDefaultCallback(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_base_draw"] CBaseDraw(w: SYSTEM.ADDRESS);
@@ -757,7 +758,14 @@ PROCEDURE ["C", "ofl_window_fullscreen_off"] CFullscreenOff(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_fullscreen_active"] CFullscreenActive(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_fullscreen_screens"] CFullscreenScreens(w: SYSTEM.ADDRESS; top, bottom, left, right: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_window_iconize"] CIconize(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_maximize"] CMaximize(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_un_maximize"] CUnMaximize(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_maximize_active"] CMaximizeActive(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_free_position"] CFreePosition(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_set_border"] CSetBorder(w: SYSTEM.ADDRESS; b: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_window_border"] CBorder(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_window_screen_num"] CWindowScreenNum(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_window_set_screen_num"] CWindowSetScreenNum(w: SYSTEM.ADDRESS; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_set_color"] CSetIndexColor(i, c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_get_rgb"] CGetRGB(c: SYSTEM.INT32; VAR r, g, b: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_linespacing"] CMenuLinespacing(): SYSTEM.INT32;
@@ -924,6 +932,15 @@ END Hide;
 PROCEDURE (w: Widget) Visible*(): BOOLEAN;
 BEGIN RETURN CVisible(Live(w)) # 0
 END Visible;
+
+(* Sets whether the widget is visible, as Show and Hide do, but with no
+   event to it and no redraw. A window opened with no group current is a
+   top level, and not visible till shown; added to a group, it needs this
+   to show with it. *)
+PROCEDURE (w: Widget) SetVisible*(on: BOOLEAN);
+BEGIN
+  IF on THEN CSetVisible(Live(w), 1) ELSE CSetVisible(Live(w), 0) END
+END SetVisible;
 
 PROCEDURE (w: Widget) Redraw*;
 BEGIN CRedraw(Live(w))
@@ -1447,6 +1464,51 @@ END FreePosition;
 PROCEDURE (w: Window) FullscreenActive*(): BOOLEAN;
 BEGIN RETURN CFullscreenActive(Live(w)) # 0
 END FullscreenActive;
+
+(* Fills the screen's work area with the window, and UnMaximize gives it
+   back its size. Each does nothing unless the window is shown, at the top
+   level, resizable and not full screen. With no window manager FLTK
+   resizes the window itself; with one, the manager does, later. *)
+PROCEDURE (w: Window) Maximize*;
+BEGIN CMaximize(Live(w))
+END Maximize;
+
+PROCEDURE (w: Window) UnMaximize*;
+BEGIN CUnMaximize(Live(w))
+END UnMaximize;
+
+(* Whether the window is maximized: from Maximize until UnMaximize, or as
+   the window manager says. *)
+PROCEDURE (w: Window) MaximizeActive*(): BOOLEAN;
+BEGIN RETURN CMaximizeActive(Live(w)) # 0
+END MaximizeActive;
+
+(* Whether the window manager puts its border, title and controls around
+   the window, as to start with; a window shown changes at once. *)
+PROCEDURE (w: Window) SetBorder*(on: BOOLEAN);
+BEGIN
+  IF on THEN CSetBorder(Live(w), 1) ELSE CSetBorder(Live(w), 0) END
+END SetBorder;
+
+PROCEDURE (w: Window) Border*(): BOOLEAN;
+BEGIN RETURN CBorder(Live(w)) # 0
+END Border;
+
+(* The screen the window is on, from 0 to ScreenCount() - 1: a
+   subwindow's is its top window's. 0 for a window never shown, unless
+   set. *)
+PROCEDURE (w: Window) ScreenNum*(): INTEGER;
+BEGIN RETURN CWindowScreenNum(Live(w))
+END ScreenNum;
+
+(* The screen to show the window on, from 0 to ScreenCount() - 1, or it
+   halts (IndexOutOfRange). Set it, and the window's place on that
+   screen, before Show: a window shown keeps its screen. *)
+PROCEDURE (w: Window) SetScreenNum*(n: INTEGER);
+BEGIN
+  ASSERT((n >= 0) & (n < CScreenCount()), IndexOutOfRange);
+  CWindowSetScreenNum(Live(w), n)
+END SetScreenNum;
 
 (* The name a window system groups the window by, as FLTK's xclass. FLTK
    makes the first one set the default for every window. *)

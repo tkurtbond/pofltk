@@ -89,6 +89,10 @@ OpenGL: only a program using them is linked with `-lfltk_gl` and GL.
 `FlCairo` is `pofltk-cairo`, if this system has cairo, whatever FLTK was
 built with: only a program using it is linked with cairo.
 
+`FlGlu` is `pofltk-glu`, if this FLTK has OpenGL and the system has GLU:
+only a program using it is linked with GLU. A program using it names
+`pofltk-gl` too.
+
 A library records what FLTK offered as it was built: run `make install`
 again after rebuilding FLTK with other options.
 
@@ -218,6 +222,7 @@ the system's colours; `Show` does neither.
 | `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |
 | `FlGl` | `GlWindow`, FLTK's text and rectangles in GL, and the part of GL its programs use; in its own library, `pofltk-gl` |
 | `FlGlut` | FLTK's GLUT and its fonts, with numbers checked and strings copied; `Window`, a GLUT window as a widget among others; in `pofltk-gl` |
+| `FlGlu` | GLU's view matrices (`Perspective`, `LookAt`, `Ortho2D`, `PickMatrix`) and `Quadric`s: cylinders, spheres and disks; in its own library, `pofltk-glu` |
 | `FlCairo` | `CairoWindow`, a double window drawn with cairo on any FLTK, and the part of cairo FLTK's programs use; in its own library, `pofltk-cairo` |
 
 Each module has a C++ part (`src/<Module>.cpp`), compiled by poc, which

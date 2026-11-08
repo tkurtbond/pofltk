@@ -562,4 +562,38 @@ int32_t ofl_glut_stroke_width(int32_t font, int32_t c) {
   return glutStrokeWidth(fonts[font], c);
 }
 
+// GLUT's shapes, drawn about the origin.
+void ofl_glut_sphere(int32_t solid, double r, int32_t slices, int32_t stacks) {
+  if (solid) glutSolidSphere(r, slices, stacks);
+  else glutWireSphere(r, slices, stacks);
+}
+
+void ofl_glut_cone(int32_t solid, double base, double height, int32_t slices,
+                   int32_t stacks) {
+  if (solid) glutSolidCone(base, height, slices, stacks);
+  else glutWireCone(base, height, slices, stacks);
+}
+
+void ofl_glut_torus(int32_t solid, double inner, double outer, int32_t sides,
+                    int32_t rings) {
+  if (solid) glutSolidTorus(inner, outer, sides, rings);
+  else glutWireTorus(inner, outer, sides, rings);
+}
+
+void ofl_glut_sized(int32_t solid, int32_t shape, double size) {
+  switch (shape) {
+    case 0: if (solid) glutSolidCube(size); else glutWireCube(size); break;
+    default: if (solid) glutSolidTeapot(size); else glutWireTeapot(size);
+  }
+}
+
+void ofl_glut_solid(int32_t solid, int32_t shape) {
+  switch (shape) {
+    case 0: if (solid) glutSolidTetrahedron(); else glutWireTetrahedron(); break;
+    case 1: if (solid) glutSolidOctahedron(); else glutWireOctahedron(); break;
+    case 2: if (solid) glutSolidDodecahedron(); else glutWireDodecahedron(); break;
+    default: if (solid) glutSolidIcosahedron(); else glutWireIcosahedron();
+  }
+}
+
 }  // extern "C"

@@ -85,6 +85,82 @@ CONST
 
   (* GetError's result when there is none *)
   NoError* = 0;
+
+  (* Enable and Disable's caps for lighting *)
+  Light0* = 16384;
+  Light1* = 16385;
+  Light2* = 16386;
+  Light3* = 16387;
+  Light4* = 16388;
+  Light5* = 16389;
+  Light6* = 16390;
+  Light7* = 16391;
+  Normalize* = 2977;
+  ColorMaterial* = 2903;
+
+  (* Light's, LightModel's and Material's parameters *)
+  Ambient* = 4608;
+  Diffuse* = 4609;
+  Specular* = 4610;
+  Emission* = 5632;
+  Shininess* = 5633;
+  AmbientAndDiffuse* = 5634;
+  Position* = 4611;
+  SpotDirection* = 4612;
+  SpotExponent* = 4613;
+  SpotCutoff* = 4614;
+  ConstantAttenuation* = 4615;
+  LinearAttenuation* = 4616;
+  QuadraticAttenuation* = 4617;
+  LightModelAmbient* = 2899;
+  LightModelLocalViewer* = 2897;
+  LightModelTwoSide* = 2898;
+
+  (* faces, for Material, SetCullFace and SetColorMaterial *)
+  Front* = 1028;
+  Back* = 1029;
+  FrontAndBack* = 1032;
+
+  (* DepthFunc's tests *)
+  Never* = 512;
+  Less* = 513;
+  Equal* = 514;
+  Lequal* = 515;
+  Greater* = 516;
+  Notequal* = 517;
+  Gequal* = 518;
+  Always* = 519;
+
+  (* MatrixMode's matrices *)
+  Modelview* = 5888;
+  Projection* = 5889;
+  Texture* = 5890;
+
+  (* what GetFloat and GetInteger give *)
+  ModelviewMatrix* = 2982;
+  ProjectionMatrix* = 2983;
+  ViewportArea* = 2978;
+  MatrixModeNow* = 2976;
+  RenderModeNow* = 3136;
+  NameStackDepth* = 3440;
+
+  (* NewList's modes *)
+  Compile* = 4864;
+  CompileAndExecute* = 4865;
+
+  (* RenderMode's modes *)
+  Render* = 7168;
+  Select* = 7170;
+  Feedback* = 7169;
+
+  (* what PushAttrib saves, added together *)
+  CurrentBit* = 1;
+  EnableBit* = 8192;
+  LightingBit* = 64;
+  PolygonBit* = 8;
+  TransformBit* = 4096;
+  ViewportBit* = 2048;
+  AllAttribBits* = -1;
 (* END generated constants *)
 
 TYPE
@@ -160,6 +236,35 @@ PROCEDURE ["C", "ofl_gl_flush"] CFlush;
 PROCEDURE ["C", "ofl_gl_get_error"] CGetError(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_gl_read_pixels"] CReadPixels(x, y, w, h: SYSTEM.INT32; VAR data: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_gl_version"] CVersion(VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_new_list"] CNewList(list, mode: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_end_list"] CEndList;
+PROCEDURE ["C", "ofl_gl_call_list"] CCallList(list: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_gen_lists"] CGenLists(n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_delete_lists"] CDeleteLists(list, n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_cull_face"] CCullFace(mode: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_depth_func"] CDepthFunc(func: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_clear_depth"] CClearDepth(d: LONGREAL);
+PROCEDURE ["C", "ofl_gl_gl_finish"] CGlFinish;
+PROCEDURE ["C", "ofl_gl_color_material"] CColorMaterial(face, mode: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_light"] CLight(light, pname: SYSTEM.INT32; v: SYSTEM.ADDRESS; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_light_model"] CLightModel(pname: SYSTEM.INT32; v: SYSTEM.ADDRESS; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_material"] CMaterial(face, pname: SYSTEM.INT32; v: SYSTEM.ADDRESS; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_matrix_mode"] CMatrixMode(mode: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_mult_matrixf"] CMultMatrixf(m: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_gl_normal3f"] CNormal3f(x, y, z: LONGREAL);
+PROCEDURE ["C", "ofl_gl_push_attrib"] CPushAttrib(mask: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_pop_attrib"] CPopAttrib;
+PROCEDURE ["C", "ofl_gl_get_float"] CGetFloat(pname: SYSTEM.INT32; v: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_get_integer"] CGetInteger(pname: SYSTEM.INT32; v: SYSTEM.ADDRESS; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_render_mode_now"] CRenderModeNow(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_select_buffer"] CSelectBuffer(size: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_select_size"] CSelectSize(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_select_value"] CSelectValue(i: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_render_mode"] CRenderMode(mode: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_init_names"] CInitNames;
+PROCEDURE ["C", "ofl_gl_load_name"] CLoadName(name: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_push_name"] CPushName(name: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_gl_pop_name"] CPopName;
 
 (* The window *)
 
@@ -510,5 +615,148 @@ END ReadPixels;
 PROCEDURE Version*(VAR s: ARRAY OF CHAR);
 BEGIN CVersion(s, SHORT(LEN(s)))
 END Version;
+
+(* Display lists. mode is Compile or CompileAndExecute. *)
+PROCEDURE NewList*(list, mode: INTEGER);
+BEGIN CNewList(list, mode)
+END NewList;
+
+PROCEDURE EndList*;
+BEGIN CEndList
+END EndList;
+
+PROCEDURE CallList*(list: INTEGER);
+BEGIN CCallList(list)
+END CallList;
+
+(* The first of n new list numbers in a row; 0 if there aren't so many. *)
+PROCEDURE GenLists*(n: INTEGER): INTEGER;
+BEGIN RETURN CGenLists(n)
+END GenLists;
+
+PROCEDURE DeleteLists*(list, n: INTEGER);
+BEGIN CDeleteLists(list, n)
+END DeleteLists;
+
+(* glCullFace: which faces Enable(CullFace) culls, Front, Back or
+   FrontAndBack. *)
+PROCEDURE SetCullFace*(mode: INTEGER);
+BEGIN CCullFace(mode)
+END SetCullFace;
+
+PROCEDURE DepthFunc*(func: INTEGER);
+BEGIN CDepthFunc(func)
+END DepthFunc;
+
+PROCEDURE ClearDepth*(depth: LONGREAL);
+BEGIN CClearDepth(depth)
+END ClearDepth;
+
+(* glFinish, which waits for GL to finish what it was given; Finish is
+   FLTK's. *)
+PROCEDURE GlFinish*;
+BEGIN CGlFinish
+END GlFinish;
+
+(* glColorMaterial: which of face's material parameters follow the
+   colour, with Enable(ColorMaterial). *)
+PROCEDURE SetColorMaterial*(face, mode: INTEGER);
+BEGIN CColorMaterial(face, mode)
+END SetColorMaterial;
+
+(* Light, LightModel and Material set a parameter from up to the first 4
+   of v, GL's most, the rest 0. *)
+PROCEDURE Light*(light, pname: INTEGER; v-: ARRAY OF REAL);
+BEGIN CLight(light, pname, SYSTEM.ADR(v), SHORT(LEN(v)))
+END Light;
+
+PROCEDURE LightModel*(pname: INTEGER; v-: ARRAY OF REAL);
+BEGIN CLightModel(pname, SYSTEM.ADR(v), SHORT(LEN(v)))
+END LightModel;
+
+PROCEDURE Material*(face, pname: INTEGER; v-: ARRAY OF REAL);
+BEGIN CMaterial(face, pname, SYSTEM.ADR(v), SHORT(LEN(v)))
+END Material;
+
+(* mode is Modelview, Projection or Texture. *)
+PROCEDURE MatrixMode*(mode: INTEGER);
+BEGIN CMatrixMode(mode)
+END MatrixMode;
+
+(* m is 16 values, column after column. *)
+PROCEDURE MultMatrixf*(m-: ARRAY OF REAL);
+BEGIN
+  ASSERT(LEN(m) >= 16, Fl.IndexOutOfRange);
+  CMultMatrixf(SYSTEM.ADR(m))
+END MultMatrixf;
+
+PROCEDURE Normal3f*(x, y, z: REAL);
+BEGIN CNormal3f(x, y, z)
+END Normal3f;
+
+(* mask is a sum of the attribute bits, or AllAttribBits. *)
+PROCEDURE PushAttrib*(mask: INTEGER);
+BEGIN CPushAttrib(mask)
+END PushAttrib;
+
+PROCEDURE PopAttrib*;
+BEGIN CPopAttrib
+END PopAttrib;
+
+(* GetFloat and GetInteger put what GL gives for pname into v, as many
+   as fit, and are FALSE for a pname GL doesn't know, and for the lists of
+   formats, which can be any length. *)
+PROCEDURE GetFloat*(pname: INTEGER; VAR v: ARRAY OF REAL): BOOLEAN;
+BEGIN RETURN CGetFloat(pname, SYSTEM.ADR(v), SHORT(LEN(v))) # 0
+END GetFloat;
+
+PROCEDURE GetInteger*(pname: INTEGER; VAR v: ARRAY OF INTEGER): BOOLEAN;
+BEGIN RETURN CGetInteger(pname, SYSTEM.ADR(v), SHORT(LEN(v))) # 0
+END GetInteger;
+
+(* Selection. GL keeps the buffer it was given, so SelectBuffer makes a
+   new one of size names each time, kept till the program ends, and
+   SelectValue reads the last made. It halts with Fl.OutOfOrder in Select
+   mode, where GL can't change the buffer. *)
+PROCEDURE SelectBuffer*(size: INTEGER);
+BEGIN
+  ASSERT(size > 0, Fl.IndexOutOfRange);
+  ASSERT(CRenderModeNow() # Select, Fl.OutOfOrder);
+  CSelectBuffer(size)
+END SelectBuffer;
+
+(* The last selection buffer's size; 0 before the first. *)
+PROCEDURE SelectSize*(): INTEGER;
+BEGIN RETURN CSelectSize()
+END SelectSize;
+
+(* The selection buffer's ith value, unsigned in GL, as an INTEGER. *)
+PROCEDURE SelectValue*(i: INTEGER): INTEGER;
+BEGIN
+  ASSERT((i >= 0) & (i < CSelectSize()), Fl.IndexOutOfRange);
+  RETURN CSelectValue(i)
+END SelectValue;
+
+(* glRenderMode: mode is Render, Select or Feedback. Leaving Select gives
+   the number of hit records in the buffer, -1 if it overflowed. *)
+PROCEDURE RenderMode*(mode: INTEGER): INTEGER;
+BEGIN RETURN CRenderMode(mode)
+END RenderMode;
+
+PROCEDURE InitNames*;
+BEGIN CInitNames
+END InitNames;
+
+PROCEDURE LoadName*(name: INTEGER);
+BEGIN CLoadName(name)
+END LoadName;
+
+PROCEDURE PushName*(name: INTEGER);
+BEGIN CPushName(name)
+END PushName;
+
+PROCEDURE PopName*;
+BEGIN CPopName
+END PopName;
 
 END FlGl.

@@ -21,14 +21,15 @@ anything:
 
 ## Status
 
-As of 2026-11-08, Phases 0 to 29 of PLAN.md are done, and `README.md`
+As of 2026-11-08, Phases 0 to 30 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
 (planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
 `FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`, `FlUtf8`,
 `FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, `src/gl/`
-has `FlGl` and `FlGlut`, `src/cairo/` has `FlCairo`, and the tests pass. Also kept:
+has `FlGl` and `FlGlut`, `src/glu/` has `FlGlu`, `src/cairo/` has
+`FlCairo`, and the tests pass. Also kept:
 
 - `doc/design.md`: the feasibility analysis.
 - `doc/fltk-issues.md`: every FLTK bug and pitfall found, with its
@@ -152,6 +153,12 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   `cairo-xlib` where FLTK has X11, and `CAIROLINK` links its programs.
   It doesn't use `Fl_Cairo_Window` or need `FLTK_HAVE_CAIRO`: `Cw` makes
   a context for each draw, by back end (`doc/fltk-issues.md`, 114).
+- `src/glu/FlGlu.Mod`, `src/glu/FlGlu.cpp`: the part of GLU FLTK's
+  programs use (the view's matrices and quadrics). The fourth optional
+  part, library `pofltk-glu`, since GLU is neither FLTK's nor GL's;
+  `HAVE_GLU` is `HAVE_GL` and `pkg-config`'s `glu`, and its programs are
+  built with `GLUUSE`, which names `pofltk-gl`'s path too. A `Quadric`
+  is GLU's, closed by `Close`, as `FlCairo`'s patterns are.
 - `FlPreferences`' plugins: `Plugin` and `PluginManager`, with a
   `Pin : Fl_Plugin` in the C++ part holding the Oberon object. A
   plugin library is `dlopen`ed; `test/CPlugin.cpp` is one, in C++, built
@@ -296,7 +303,8 @@ make uninstall  # remove exactly what make install wrote
 ```
 
 `pofltk-forms`, where FLTK has Forms, `pofltk-gl`, where it has GL, and
-`pofltk-cairo`, where there is cairo, go beside it in `POCLIBDIR`, so
+`pofltk-cairo`, where there is cairo, and `pofltk-glu`, where there is
+GL and GLU, go beside it in `POCLIBDIR`, so
 one `-library-path` finds them all.
 
 The tests and examples are built on the libraries in `build/lib*`, not
@@ -982,6 +990,18 @@ held only in C++ memory**.
   scheme back.
 - **`Fl_Input_::index`** doesn't check its position (155): `Index`
   halts 74 outside 0 to the text's length.
+- **Maximize, borders and visibility** (2026-11-08, Phase 30):
+  `maximize()` and `un_maximize()` do nothing unless the window is
+  shown, at the top level, resizable and not full screen; with no window
+  manager FLTK resizes the window itself. A window opened with no
+  group current and then added to one isn't shown with it until
+  `set_visible()` (`Widget.SetVisible`). `screen_num(n)` is unchecked:
+  `SetScreenNum` halts 74 outside 0 to `ScreenCount() - 1`.
+- **GLUT's shapes** (Phase 30): `glutSolidTorus` clamps its counts, and
+  the sphere and cone don't, sizing their tables from them: `FlGlut`
+  halts 74 outside 1 to `MaxCount` (65536). GL keeps a selection
+  buffer's pointer, so `FlGl.SelectBuffer` makes one of its own, kept
+  till the program ends, and halts 77 in select mode.
 - **A scroll's scrollbar align** starts as `FL_ALIGN_BOTTOM`, a
   valuator's label align; without `Left` and `Top` the bars are right
   and bottom.
@@ -1102,7 +1122,13 @@ None at present.
   Pango; 2301, 20 skipped, with no SVG, printing or GL; 2529 with no
   Forms; 2405 with no GL; 2589 with no GLEW; 2547 with no cairo; and on
   a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2591 on Xvfb and 2570 on
-  sway.
+  sway. After Phase 30 (2026-11-08), 2678 (1 skipped), 2655 (9
+  skipped), 2392 (1 skipped) and 2370 (8 skipped) here; 2678, 1
+  skipped, on NetBSD and FreeBSD and 2670, 2 skipped, on OpenBSD; 2668,
+  4 skipped, with neither Cairo nor Pango; 2320, 20 skipped, with no
+  SVG, printing or GL; 2616 with no Forms; 2424 with no GL; 2676 with no
+  GLEW; 2634 with no cairo; 2656 with no GLU; and on a Wayland FLTK
+  without `FLTK_HAVE_CAIRO`, 2678 on Xvfb and 2655 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
