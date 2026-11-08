@@ -546,6 +546,25 @@ void ofl_widget_set_labelsize(intptr_t w, int32_t s) {
   ofl::widget(w)->labelsize(s);
 }
 
+// which: 0 horizontal margin, 1 vertical margin, 2 image spacing.
+int32_t ofl_widget_label_margin(intptr_t w, int32_t which) {
+  Fl_Widget *o = ofl::widget(w);
+  switch (which) {
+  case 0: return o->horizontal_label_margin();
+  case 1: return o->vertical_label_margin();
+  default: return o->label_image_spacing();
+  }
+}
+
+void ofl_widget_set_label_margin(intptr_t w, int32_t which, int32_t px) {
+  Fl_Widget *o = ofl::widget(w);
+  switch (which) {
+  case 0: o->horizontal_label_margin(px); break;
+  case 1: o->vertical_label_margin(px); break;
+  default: o->label_image_spacing(px); break;
+  }
+}
+
 int32_t ofl_widget_labelcolor(intptr_t w) {
   return static_cast<int32_t>(ofl::widget(w)->labelcolor());
 }

@@ -2946,10 +2946,51 @@ GL; and last the unit tests and the demo launcher.
   1 and 7 skipped; every valgrind error summary 0); `make test` 2537 on
   NetBSD and FreeBSD and 2529 on OpenBSD; the FLTK variants as in
   AGENTS.md's poc 0.11.2 notes.
-- **Phase 27: Drawing and images.** `animated`, `arc`, `clipboard`,
+- **Phase 27: Drawing and images** [done]. `animated`, `arc`, `clipboard`,
   `contrast`, `coordinates`, `curve`, `icon`, `image`, `label`,
   `line_style`, `line_style_docs`, `pixmap`, `rotated_text`,
   `tiled_image` (14). Binds the label margins and spacing.
+
+  Done 2026-11-07. Every shot of all 14 matches FLTK's build with no
+  fuzz. Found:
+  - `Fl.Widget`'s `HorizontalLabelMargin`, `VerticalLabelMargin` and
+    `LabelImageSpacing`, with their setters, for `label`. FLTK keeps
+    the margins in a `signed char` and the spacing in a `uchar`, so
+    outside -128 to 127 and 0 to 255 they halt 74
+    (`HaltLabelMargin`). `TestWidget` checks a margin moves a label by
+    its pixels.
+  - `FlDraw.Line3`, `fl_line` through three points, for
+    `line_style_docs`: a path of `Vertex`es instead differed by 23 to
+    41 pixels on its thin slanting line, since
+    `Fl_Scalable_Graphics_Driver::line` puts integer points on pixel
+    centres and a path's aren't; two `Line`s were worse, the dashes
+    starting again at the join. `TestDraw` checks its pixels.
+  - FLTK's `test/` build has no `coordinates` (it is in CMake's list,
+    not the makefile's); it was built against the installed FLTK to
+    compare.
+  - `animated` runs on a timer, so its shots can't be lined up: every
+    one of 31 frames FLTK's program showed in rapid shots matches one
+    of the port's exactly.
+  - `image` and `tiled_image` leave out FLTK's `-v` (an X visual by
+    number): pofltk has no X visuals. `contrast`'s random colours
+    aren't C's `rand()`, so only the first matches.
+  - `clipboard` was driven with text from `xsel -b` and images from a
+    scratch program on the clipboard; its save dialog is GTK's, which
+    on Xvfb with no window manager can open behind the window.
+  - `valgrind-sway` failed once on TestGlut, which Phase 27 didn't
+    change: 5 invalid 8-byte accesses in crossbeam_epoch, in glycin's
+    worker threads, at addresses valgrind put in the accessing
+    function's own frame. 3 runs of 13 showed them; `test/display.supp`
+    suppresses that one kind, and the makefile passes it beside
+    `poc-gc.supp`.
+
+  Counts: 2557 (1 skipped), 2536 (8 skipped), 2289 (1 skipped) and
+  2269 (7 skipped) for `test-headless`, `test-sway`, `valgrind-headless`
+  and `valgrind-sway`; 2557, 1 skipped, on NetBSD and FreeBSD and 2549,
+  2 skipped, on OpenBSD; 2547, 4 skipped, with neither Cairo nor Pango;
+  2267, 20 skipped, with no SVG, printing or GL; 2495 with no Forms;
+  2371 with no GL; 2555 with no GLEW; 2513 with no cairo; and on a
+  Wayland FLTK without `FLTK_HAVE_CAIRO`, 2557 on Xvfb and 2536 on sway.
 - **Phase 28: Events and keys.** `handle_keys`, `keyboard` (its
   `keyboard_ui.fl` is 718 lines), `subwindow` (3), with the event-name
   tables.

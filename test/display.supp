@@ -1,0 +1,20 @@
+# Valgrind suppressions for FLTK's display stack, outside pofltk.
+#
+# Under Wayland the display stack loads glycin (Fedora's libglycin-2, an
+# image loader), whose worker threads (gly-rayon-N, Rust's rayon and
+# crossbeam) sometimes show invalid reads and writes of 8 bytes in
+# crossbeam_epoch, at addresses valgrind itself places in the faulting
+# function's own frame on that thread's stack ("in frame #0, created by"
+# the same function). That is valgrind losing the thread's stack bounds,
+# not an overrun. TestGlut showed them in 3 of 13 runs on sway (5, 2 and 8
+# errors; 2026-11-07), with no change to TestGlut or pofltk's GL part; this
+# suppression took all 8 of the third.
+#
+# Only Addr8 errors whose top frame is crossbeam_epoch's (inlined frames
+# count) are suppressed.
+
+{
+   glycin-crossbeam-epoch-addr8
+   Memcheck:Addr8
+   fun:*crossbeam_epoch*
+}

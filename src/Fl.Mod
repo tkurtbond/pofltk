@@ -725,6 +725,8 @@ PROCEDURE ["C", "ofl_widget_labelfont"] CLabelFont(w: SYSTEM.ADDRESS): SYSTEM.IN
 PROCEDURE ["C", "ofl_widget_set_labelfont"] CSetLabelFont(w: SYSTEM.ADDRESS; f: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_labelsize"] CLabelSize(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_set_labelsize"] CSetLabelSize(w: SYSTEM.ADDRESS; s: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_widget_label_margin"] CLabelMargin(w: SYSTEM.ADDRESS; which: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_widget_set_label_margin"] CSetLabelMargin(w: SYSTEM.ADDRESS; which, px: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_labelcolor"] CLabelColor(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_set_labelcolor"] CSetLabelColor(w: SYSTEM.ADDRESS; c: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_labeltype"] CLabelType(w: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -999,6 +1001,43 @@ END LabelSize;
 PROCEDURE (w: Widget) SetLabelSize*(s: INTEGER);
 BEGIN CSetLabelSize(Live(w), s)
 END SetLabelSize;
+
+(* The label's margins: the gap in pixels between the label and the
+   widget's left and right edges (horizontal) or top and bottom edges
+   (vertical), on the sides it is aligned to, both when centred. They
+   can be negative; FLTK keeps each in a signed byte, so outside -128 to
+   127 they halt (IndexOutOfRange). *)
+PROCEDURE (w: Widget) HorizontalLabelMargin*(): INTEGER;
+BEGIN RETURN CLabelMargin(Live(w), 0)
+END HorizontalLabelMargin;
+
+PROCEDURE (w: Widget) SetHorizontalLabelMargin*(px: INTEGER);
+BEGIN
+  ASSERT((px >= -128) & (px <= 127), IndexOutOfRange);
+  CSetLabelMargin(Live(w), 0, px)
+END SetHorizontalLabelMargin;
+
+PROCEDURE (w: Widget) VerticalLabelMargin*(): INTEGER;
+BEGIN RETURN CLabelMargin(Live(w), 1)
+END VerticalLabelMargin;
+
+PROCEDURE (w: Widget) SetVerticalLabelMargin*(px: INTEGER);
+BEGIN
+  ASSERT((px >= -128) & (px <= 127), IndexOutOfRange);
+  CSetLabelMargin(Live(w), 1, px)
+END SetVerticalLabelMargin;
+
+(* The gap in pixels between the label's image and its text, 0 to 255
+   (a byte in FLTK); outside that it halts (IndexOutOfRange). *)
+PROCEDURE (w: Widget) LabelImageSpacing*(): INTEGER;
+BEGIN RETURN CLabelMargin(Live(w), 2)
+END LabelImageSpacing;
+
+PROCEDURE (w: Widget) SetLabelImageSpacing*(gap: INTEGER);
+BEGIN
+  ASSERT((gap >= 0) & (gap <= 255), IndexOutOfRange);
+  CSetLabelMargin(Live(w), 2, gap)
+END SetLabelImageSpacing;
 
 PROCEDURE (w: Widget) LabelColor*(): INTEGER;
 BEGIN RETURN CLabelColor(Live(w))

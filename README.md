@@ -186,7 +186,11 @@ the system's colours; `Show` does neither.
     resizable widget decides what grows, with `examples/ResizeArrows`,
     an example module, showing the sizes), `FlexDemo`, `FlexLogin`,
     `GridAlignment`, `GridButtons`, `GridDialog`, `GridLogin`; and
-    `FltkVersions`, the headers' and the library's versions.
+    `FltkVersions`, the headers' and the library's versions;
+  - drawing and images: `Animated`, `Arc`, `Clipboard`, `Contrast`,
+    `Coordinates`, `Curve`, `Icon`, `Image`, `Label` (with the label's
+    margins and image spacing), `LineStyle`, `LineStyleDocs`, `Pixmap`,
+    `RotatedText`, `TiledImage`.
 
 ## Modules
 

@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-11-07, Phases 0 to 26 of PLAN.md are done, and `README.md`
+As of 2026-11-07, Phases 0 to 27 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
 (planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
@@ -171,7 +171,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 - `test/`:
   - one main module per concern, `Test*.Mod`, using `Check.Mod`;
   - halt tests, `Halt*.Mod`, one per code;
-  - `poc-gc.supp`, and `vg-check.sh` (Valgrind, below);
+  - `poc-gc.supp`, `display.supp` and `vg-check.sh` (Valgrind, below);
   - `TestConstants.Mod`, `CConstants.Mod` and `CConstants.cpp`, written
     by `tools/gen-constants.py`. `CConstants` is a test module with a C++
     part. `TestFormsConstants.Mod` and `CFormsConstants` are the same
@@ -500,7 +500,11 @@ font, the drawing back end, or the FPU:
 ### Valgrind
 
 - **Memory errors fail a test.** The flags are `--error-exitcode`, plus
-  `test/poc-gc.supp` for the collector's conservative stack scan.
+  `test/poc-gc.supp` for the collector's conservative stack scan, and
+  `test/display.supp` for valgrind's mistakes outside pofltk: on sway,
+  glycin's worker threads (`gly-rayon-N`) sometimes show 8-byte accesses
+  in crossbeam_epoch that valgrind places in the function's own frame
+  (TestGlut, 3 runs of 13, 2026-11-07).
 - **FLTK's display stack leaks by design**: fontconfig and Pango's font
   cache, and GTK's decorations under Wayland. That is hundreds of KB and
   thousands of records, from programs that free everything they made
@@ -865,6 +869,12 @@ held only in C++ memory**.
   `fl_draw_image` an explicit line size. On Xlib, an image drawn in
   `fl_draw_image`'s line callback spoils the outer one, or writes to
   freed memory (133): `FlDraw` halts.
+- **Lines and paths** (2026-11-07, Phase 27): `fl_line` and the other
+  integer shapes put their points on pixel centres
+  (`Fl_Scalable_Graphics_Driver::line`), a path's `fl_vertex`es not, so
+  a thin slanting line drawn as a path differs by a few pixels; and a
+  dash pattern starts again with each `fl_line`, so two lines aren't
+  `FlDraw.Line3`.
 - **`Fl`'s statics** (`doc/fltk-issues.md`, 129 to 132): `grab` and
   `selection_owner` aren't cleared when their widget dies: `W<B>`'s
   destructor does. Font numbers have no bounds: `Fl` tracks the end
@@ -1068,6 +1078,13 @@ None at present.
   Pango; 2247, 20 skipped, with no SVG, printing or GL; 2475 with no
   Forms; 2351 with no GL; 2535 with no GLEW; 2493 with no cairo; and on
   a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2537 on Xvfb and 2516 on
+  sway. After Phase 27 (2026-11-07), 2557 (1 skipped), 2536 (8
+  skipped), 2289 (1 skipped) and 2269 (7 skipped) here, valgrind-sway
+  with `test/display.supp`; 2557, 1 skipped, on NetBSD and FreeBSD and
+  2549, 2 skipped, on OpenBSD; 2547, 4 skipped, with neither Cairo nor
+  Pango; 2267, 20 skipped, with no SVG, printing or GL; 2495 with no
+  Forms; 2371 with no GL; 2555 with no GLEW; 2513 with no cairo; and on
+  a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2557 on Xvfb and 2536 on
   sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and

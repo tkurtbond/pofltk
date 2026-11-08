@@ -120,6 +120,7 @@ PROCEDURE ["C", "ofl_draw_line_style"] CLineStyle(style, width: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_line_style_dashes"] CLineStyleDashes(style, width: SYSTEM.INT32; dashes: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_draw_point"] CPoint(x, y: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_line"] CLine(x, y, x1, y1: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_line3"] CLine3(x, y, x1, y1, x2, y2: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_rect"] CRect(x, y, w, h: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_rectf"] CRectF(x, y, w, h: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_loop3"] CLoop3(x0, y0, x1, y1, x2, y2: SYSTEM.INT32);
@@ -267,6 +268,14 @@ END Point;
 PROCEDURE Line*(x, y, x1, y1: INTEGER);
 BEGIN CLine(x, y, x1, y1)
 END Line;
+
+(* Two lines joined at x1, y1: from x, y to x1, y1, then to x2, y2. Not
+   two Lines: a dash pattern runs on through the join, and FLTK puts the
+   points on pixel centres as Line does, which a path of Vertex calls
+   doesn't. *)
+PROCEDURE Line3*(x, y, x1, y1, x2, y2: INTEGER);
+BEGIN CLine3(x, y, x1, y1, x2, y2)
+END Line3;
 
 (* The outline of the rectangle, inside it. *)
 PROCEDURE Rect*(x, y, w, h: INTEGER);

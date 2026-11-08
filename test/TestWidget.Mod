@@ -31,6 +31,44 @@ BEGIN
   RETURN t.Handle^(event)
 END Handle;
 
+(* The first column of b's capture, from the left, with a pixel not
+   white: where its black label starts. *)
+PROCEDURE LeftInk(b: Fl.Box): INTEGER;
+  VAR x, y: INTEGER; found: BOOLEAN;
+BEGIN
+  ASSERT(Probe.Capture(b));
+  x := 0; found := FALSE;
+  WHILE ~found & (x < b.W()) DO
+    y := 0;
+    WHILE ~found & (y < b.H()) DO
+      found := Probe.Pixel(x, y) # Fl.RGB(255, 255, 255); INC(y)
+    END;
+    IF ~found THEN INC(x) END
+  END;
+  RETURN x
+END LeftInk;
+
+(* The label's margins and image spacing read back, and a horizontal
+   margin moves a label aligned left by its pixels. *)
+PROCEDURE Margins;
+  VAR b: Fl.Box; x0: INTEGER;
+BEGIN
+  NEW(b); Fl.OpenBox(b, 0, 0, 100, 20, "X");
+  Check.Check((b.HorizontalLabelMargin() = 0) & (b.VerticalLabelMargin() = 0)
+    & (b.LabelImageSpacing() = 0), "label margins and image spacing start at 0");
+  b.SetHorizontalLabelMargin(-128); b.SetVerticalLabelMargin(127);
+  b.SetLabelImageSpacing(255);
+  Check.Check((b.HorizontalLabelMargin() = -128) & (b.VerticalLabelMargin() = 127)
+    & (b.LabelImageSpacing() = 255), "label margins and image spacing read back at their limits");
+  b.SetHorizontalLabelMargin(0); b.SetVerticalLabelMargin(0);
+  b.SetBoxType(Fl.FlatBox); b.SetColor(Fl.White); b.SetLabelColor(Fl.Black);
+  b.SetAlign(Fl.AlignLeft + Fl.AlignInside);
+  x0 := LeftInk(b);
+  b.SetHorizontalLabelMargin(20);
+  Check.Check(LeftInk(b) = x0 + 20, "a horizontal label margin moves a label aligned left");
+  b.Delete
+END Margins;
+
 PROCEDURE Click(x, y: INTEGER): BOOLEAN;
   VAR used: BOOLEAN;
 BEGIN
@@ -294,6 +332,7 @@ BEGIN
   END;
 
   win.Delete;
+  Margins;
   Check.Check(Fl.OpenWidgets() = 0, "all deleted");
   Check.Summary
 END TestWidget.

@@ -108,6 +108,11 @@ void ofl_draw_line(int32_t x, int32_t y, int32_t x1, int32_t y1) {
   fl_line(x, y, x1, y1);
 }
 
+void ofl_draw_line3(int32_t x, int32_t y, int32_t x1, int32_t y1,
+                    int32_t x2, int32_t y2) {
+  fl_line(x, y, x1, y1, x2, y2);
+}
+
 void ofl_draw_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
   fl_rect(x, y, w, h);
 }

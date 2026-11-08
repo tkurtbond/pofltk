@@ -19,6 +19,8 @@ TYPE
   Texty = POINTER TO RECORD (Fl.BoxDesc) font, size, height: INTEGER END;
   (* FLTK's box and label, under a black dot of its own at 2, 2 *)
   Framed = POINTER TO RECORD (Fl.BoxDesc) END;
+  (* a black L, from 5, 5 down to 5, 30 and across to 30, 30, by Line3 *)
+  Bent = POINTER TO RECORD (Fl.BoxDesc) END;
   (* its first child alone, on white *)
   Pair = POINTER TO RECORD (Fl.GroupDesc) END;
 
@@ -27,6 +29,7 @@ VAR
   sw: Swatch; cl: Clipped; disc: Disc; tx: Texty; fr: Framed;
   plain, left, right: Fl.Box;
   pair: Pair;
+  bent: Bent;
   r, g, b, x, y, dark, w, h: INTEGER;
   white, black: INTEGER;
   two: ARRAY 4 OF CHAR;
@@ -37,6 +40,13 @@ BEGIN
   FlDraw.SetColor(Fl.Red); FlDraw.RectF(s.X(), s.Y(), s.W(), s.H());
   FlDraw.SetColor(Fl.Blue); FlDraw.RectF(s.X() + 10, s.Y() + 10, 10, 10);
   FlDraw.SetRGB(0, 255, 0); FlDraw.XYLine(s.X(), s.Y() + 30, s.X() + s.W() - 1)
+END Draw;
+
+PROCEDURE (b: Bent) Draw*;
+BEGIN
+  FlDraw.SetColor(Fl.White); FlDraw.RectF(b.X(), b.Y(), b.W(), b.H());
+  FlDraw.SetColor(Fl.Black);
+  FlDraw.Line3(b.X() + 5, b.Y() + 5, b.X() + 5, b.Y() + 30, b.X() + 30, b.Y() + 30)
 END Draw;
 
 PROCEDURE (p: Pair) Draw*;
@@ -102,6 +112,7 @@ BEGIN
   NEW(tx); Fl.OpenBox(tx, 160, 10, 80, 30, "");
   NEW(fr); Fl.OpenBox(fr, 10, 60, 60, 30, "");
   NEW(plain); Fl.OpenBox(plain, 80, 60, 30, 20, "");
+  NEW(bent); Fl.OpenBox(bent, 250, 10, 40, 40, "");
   win.End;
 
   (* a Draw override, drawing in the window's coordinates *)
@@ -132,6 +143,13 @@ BEGIN
   Check.Check((Probe.Pixel(20, 20) = black) & (Probe.Pixel(14, 20) = black) & (Probe.Pixel(20, 26) = black)
     & (Probe.Pixel(2, 2) = white) & (Probe.Pixel(37, 37) = white) & (Probe.Pixel(32, 20) = white),
     "Circle in a polygon, translated: black inside, white outside");
+
+  (* two lines joined *)
+  Check.Check(Probe.Capture(bent), "capture Line3");
+  Check.Check((Probe.Pixel(5, 5) = black) & (Probe.Pixel(5, 18) = black) & (Probe.Pixel(5, 30) = black)
+    & (Probe.Pixel(18, 30) = black) & (Probe.Pixel(30, 30) = black)
+    & (Probe.Pixel(18, 18) = white) & (Probe.Pixel(18, 5) = white) & (Probe.Pixel(4, 18) = white),
+    "Line3 draws both lines, through the middle point");
 
   (* text *)
   Check.Check(Probe.Capture(tx), "capture text");
