@@ -2991,9 +2991,40 @@ GL; and last the unit tests and the demo launcher.
   2267, 20 skipped, with no SVG, printing or GL; 2495 with no Forms;
   2371 with no GL; 2555 with no GLEW; 2513 with no cairo; and on a
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2557 on Xvfb and 2536 on sway.
-- **Phase 28: Events and keys.** `handle_keys`, `keyboard` (its
+- **Phase 28: Events and keys** [done]. `handle_keys`, `keyboard` (its
   `keyboard_ui.fl` is 718 lines), `subwindow` (3), with the event-name
   tables.
+
+  Done 2026-11-07. Every shot of all 3 matches FLTK's build with no
+  fuzz. Found:
+  - `Fl.EventName`, `Fl.FontConstName` and `Fl.ReasonName` give
+    `FL/names.h`'s `fl_eventnames`, `fl_fontnames` and
+    `fl_callback_reason_names`, which that header defines in each file
+    including it, so the shim includes it once (`Fl.cpp`). A number
+    outside a table, or one of the reasons' gaps, gives "".
+    `TestEvents` checks them.
+  - FLTK's `test/` build has no `handle_keys`; it was built against the
+    installed FLTK to compare, as `coordinates` was.
+  - `keyboard_ui.fl`'s 122 buttons were written into the port by a
+    scratch generator, in FLUID's order. FLTK finds a key button by its
+    callback and `argument()`; the port has a record type for key
+    buttons and one for shift buttons instead, and `while (Fl::wait())`
+    is a loop on `Fl.WindowShown`.
+  - `subwindow`'s menus are built with `add` of a `|`-separated string,
+    which pofltk's `Menu.Add` doesn't split (it is `insert`): the port
+    splits it.
+  - `FlUtf8.Decode` halts on text starting with `0X`, which Ctrl+@ can
+    give `handle_keys`: the port reads that as U+0000 itself.
+  - xdotool's F1 arrives with the Alt state on Xvfb, in FLTK's program
+    and the port alike.
+
+  Counts: 2572 (1 skipped), 2551 (8 skipped), 2301 (1 skipped) and
+  2281 (7 skipped) for `test-headless`, `test-sway`, `valgrind-headless`
+  and `valgrind-sway`; 2572, 1 skipped, on NetBSD and FreeBSD and 2564,
+  2 skipped, on OpenBSD; 2562, 4 skipped, with neither Cairo nor Pango;
+  2282, 20 skipped, with no SVG, printing or GL; 2510 with no Forms;
+  2386 with no GL; 2570 with no GLEW; 2528 with no cairo; and on a
+  Wayland FLTK without `FLTK_HAVE_CAIRO`, 2572 on Xvfb and 2551 on sway.
 - **Phase 29: The large widget programs.** `editor` (1105 lines),
   `preferences` (`preferences.fl`), `table` (506), `tree` (2083, with
   `tree.fl`) (4). Binds the tree's six methods.

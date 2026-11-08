@@ -24,6 +24,7 @@ VAR
   win: Fl.Window;
   pad: Pad; other: Fl.Box; sized: Sized; fixed: Fixed;
   used: BOOLEAN;
+  name: ARRAY 40 OF CHAR; short: ARRAY 4 OF CHAR;
 
 PROCEDURE (p: Pad) Handle*(event: INTEGER): BOOLEAN;
 BEGIN
@@ -122,6 +123,32 @@ BEGIN
   fixed.Resize(0, 0, 10, 10); fixed.Size(99, 99);
   Check.Check((fixed.X() = 100) & (fixed.W() = 50),
     "a Resize override that doesn't call Resize^ keeps the widget as it was");
+
+  (* names.h's names *)
+  Fl.EventName(Fl.EvPush, name);
+  Check.Check(name = "FL_PUSH", "EventName of EvPush");
+  Fl.EventName(Fl.EvZoomEvent, name);
+  Check.Check(name = "FL_ZOOM_EVENT", "EventName of the last event");
+  Fl.EventName(-1, name);
+  Check.Check(name = "", "EventName of -1 is empty");
+  Fl.EventName(31, name);
+  Check.Check(name = "", "EventName past the table is empty");
+  Fl.EventName(Fl.EvKeyDown, short);
+  Check.Check(short = "FL_", "EventName is cut to fit");
+  Fl.FontConstName(Fl.Courier, name);
+  Check.Check(name = "FL_COURIER", "FontConstName of Courier");
+  Fl.FontConstName(Fl.ZapfDingbats, name);
+  Check.Check(name = "FL_ZAPF_DINGBATS", "FontConstName of ZapfDingbats");
+  Fl.FontConstName(Fl.ZapfDingbats + 1, name);
+  Check.Check(name = "", "FontConstName past ZapfDingbats is empty");
+  Fl.ReasonName(Fl.ReasonEnterKey, name);
+  Check.Check(name = "FL_REASON_ENTER_KEY", "ReasonName of ReasonEnterKey");
+  Fl.ReasonName(Fl.ReasonEnterKey + 1, name);
+  Check.Check(name = "", "ReasonName of an unused reason is empty");
+  Fl.ReasonName(Fl.ReasonUser + 3, name);
+  Check.Check(name = "FL_REASON_USER+3", "ReasonName of ReasonUser + 3");
+  Fl.ReasonName(Fl.ReasonUser + 4, name);
+  Check.Check(name = "", "ReasonName past the table is empty");
 
   (* Last, since FLTK raises a window clicked in where no widget uses the
      click: it shows it, and makes it the pushed widget. *)

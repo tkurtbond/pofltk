@@ -17,6 +17,7 @@
 #include <FL/Fl_Window.H>
 #include <FL/fl_draw.H>
 #include <FL/filename.H>
+#include <FL/names.h>
 #include <FL/platform.H>
 #include <stdarg.h>
 #include <stdio.h>
@@ -1445,6 +1446,18 @@ int32_t ofl_reload_scheme(void) { return Fl::reload_scheme(); }
 // Events
 
 int32_t ofl_callback_reason(void) { return Fl::callback_reason(); }
+
+// names.h's tables, which it defines in each file including it. A number
+// outside a table, or one of the reasons' gaps (NULL), has no name.
+extern "C++" {
+template <size_t N>
+static intptr_t name_in(const char * const (&table)[N], int32_t i) {
+  return i >= 0 && size_t(i) < N ? (intptr_t)table[i] : 0;
+}
+}
+intptr_t ofl_event_name(int32_t e) { return name_in(fl_eventnames, e); }
+intptr_t ofl_font_const_name(int32_t f) { return name_in(fl_fontnames, f); }
+intptr_t ofl_reason_name(int32_t r) { return name_in(fl_callback_reason_names, r); }
 
 int32_t ofl_compose(int32_t *del) {
   int d = 0;

@@ -190,7 +190,8 @@ the system's colours; `Show` does neither.
   - drawing and images: `Animated`, `Arc`, `Clipboard`, `Contrast`,
     `Coordinates`, `Curve`, `Icon`, `Image`, `Label` (with the label's
     margins and image spacing), `LineStyle`, `LineStyleDocs`, `Pixmap`,
-    `RotatedText`, `TiledImage`.
+    `RotatedText`, `TiledImage`;
+  - events and keys: `HandleKeys`, `Keyboard`, `Subwindow`.
 
 ## Modules
 

@@ -2520,6 +2520,9 @@ PROCEDURE ["C", "ofl_visual"] CVisual(mode: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_is_scheme"] CIsScheme(name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_reload_scheme"] CReloadScheme(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_callback_reason"] CCallbackReason(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_event_name"] CEventName(e: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_font_const_name"] CFontConstName(f: SYSTEM.INT32): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_reason_name"] CReasonName(r: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_compose"] CCompose(VAR del: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_compose_reset"] CComposeReset;
 PROCEDURE ["C", "ofl_test_shortcut"] CTestShortcut(s: SYSTEM.INT32): SYSTEM.INT32;
@@ -2916,6 +2919,22 @@ END EventButtons;
 PROCEDURE CallbackReason*(): INTEGER;
 BEGIN RETURN CCallbackReason()
 END CallbackReason;
+
+(* The names of FLTK's own constants, as FL/names.h gives them, for
+   showing: "FL_PUSH" for EvPush, "FL_COURIER" for Courier,
+   "FL_REASON_CHANGED" for ReasonChanged. A number with no name, such as
+   a font past ZapfDingbats or an unused reason, gives "". *)
+PROCEDURE EventName*(event: INTEGER; VAR name: ARRAY OF CHAR);
+BEGIN FromC(CEventName(event), name)
+END EventName;
+
+PROCEDURE FontConstName*(font: INTEGER; VAR name: ARRAY OF CHAR);
+BEGIN FromC(CFontConstName(font), name)
+END FontConstName;
+
+PROCEDURE ReasonName*(reason: INTEGER; VAR name: ARRAY OF CHAR);
+BEGIN FromC(CReasonName(reason), name)
+END ReasonName;
 
 (* In a Handle of an EvKeyDown, for an editor of text: TRUE if EventText
    is to be taken, after deleting del bytes before the cursor. *)

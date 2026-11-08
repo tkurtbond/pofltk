@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-11-07, Phases 0 to 27 of PLAN.md are done, and `README.md`
+As of 2026-11-07, Phases 0 to 28 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
 (planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
