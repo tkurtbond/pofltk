@@ -143,6 +143,10 @@ void ofl_draw_polygon4(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
 
 void ofl_draw_xyline(int32_t x, int32_t y, int32_t x1) { fl_xyline(x, y, x1); }
 void ofl_draw_yxline(int32_t x, int32_t y, int32_t y1) { fl_yxline(x, y, y1); }
+void ofl_draw_xyline2(int32_t x, int32_t y, int32_t x1, int32_t y2) { fl_xyline(x, y, x1, y2); }
+void ofl_draw_yxline2(int32_t x, int32_t y, int32_t y1, int32_t x2) { fl_yxline(x, y, y1, x2); }
+void ofl_draw_xyline3(int32_t x, int32_t y, int32_t x1, int32_t y2, int32_t x3) { fl_xyline(x, y, x1, y2, x3); }
+void ofl_draw_yxline3(int32_t x, int32_t y, int32_t y1, int32_t x2, int32_t y3) { fl_yxline(x, y, y1, x2, y3); }
 
 void ofl_draw_arc(int32_t x, int32_t y, int32_t w, int32_t h, double a1,
                   double a2) {

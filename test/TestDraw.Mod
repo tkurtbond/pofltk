@@ -21,6 +21,7 @@ TYPE
   Framed = POINTER TO RECORD (Fl.BoxDesc) END;
   (* a black L, from 5, 5 down to 5, 30 and across to 30, 30, by Line3 *)
   Bent = POINTER TO RECORD (Fl.BoxDesc) END;
+  Stairs = POINTER TO RECORD (Fl.BoxDesc) END;
   (* its first child alone, on white *)
   Pair = POINTER TO RECORD (Fl.GroupDesc) END;
   (* its own white, then both children, by DrawChildren *)
@@ -33,6 +34,7 @@ VAR
   pair: Pair;
   both: Both;
   bent: Bent;
+  stairs: Stairs;
   r, g, b, x, y, dark, w, h: INTEGER;
   white, black: INTEGER;
   two: ARRAY 4 OF CHAR;
@@ -50,6 +52,17 @@ BEGIN
   FlDraw.SetColor(Fl.White); FlDraw.RectF(b.X(), b.Y(), b.W(), b.H());
   FlDraw.SetColor(Fl.Black);
   FlDraw.Line3(b.X() + 5, b.Y() + 5, b.X() + 5, b.Y() + 30, b.X() + 30, b.Y() + 30)
+END Draw;
+
+(* XYLine3 down the left half, YXLine3 down the right *)
+PROCEDURE (b: Stairs) Draw*;
+BEGIN
+  FlDraw.SetColor(Fl.White); FlDraw.RectF(b.X(), b.Y(), b.W(), b.H());
+  FlDraw.SetColor(Fl.Black);
+  FlDraw.XYLine3(b.X() + 2, b.Y() + 5, b.X() + 10, b.Y() + 30, b.X() + 18);
+  FlDraw.YXLine3(b.X() + 22, b.Y() + 5, b.Y() + 20, b.X() + 30, b.Y() + 35);
+  FlDraw.XYLine2(b.X() + 32, b.Y() + 2, b.X() + 38, b.Y() + 8);
+  FlDraw.YXLine2(b.X() + 32, b.Y() + 30, b.Y() + 38, b.X() + 38)
 END Draw;
 
 PROCEDURE (p: Pair) Draw*;
@@ -122,6 +135,7 @@ BEGIN
   NEW(fr); Fl.OpenBox(fr, 10, 60, 60, 30, "");
   NEW(plain); Fl.OpenBox(plain, 80, 60, 30, 20, "");
   NEW(bent); Fl.OpenBox(bent, 250, 10, 40, 40, "");
+  NEW(stairs); Fl.OpenBox(stairs, 300, 10, 40, 40, "");
   win.End;
 
   (* a Draw override, drawing in the window's coordinates *)
@@ -159,6 +173,20 @@ BEGIN
     & (Probe.Pixel(18, 30) = black) & (Probe.Pixel(30, 30) = black)
     & (Probe.Pixel(18, 18) = white) & (Probe.Pixel(18, 5) = white) & (Probe.Pixel(4, 18) = white),
     "Line3 draws both lines, through the middle point");
+  Check.Check(Probe.Capture(stairs), "capture XYLine3 and YXLine3");
+  Check.Check((Probe.Pixel(2, 5) = black) & (Probe.Pixel(6, 5) = black) & (Probe.Pixel(10, 5) = black)
+    & (Probe.Pixel(10, 18) = black) & (Probe.Pixel(10, 30) = black)
+    & (Probe.Pixel(14, 30) = black) & (Probe.Pixel(18, 30) = black)
+    & (Probe.Pixel(6, 6) = white) & (Probe.Pixel(14, 31) = white) & (Probe.Pixel(19, 30) = white),
+    "XYLine3: across, down, across");
+  Check.Check((Probe.Pixel(22, 5) = black) & (Probe.Pixel(22, 20) = black) & (Probe.Pixel(26, 20) = black)
+    & (Probe.Pixel(30, 20) = black) & (Probe.Pixel(30, 28) = black) & (Probe.Pixel(30, 35) = black)
+    & (Probe.Pixel(23, 12) = white) & (Probe.Pixel(30, 36) = white) & (Probe.Pixel(26, 21) = white),
+    "YXLine3: down, across, down");
+  Check.Check((Probe.Pixel(32, 2) = black) & (Probe.Pixel(38, 2) = black) & (Probe.Pixel(38, 8) = black)
+    & (Probe.Pixel(32, 30) = black) & (Probe.Pixel(32, 38) = black) & (Probe.Pixel(38, 38) = black)
+    & (Probe.Pixel(35, 5) = white) & (Probe.Pixel(35, 35) = white) & (Probe.Pixel(38, 9) = white),
+    "XYLine2 and YXLine2: one corner each");
 
   (* text *)
   Check.Check(Probe.Capture(tx), "capture text");

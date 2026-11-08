@@ -2995,3 +2995,29 @@ empty one wrote `~/.fltk/fltk.org/blocks.prefs` (2026-11-08).
 **Confirmed:** `Blocks` and FLTK's `blocks`, 2026-11-08: with an empty
 `XDG_CONFIG_HOME` the high score went to `~/.fltk/fltk.org`; with
 `fltk.org` made in it, it went there.
+
+## 159. `Fl_Browser::linespacing` doesn't measure the lines again
+
+**What happens:** a browser's full height is counted as lines are
+added and removed, each with the line spacing of that moment.
+`linespacing(n)` changes the spacing and not the count, so lines added
+before it keep their old height: ten 20-pixel lines at spacing 0 are
+200 pixels after `linespacing(5)`, not 250. The scrollbar and
+`bottomline`/`middleline` then stop short of the last lines, and once
+those lines are removed with the new spacing the height goes negative
+(-50 for the ten).
+
+**Cause:** `FL/Fl_Browser_.H`'s `linespacing(int)` is inline and sets
+the field alone; `src/Fl_Browser.cxx:267` (`insert`) adds
+`item_height(t) + linespacing()` to `full_height_`, and `:211`
+(`remove`) subtracts it with the spacing then in force.
+
+**Effect on pofltk:** `BrowserBase.SetLineSpacing` of a `Browser`
+counts the full height again (`FlBrowsers.cpp`'s `Remeasure`, which
+reaches the private `full_height_` by explicit instantiation). Setting
+the text size again counts it too, but resets the position and a file
+browser's icon size, so it isn't used.
+
+**Confirmed:** a scratch C++ program, 2026-11-08 (the figures above,
+and 250 with the spacing set before the lines); `TestBrowsers`, whose
+two checks fail without `Remeasure`.

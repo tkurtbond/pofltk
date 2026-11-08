@@ -1,0 +1,121 @@
+# Menu description file for examples/Demo, the port of FLTK's demo
+#
+# FLTK's test/demo.menu, naming the ports in place of FLTK's programs
+# (build/<Name>, run with this file's directory as the working directory),
+# without "Threading", which isn't ported. FLTK's tools, fluid and
+# fltk-options, are run from PATH. The OpenGL, cairo and Forms ports are
+# built only where FLTK has them; the shell says so if one isn't there.
+#
+# Each line consists of three fields, separated by :
+#
+# - menu name	: To which the item belongs (starts with @)
+# - item name	: Placed on button. (use \n for newline)
+# - command name: To be executed. Use a menu name to define a submenu.
+#
+# @main indicates the main menu.
+#
+
+@main:Widget\nTests...:@x
+	@x:Fl_Browser:Browser browser.cxx
+	@x:Fl_Input:Input
+	@x:Fl_Output:Output
+	@x:Fl_Button:Radio
+	@x:Fl_Tabs:Tabs
+	@x:Fl_Tile:Tile
+	@x:Fl_Scroll:Scroll
+	@x:Fl_Pack:Pack
+	@x:more...:@xm
+		@xm:Fl_Menu:MenuBar
+		@xm:Fl_Table:Table
+		@xm:Fl_Tree:Tree
+
+@main:Window\nTests...:@w
+	@w:overlay:Overlay
+	@w:subwindow:Subwindow
+	@w:double\nbuffer:DoubleBuffer
+	@w:GL window:Cube
+	@w:GL overlay:GlOverlay
+	@w:iconize:Iconize
+	@w:fullscreen:Fullscreen
+	@w:resizable:ResizeBox
+	@w:resize:Resize
+
+@main:Drawing\nTests...:@d
+	@d:unit tests:Unittests
+	@d:Images...:@di
+		@di:Fl_Bitmap:Bitmap
+		@di:Fl_Pixmap:Pixmap
+		@di:Fl_RGB\n_Image:Image
+		@di:Fl_Shared\n_Image:PixmapBrowser
+		@di:Fl_Tiled\n_Image:TiledImage
+		@di:transparency:Animated
+	@d:cursor:CursorTest
+	@d:labels:Label
+	@d:offscreen:Offscreen
+	@d:rotated text:RotatedText
+	@d:fl_arc:Arc
+	@d:fl_curve:Curve
+	@d:fl_line_style:LineStyle
+
+@main:Events...:@u
+	@u:navigation:Navigation
+	@u:minimum update:Minimum
+	@u:keyboard:Keyboard
+	@u:fast && slow widgets:FastSlow
+	@u:inactive:Inactive
+
+@main:Tools...:@t
+	@t:Fluid\n(UI design tool):fluid valuators.fl
+	@t:FLTK\nRuntime\nOptions:fltk-options
+
+@main:Cool\nDemos...:@e
+	@e:Mandelbrot:Mandelbrot
+	@e:Fractals:Fractals
+	@e:Puzzle:GlPuzzle
+	@e:Cairo\nSupport:CairoTest
+	@e:Block\nAttack!:Blocks
+	@e:Checkers:Checkers
+	@e:Sudoku:Sudoku
+	@e:Print\nSupport:Device
+	@e:Clipboard\nViewer:Clipboard
+
+@main:Other\nTests...:@o
+	@o:File Chooser:FileChooser
+	@o:Native File Chooser:NativeFileChooser
+	@o:HelpDialog:HelpDialog ../test/help.html
+	@o:Input Choice:InputChoice
+	@o:Preferences:Preferences
+	@o:XForms Emulation:Forms
+	@o:Colors and Fonts...:@of
+		@of:X Color\nBrowser:ColBrowser rgb.txt
+		@of:Color Chooser:ColorChooser
+		@of:Color Contrast:Contrast
+		@of:Fonts:Fonts
+		@of:UTF-8 Fonts:Utf8Test
+
+@main:Tutorial\nfrom\nManual...:@j
+	@j:ask\n(modified):Ask
+	@j:button:Button
+	@j:CubeView:CubeView
+	@j:editor:Editor Editor.Mod
+	@j:hello:Hello
+	@j:shape:Shape
+
+@main:Images\nfor\nManual...:@i
+	@i:valuators:Valuators
+	@i:symbols:Symbols
+	@i:buttons:Buttons
+	@i:clock:Clock
+	@i:popups:Message
+	@i:boxtypes:Boxtype
+	@i:line styles:LineStyleDocs
+	@i:Resize Examples\n...:@ir
+		@ir:Example\n1:ResizeExample1
+		@ir:Example\n2:ResizeExample2
+		@ir:Example\n3a:ResizeExample3a
+		@ir:Example\n3b:ResizeExample3b
+		@ir:Example\n3c:ResizeExample3c
+		@ir:Example\n4a:ResizeExample4a
+		@ir:Example\n4b:ResizeExample4b
+		@ir:Example\n5a:ResizeExample5a
+		@ir:Example\n5b:ResizeExample5b

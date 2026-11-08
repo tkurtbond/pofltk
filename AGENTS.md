@@ -21,10 +21,10 @@ anything:
 
 ## Status
 
-As of 2026-11-08, Phases 0 to 31 of PLAN.md are done, and `README.md`
+As of 2026-11-08, Phases 0 to 32 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
-(planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
+(planned 2026-11-07) ported FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
 `FlInputs`, `FlValuators`, `FlLayout`, `FlMenus`, `FlDialogs`, `FlText`,
 `FlBrowsers`, `FlImages`, `FlPreferences`, `FlTable`, `FlHelp`, `FlUtf8`,
 `FlTerminal` and `FlPrint` modules, `src/forms/` has `FlForms`, `src/gl/`
@@ -207,12 +207,17 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   test, from FLTK's headers (constants, below).
 - `tools/with-sway.sh`: runs a command on a headless sway (`make
   test-sway`, below).
+- `tools/terminal-tests.py`: writes `examples/terminal-tests.txt`, the
+  escape sequence tests of FLTK's `test/terminal.cxx`, for
+  `examples/Terminal.Mod`.
 - `examples/`: example programs (`Hello`, FLTK's hello; `Scribble`,
   drawing with the mouse; `Swatch`, the prototype's demo; `Menus`, a
   menu bar, a choice and the dialogs; and ports of FLTK's `examples/`,
   named for FLTK's file in CamelCase without `howto-`, and of its
   `test/`, from Phase 25; their data, `browser.cxx` and `rgb.txt`, is
-  copied beside them). A port is
+  copied beside them, with `valuators.fl`, for `Demo`'s `fluid` item;
+  `Demo.menu` is `Demo`'s menu file, naming the ports, and
+  `unittests/` holds `Unittests`' pages, a module each). A port is
   checked against FLTK's own build of it (in FLTK's `examples/` or
   `test/`): both
   run under Xvfb, driven by the same `xdotool` input, and their screens
@@ -224,7 +229,7 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   click's y. `make` builds them. They wait for the user, so
   `make test` runs each for `EXAMPLETIME` seconds and checks it is still
   running then. `Pipe.Mod` and `Pipe.cpp` are an example module with a
-  C++ part (`popen`), listed in `EXAMPLECXX`; `ResizeArrows.Mod` is one
+  C++ part (`popen`, and `fopen` and non-blocking reads for `Terminal`), listed in `EXAMPLECXX`; `ResizeArrows.Mod` is one
   with none (FLTK's `resize-arrows.cxx`), listed in `EXAMPLEMODS`.
   Examples are built with `-import-path examples` to find them.
 - `GNUmakefile`: build and test (Build, below).
@@ -279,7 +284,8 @@ make clean      # rm -rf build
   text, as `sed 's/^\(EXAMPLES := .*Last\)$/\1 New/'`, not by line
   number. An example that needs a command line under `make test` gets
   one in `EXAMPLEARGS`, as `name=argument`. One that ends by itself
-  goes in `EXAMPLEONCE`, and must exit 0. One that writes FLTK's
+  goes in `EXAMPLEONCE`, and must exit 0. `Unittests --core`, its checks with no
+  window, must exit 0 too. One that writes FLTK's
   preferences goes in `EXAMPLEPREFS`, which `make test` runs with
   `XDG_CONFIG_HOME` in `build/config`, so it never writes the user's.
   That needs `build/config/fltk.org` made first: without the vendor's
@@ -703,7 +709,7 @@ held only in C++ memory**.
     drawn itself, not its window drawn into a surface;
   - the line number format is copied and used as a printf format, and
     line numbers are drawn only in a shown window (153).
-- **Browsers** (`doc/fltk-issues.md`, 37 to 40):
+- **Browsers** (`doc/fltk-issues.md`, 37 to 40, 159):
   - `column_widths`, `Fl_File_Browser::filter` and `load` keep their
     pointers: the shim keeps copies;
   - a browser finds its top line only as it draws, so `topline()` and
@@ -713,6 +719,8 @@ held only in C++ memory**.
     `Fl_Browser_`'s;
   - `Fl_Browser::icon` keeps the image, and a line removed drops it
     unseen (56): the browser keeps the images its lines show;
+  - `linespacing` doesn't measure the lines already added (159):
+    `SetLineSpacing` counts the full height again;
   - `Fl_Browser::load` adds an empty last line after a final newline;
     `Fl_File_Browser::load` returns the directory's entries;
   - a browser calls back on every release, changed or not, and a check
@@ -1147,7 +1155,12 @@ None at present.
   Cairo nor Pango; 2337, 20 skipped, with no SVG, printing or GL; 2633
   with no Forms; 2441 with no GL; 2693 with no GLEW; 2651 with no cairo;
   2673 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
-  2695 on Xvfb and 2672 on sway.
+  2695 on Xvfb and 2672 on sway. After Phase 32 (2026-11-08), 2739 (1 skipped), 2716 (9 skipped), 2444 (1 skipped) and 2422 (8 skipped)
+  here; 2739, 1 skipped, on NetBSD and FreeBSD and 2731, 2 skipped, on
+  OpenBSD; 2729, 4 skipped, with neither Cairo nor Pango; 2375, 20
+  skipped, with no SVG, printing or GL; 2677 with no Forms; 2479 with no
+  GL; 2737 with no GLEW; 2695 with no cairo; 2717 with no GLU; and on a
+  Wayland FLTK without `FLTK_HAVE_CAIRO`, 2739 on Xvfb and 2716 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

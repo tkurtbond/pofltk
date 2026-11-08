@@ -32,11 +32,23 @@ class Gl : public ofl::Overlaid<Fl_Gl_Window> {
 public:
   Gl(int w, int h) : ofl::Overlaid<Fl_Gl_Window>(w, h) {}
   Gl(int x, int y, int w, int h) : ofl::Overlaid<Fl_Gl_Window>(x, y, w, h) {}
+  // Whether this window's draw() is running, and whether its Oberon Draw
+  // has begun FLTK's drawing in GL (DrawBegin) without ending it. A Draw
+  // that returns begun is ended here: draw_begin() pushes GL's state and
+  // the surface, which nothing else would pop.
+  bool in_draw = false, begun = false;
   void draw() FL_OVERRIDE {
     ofl_gl_drawing++;
+    bool was = in_draw, had = begun;
+    in_draw = true; begun = false;
     ofl::Overlaid<Fl_Gl_Window>::draw();
+    if (begun) end_drawing();
+    in_draw = was; begun = had;
     ofl_gl_drawing--;
   }
+  void begin_drawing() { begun = true; draw_begin(); }
+  void end_drawing() { begun = false; draw_end(); }
+  void draw_window() { Fl_Window::draw(); }
 };
 
 // Whether c is a window now shown. Fl_Window::current() stays set after
@@ -94,6 +106,25 @@ int32_t ofl_gl_mode(intptr_t w) {
 }
 
 int32_t ofl_gl_drawing_now(void) { return ofl_gl_drawing != 0; }
+
+// 0 outside w's own draw(), 1 in it, 2 in it after DrawBegin.
+int32_t ofl_gl_draw_state(intptr_t w) {
+  Gl *g = dynamic_cast<Gl *>(ofl::as<Fl_Gl_Window>(w));
+  if (!g || !g->in_draw) return 0;
+  return g->begun ? 2 : 1;
+}
+
+void ofl_gl_draw_begin(intptr_t w) {
+  dynamic_cast<Gl *>(ofl::as<Fl_Gl_Window>(w))->begin_drawing();
+}
+
+void ofl_gl_draw_end(intptr_t w) {
+  dynamic_cast<Gl *>(ofl::as<Fl_Gl_Window>(w))->end_drawing();
+}
+
+void ofl_gl_draw_window(intptr_t w) {
+  dynamic_cast<Gl *>(ofl::as<Fl_Gl_Window>(w))->draw_window();
+}
 
 // 0 if this display has no such mode; the window keeps its old one.
 int32_t ofl_gl_set_mode(intptr_t w, int32_t mode) {

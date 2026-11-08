@@ -136,15 +136,15 @@ TESTARGS := -o hello --help -g 120x80 -ti Title -s plastic -nokbd rest more
 # Programs that must halt (test/<name>.Mod), as name:ASSERT-code. poc's
 # ASSERT(x, n) prints "assertion failed (n)" on standard error and exits
 # with status 10, so `make test` requires both.
-HALTTESTS := HaltCursorTiled:78 HaltCursorHot:74 HaltFrame:74 HaltArrow:74 HaltDrawImage:74 HaltOverlay:77 HaltScroll:77 HaltAntialias:77 HaltMakeCurrent:77 HaltOffscreenCopy:77 HaltAbort:42 HaltFontNumber:74 HaltFontGap:74 HaltFontFrom:74 HaltGetBoxtype:74 HaltContrastMode:74 HaltGrabHidden:77 HaltHandleEvent:77 HaltScreenDPI:74 HaltScreenNum:74 HaltReleaseColor:74 HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74 HaltPluginTwice:71 HaltPluginName:74 HaltPluginAt:74 HaltPluginManager:70 HaltUtf8Offset:74 HaltImageInLine:77 HaltDashLong:74 HaltDashValue:74 HaltMaskBegun:77 HaltMaskTwice:77 HaltMaskDepth:78 HaltKeyFunction:74 HaltPopup:73 HaltLineNumberFormat:78 HaltInputIndex:74 HaltLabelMargin:74
+HALTTESTS := HaltCursorTiled:78 HaltCursorHot:74 HaltFrame:74 HaltArrow:74 HaltDrawImage:74 HaltOverlay:77 HaltScroll:77 HaltAntialias:77 HaltMakeCurrent:77 HaltOffscreenCopy:77 HaltAbort:42 HaltFontNumber:74 HaltFontGap:74 HaltFontFrom:74 HaltGetBoxtype:74 HaltContrastMode:74 HaltGrabHidden:77 HaltHandleEvent:77 HaltScreenDPI:74 HaltScreenNum:74 HaltReleaseColor:74 HaltNotOpen:70 HaltDeleted:70 HaltOpenTwice:71 HaltNil:72 HaltIndex:74 HaltRepeat:75 HaltGridRange:74 HaltNotAChild:76 HaltMenuItem:74 HaltClosedBuffer:73 HaltNoBuffer:73 HaltBrowserLine:74 HaltTreeItem:73 HaltClosedImage:73 HaltSurfaceOrder:77 HaltClosedGroup:73 HaltTableRow:74 HaltBoxType:74 HaltMultiLabel:78 HaltHandleDefault:75 HaltAddItem:71 HaltChartEntry:74 HaltShapeTiled:78 HaltAnimFrame:78 HaltClockTime:78 HaltSchemeName:74 HaltTrackNil:72 HaltDrawChild:76 HaltChoiceItem:74 HaltColorMode:74 HaltBitmapBits:74 HaltBitmapShape:78 HaltSharedCopy:78 HaltShareBitmap:78 HaltIconWindow:78 HaltChooserClosed:73 HaltChooserFilter:74 HaltHelpImage:77 HaltHelpDialogClosed:73 HaltHandlerNil:72 HaltHandlerClosed:73 HaltTerminalSize:78 HaltTerminalCells:78 HaltTerminalTextSize:78 HaltTerminalErrorChar:78 HaltTerminalPlot:74 HaltTerminalStyle:74 HaltTerminalCell:74 HaltPrintOrder:77 HaltPrintPage:77 HaltPrintUntranslate:77 HaltPrintShift:77 HaltPrintNesting:77 HaltPrintImage:77 HaltPrintUnderImage:77 HaltPrintScale:78 HaltPrintFormat:78 HaltPrintClosed:73 HaltPrintTwice:71 HaltPrintSize:74 HaltPrintText:74 HaltPluginTwice:71 HaltPluginName:74 HaltPluginAt:74 HaltPluginManager:70 HaltUtf8Offset:74 HaltImageInLine:77 HaltDashLong:74 HaltDashValue:74 HaltMaskBegun:77 HaltMaskTwice:77 HaltMaskDepth:78 HaltKeyFunction:74 HaltPopup:73 HaltLineNumberFormat:78 HaltInputIndex:74 HaltLabelMargin:74
 ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree HandleEvents Blocks Checkers Sudoku
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree HandleEvents Blocks Checkers Sudoku Unittests Terminal Demo
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
-EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
+EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif Demo=Demo.menu
 # The examples that write FLTK's preferences: make test gives them
 # XDG_CONFIG_HOME in build/, with fltk.org made there, so they never write
 # the user's own (FLTK goes to ~/.fltk when that directory isn't there).
@@ -171,7 +171,7 @@ endif
 
 # FlGl and FlGlut need libfltk_gl and GL, likewise (PLAN.md, Phase 21).
 GLTESTS := TestGl TestGlConstants TestGlut TestGlutConstants
-GLHALTS := HaltGlutBitmapFont:74 HaltGlutStrokeFont:74 HaltGlutBitmapText:77 HaltGlutStrokeText:77 HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72 HaltGlTexturePile:78 HaltGlSelectBuffer:77 HaltGlutShape:74
+GLHALTS := HaltGlutBitmapFont:74 HaltGlutStrokeFont:74 HaltGlutBitmapText:77 HaltGlutStrokeText:77 HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72 HaltGlTexturePile:78 HaltGlSelectBuffer:77 HaltGlutShape:74 HaltGlDrawBegin:77
 GLEXAMPLES := Cube GlOverlay GlutTest GlutCube Shape Fullscreen CubeView
 GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
 # fltk-config says which GL libraries, on some systems. A static FLTK with
@@ -276,6 +276,13 @@ GLUPROGRAMS := $(GLUTESTS:%=$(BUILD)/%) $(GLUEXAMPLES:%=$(BUILD)/%) $(foreach h,
 $(GLUPROGRAMS): MORE := $(GLUUSE)
 $(GLUPROGRAMS): $(GLLIBDIR)/$(GLLIBRARY)-OC.stamp $(GLULIBDIR)/$(GLULIBRARY)-OC.stamp
 
+# Unittests' pages are modules of examples/unittests, and its OpenGL
+# windows are UtGl's: unittests/gl's where FLTK has GL, unittests/nogl's,
+# which has none, where it hasn't.
+UTGL := $(if $(HAVE_GL),gl,nogl)
+$(BUILD)/Unittests: MORE += -import-path examples/unittests -import-path examples/unittests/$(UTGL) $(if $(HAVE_GL),$(GLUSE))
+$(BUILD)/Unittests: $(wildcard examples/unittests/*.Mod) examples/unittests/$(UTGL)/UtGl.Mod $(if $(HAVE_GL),$(GLLIBDIR)/$(GLLIBRARY)-OC.stamp)
+
 # The libraries, one stamp for each variant. FLTK's -link flags go in the
 # manifest. An optional part imports pofltk, so it is built again with it.
 PARTLINK := $(foreach f,$(X11_LIBS) $(filter -L%,$(FLTK_LIBS)),-link $(f))
@@ -336,7 +343,8 @@ display:
 # standard error. Each example waits for the user, so it must still be
 # running after EXAMPLETIME seconds, when timeout ends it (status 124):
 # it started, drew, and didn't crash. One of EXAMPLEONCE waits for no one,
-# and must end by itself, with status 0.
+# and must end by itself, with status 0. Unittests also runs its own
+# checks, with no window (--core, as FLTK's), which must pass.
 test: tests display
 	@status=0; skips=0; for t in $(TESTS); do \
 	  echo "== $$t"; (cd test && timeout $(TIMEOUT) ../$(BUILD)/$$t $$(test $$t = TestArgs && echo $(TESTARGS))) > $(BUILD)/$$t.out 2>&1 || status=1; \
@@ -356,6 +364,10 @@ test: tests display
 	  if [ $$got -eq 0 ]; then echo "ok   - $$e"; \
 	  else echo "FAIL - $$e exited with $$got: $$(cat $(BUILD)/$$e.out)"; status=1; fi; \
 	done; \
+	echo "== Unittests --core (example's own checks: must exit 0)"; \
+	(cd examples && timeout $(TIMEOUT) ../$(BUILD)/Unittests --core) > $(BUILD)/Unittests-core.out 2>&1; got=$$?; \
+	if [ $$got -eq 0 ]; then echo "ok   - Unittests --core"; \
+	else echo "FAIL - Unittests --core exited with $$got: $$(cat $(BUILD)/Unittests-core.out)"; status=1; fi; \
 	for e in $(filter-out $(EXAMPLEONCE),$(EXAMPLES)); do \
 	  echo "== $$e (example: must still be running after $(EXAMPLETIME) s)"; \
 	  args=$$(for a in $(EXAMPLEARGS); do test "$${a%%=*}" = $$e && echo "$${a#*=}"; done); \

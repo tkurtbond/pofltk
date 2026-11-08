@@ -3176,12 +3176,62 @@ GL; and last the unit tests and the demo launcher.
   GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2695 on Xvfb and
   2672 on sway.
   - No FLTK bug found beyond 158.
-- **Phase 32: The unit tests, the terminal and the demo.**
+- **Phase 32: The unit tests, the terminal and the demo** [done].
   `unittests` (14 pages, about 3700 lines with `unittest_*.cxx`), one
   port with a module per page; `terminal` (2521 lines, mostly
   `terminal.fl`'s panel, left out by Phase 18 for its size); and `demo`,
   FLTK's launcher, with a menu file of its own naming the ports, last,
   so that every program it starts exists (3).
+
+  Bound for it (2026-11-08):
+  - `FlDraw.XYLine2`, `XYLine3`, `YXLine2` and `YXLine3`, the stepped
+    lines of `fl_xyline` and `fl_yxline` with three and four
+    coordinates (the unit tests' alignment marks);
+  - `FlGl.DrawBegin`, `DrawWindow` and `DrawEnd`: FLTK's widgets drawn
+    over GL (`Fl_Gl_Window::draw_begin` and the rest), halting 77
+    when nested;
+  - `BrowserBase.LineSpacing` and `SetLineSpacing`: FLTK counts each
+    line's height with the spacing in force as it is added, so the
+    shim counts again when the spacing changes
+    (`doc/fltk-issues.md`, 159);
+  - `FlTerminal`: `Terminal.GetSelection`, the ring's rows, columns,
+    offset and the history's and display's bounds (`RingRows` to
+    `DisplayEnd`), `StyleFlags`, and `Cell` (a cell's text, attributes
+    and colors, halting 74 outside the ring), for `terminal`'s ring
+    debug window;
+  - the examples' `Pipe`: `OpenFile` (a file, read by `fgets`), `Error`
+    (`strerror` of the last failure), `SetNonBlocking` and `Read` (raw
+    bytes, -2 when none are waiting), so that `terminal`'s show-file and
+    command buttons give FLTK's messages, and read as FLTK's do.
+
+  Done 2026-11-08. Each port matches FLTK's build with no fuzz on Xvfb:
+  `Unittests` every page, and after the interactions (tabs, the
+  inactive toggle, three schemes, the scrollbar sliders, the viewport
+  marks); `Terminal` its tests, colour bars, a file, a command, the
+  margins alert and the ring debug window; `Demo` its menus, the back
+  button, its tooltip, the pop-up and the scheme choice. Found:
+  - The core page of `unittests` tests `Fl_String`, FLTK's own string
+    class, which pofltk has no use for; the port's page runs instead the
+    `fl_filename` tests FLTK's file has but leaves out (their suite
+    needs `Fl_String`). `Unittests --core` runs them with no window, as
+    FLTK's does, and `make test` runs it so and requires status 0.
+  - `terminal`'s escape sequence tests are arrays of C strings in its
+    source; `tools/terminal-tests.py` writes them to
+    `examples/terminal-tests.txt`, escapes as written, and the port
+    decodes them.
+  - `demo` runs `fluid` and `fltk-options` from FLTK's build tree; the
+    port runs them from `PATH`. `examples/Demo.menu` is FLTK's
+    `demo.menu` naming the ports (without `threads`), and
+    `examples/valuators.fl` is FLTK's, for its `fluid` item.
+  - No FLTK bug found beyond 159.
+
+  Counts: 2739 (1 skipped), 2716 (9 skipped), 2444 (1 skipped) and 2422 (8 skipped) for `test-headless`,
+  `test-sway`, `valgrind-headless` and `valgrind-sway`; 2739, 1
+  skipped, on NetBSD and FreeBSD and 2731, 2 skipped, on OpenBSD; 2729,
+  4 skipped, with neither Cairo nor Pango; 2375, 20 skipped, with no
+  SVG, printing or GL; 2677 with no Forms; 2479 with no GL; 2737 with no
+  GLEW; 2695 with no cairo; 2717 with no GLU; and on a Wayland FLTK
+  without `FLTK_HAVE_CAIRO`, 2739 on Xvfb and 2716 on sway.
 
 Not ported, and why:
 - `threads`: poc has no threads, and `Fl::lock`, `Fl::awake` and

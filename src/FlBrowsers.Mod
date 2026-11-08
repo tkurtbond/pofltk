@@ -88,7 +88,7 @@ CONST
 
   (* what ofl_browser_get and ofl_browser_set read or set *)
   textFont = 0; textSize = 1; textColor = 2; hasScrollbar = 3;
-  scrollbarSize = 4; hPosition = 5; vPosition = 6;
+  scrollbarSize = 4; hPosition = 5; vPosition = 6; lineSpacing = 7;
 
 TYPE
   (* FLTK's Fl_Browser_, what the others have in common; never opened. *)
@@ -320,6 +320,15 @@ END VPosition;
 PROCEDURE (b: BrowserBase) SetVPosition*(p: INTEGER);
 BEGIN Set(b, vPosition, p)
 END SetVPosition;
+
+(* The pixels added between lines; 0 at first. *)
+PROCEDURE (b: BrowserBase) LineSpacing*(): INTEGER;
+BEGIN RETURN Get(b, lineSpacing)
+END LineSpacing;
+
+PROCEDURE (b: BrowserBase) SetLineSpacing*(n: INTEGER);
+BEGIN Set(b, lineSpacing, n)
+END SetLineSpacing;
 
 (* Deselects every line, without calling back; TRUE if any was selected. *)
 PROCEDURE (b: BrowserBase) Deselect*(): BOOLEAN;

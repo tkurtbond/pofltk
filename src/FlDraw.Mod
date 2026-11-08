@@ -129,6 +129,10 @@ PROCEDURE ["C", "ofl_draw_polygon3"] CPolygon3(x0, y0, x1, y1, x2, y2: SYSTEM.IN
 PROCEDURE ["C", "ofl_draw_polygon4"] CPolygon4(x0, y0, x1, y1, x2, y2, x3, y3: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_xyline"] CXYLine(x, y, x1: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_yxline"] CYXLine(x, y, y1: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_xyline2"] CXYLine2(x, y, x1, y2: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_yxline2"] CYXLine2(x, y, y1, x2: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_xyline3"] CXYLine3(x, y, x1, y2, x3: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_draw_yxline3"] CYXLine3(x, y, y1, x2, y3: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_draw_arc"] CArc(x, y, w, h: SYSTEM.INT32; a1, a2: LONGREAL);
 PROCEDURE ["C", "ofl_draw_pie"] CPie(x, y, w, h: SYSTEM.INT32; a1, a2: LONGREAL);
 PROCEDURE ["C", "ofl_draw_push_matrix"] CPushMatrix;
@@ -313,6 +317,26 @@ END XYLine;
 PROCEDURE YXLine*(x, y, y1: INTEGER);
 BEGIN CYXLine(x, y, y1)
 END YXLine;
+
+(* Lines end to end: horizontal from x, y to x1, y, then vertical to
+   x1, y2, and with XYLine3 horizontal again to x3, y2; YXLine2 and
+   YXLine3 start vertical. Cairo and OpenGL draw them as one path, so a
+   wide line's corners are joined; Xlib draws each line by itself. *)
+PROCEDURE XYLine2*(x, y, x1, y2: INTEGER);
+BEGIN CXYLine2(x, y, x1, y2)
+END XYLine2;
+
+PROCEDURE XYLine3*(x, y, x1, y2, x3: INTEGER);
+BEGIN CXYLine3(x, y, x1, y2, x3)
+END XYLine3;
+
+PROCEDURE YXLine2*(x, y, y1, x2: INTEGER);
+BEGIN CYXLine2(x, y, y1, x2)
+END YXLine2;
+
+PROCEDURE YXLine3*(x, y, y1, x2, y3: INTEGER);
+BEGIN CYXLine3(x, y, y1, x2, y3)
+END YXLine3;
 
 (* The arc of the ellipse inside x, y, w, h from angle a1 to a2, and the
    same, filled as a pie slice. *)

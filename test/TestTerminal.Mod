@@ -440,6 +440,7 @@ BEGIN
 END TestDrawing;
 
 PROCEDURE TestSelection;
+  VAR sr, sc, er, ec, sr2, sc2, er2, ec2: INTEGER;
 BEGIN
   Open(400, 300);
   t.SetTextFont(Fl.Courier);
@@ -448,14 +449,86 @@ BEGIN
   Probe.Release;
   t.SelectionText(s);
   Check.Check((s = "") & (t.SelectionTextLength() = 0), "nothing selected");
+  Check.Check(~t.GetSelection(sr, sc, er, ec), "GetSelection: none");
+  Check.Check((sr = 0) & (sc = 0) & (er = 0) & (ec = 0), "and its corners are 0");
   ok := Probe.Mouse(win, Fl.EvPush, 8, 12, 1, Fl.Button1, 1);
   ok := Probe.Mouse(win, Fl.EvDrag, 390, 12, 1, Fl.Button1, 1);
   ok := Probe.Mouse(win, Fl.EvRelease, 390, 12, 1, {}, 1);
   t.SelectionText(s);
   Check.Check(Strings.Pos("lec", s, 0) >= 0, "the mouse selects text");
   Check.Check(t.SelectionTextLength() > 0, "of some length");
+  Check.Check(t.GetSelection(sr, sc, er, ec), "GetSelection: one");
+  Check.Check((sr = er) & (sr = t.DisplayStart()) & (sc < ec), "in the ring's rows: the screen's first, start first");
+  t.SelectionText(s);
+  (* backwards: the corners come start first all the same *)
+  ok := Probe.Mouse(win, Fl.EvPush, 390, 12, 1, Fl.Button1, 1);
+  ok := Probe.Mouse(win, Fl.EvDrag, 8, 12, 1, Fl.Button1, 1);
+  ok := Probe.Mouse(win, Fl.EvRelease, 8, 12, 1, {}, 1);
+  Check.Check(t.GetSelection(sr2, sc2, er2, ec2) & (sr2 = sr) & (er2 = er) & (sc2 < ec2),
+    "a selection made backwards, start first");
   Close
 END TestSelection;
+
+(* FLTK's ring: the history and the screen, and their cells. *)
+PROCEDURE TestRing;
+  VAR c: ARRAY 8 OF CHAR; a: SET; fg, bg, rows, cols, off, i: INTEGER;
+BEGIN
+  Open(400, 300);
+  t.SetHistoryRows(5);
+  rows := t.RingRows(); cols := t.RingCols();
+  Check.Check(rows = t.HistoryRows() + t.DisplayRows(), "the ring is the history and the screen");
+  Check.Check(cols = t.DisplayColumns(), "as wide as the screen");
+  off := t.RingOffset();
+  Check.Check(t.HistoryStart() = off, "the history starts at the offset");
+  Check.Check(t.HistoryEnd() = (off + 4) MOD rows, "and has its rows");
+  Check.Check(t.DisplayStart() = (off + 5) MOD rows, "the screen follows it");
+  Check.Check(t.DisplayEnd() = (off + rows - 1) MOD rows, "to the ring's end");
+  t.SetTextFgColor(Fl.Red); t.SetTextBgColor(Fl.Blue); t.SetTextAttrib(FlTerminal.Bold);
+  t.Append("a");
+  t.SetTextAttrib(FlTerminal.Normal); t.SetTextFgColor(Fl.Green);
+  c := "x"; c[0] := 0C3X; c[1] := 0A9X; c[2] := 0X; t.Append(c);
+  t.Cell(t.DisplayStart(), 0, c, a, fg, bg);
+  Check.Check((c = "a") & (a = FlTerminal.Bold) & (fg = Fl.Red) & (bg = Fl.Blue),
+    "a cell's character, attributes and colors");
+  t.Cell(t.DisplayStart(), 1, c, a, fg, bg);
+  Check.Check((c[0] = 0C3X) & (c[1] = 0A9X) & (c[2] = 0X) & (a = {}) & (fg = Fl.Green),
+    "a UTF-8 character");
+  t.Cell(t.DisplayStart(), 2, c, a, fg, bg);
+  Check.Check(c = " ", "an empty cell is a space");
+  c := "ab";
+  t.Cell(t.DisplayStart(), 1, c, a, fg, bg);
+  t.Cell(t.DisplayStart(), 0, c, a, fg, bg);
+  Check.Check(c = "a", "cut to fit, and ended");
+  Check.Check(t.StyleFlags() = {}, "no xterm colors");
+  t.SetTextFgColorXterm(1);
+  Check.Check(t.StyleFlags() = {0}, "an xterm foreground");
+  t.SetTextBgColorXterm(2);
+  Check.Check(t.StyleFlags() = {0, 1}, "and background");
+  FOR i := 1 TO t.DisplayRows() DO c[0] := LF; c[1] := 0X; t.Append(c) END;
+  Check.Check(t.RingOffset() # off, "scrolling turns the ring");
+  Check.Check(t.HistoryStart() = t.RingOffset(), "and the history moves with it");
+  Close;
+  (* a selection in the history scrolled back to: its rows count back
+     from the screen's top *)
+  Open(400, 300);
+  t.SetTextFont(Fl.Courier); t.SetHistoryRows(20);
+  (* lines until the screen starts at the ring's row 0, with history *)
+  i := 0;
+  REPEAT
+    t.Append("line"); c[0] := LF; c[1] := 0X; t.Append(c); INC(i)
+  UNTIL (i > 1000) OR (t.HistoryUse() >= 10) & (t.DisplayStart() = 0);
+  Check.Check(t.DisplayStart() = 0, "the screen at the ring's start");
+  ok := Probe.Capture(t); Probe.Release;
+  ok := Probe.Wheel(win, 100, 100, 0, -3);
+  ok := Probe.Capture(t); Probe.Release;
+  ok := Probe.Mouse(win, Fl.EvPush, 8, 12, 1, Fl.Button1, 1);
+  ok := Probe.Mouse(win, Fl.EvDrag, 30, 12, 1, Fl.Button1, 1);
+  ok := Probe.Mouse(win, Fl.EvRelease, 30, 12, 1, {}, 1);
+  Check.Check(t.GetSelection(i, off, fg, bg) & (i < t.DisplayStart()) & (i = fg),
+    "a row of the history comes before the screen's");
+  Check.Check(i < 0, "and may be below 0");
+  Close
+END TestRing;
 
 PROCEDURE TestSubclass;
   VAR n: Term;
@@ -526,6 +599,7 @@ BEGIN
   TestSizes;
   TestDrawing;
   TestSelection;
+  TestRing;
   TestSubclass;
   TestRedraw;
   TestPending;

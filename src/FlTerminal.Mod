@@ -77,6 +77,10 @@ CONST
   up = 0; down = 1; left = 2; right = 3; home = 4; eol = 5; sol = 6;
   cr = 7; crlf = 8; tabRight = 9; tabLeft = 10; save = 11; restore = 12;
 
+  (* The numbers of ofl_terminal_ring. *)
+  ringRows = 0; ringCols = 1; ringOffset = 2; histStart = 3; histEnd = 4;
+  dispStart = 5; dispEnd = 6; styleFlags = 7;
+
 TYPE
   (* FLTK's is a group, but its scrollbars are its own, so this is a
      widget. *)
@@ -108,6 +112,9 @@ PROCEDURE ["C", "ofl_terminal_reset"] CReset(t: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_terminal_cursor"] CCursor(t: SYSTEM.ADDRESS; what, count, scroll: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_terminal_text"] CText(t: SYSTEM.ADDRESS; below: SYSTEM.INT32; VAR s: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_terminal_selection"] CSelection(t: SYSTEM.ADDRESS; VAR s: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_terminal_get_selection"] CGetSelection(t: SYSTEM.ADDRESS; VAR srow, scol, erow, ecol: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_terminal_ring"] CRing(t: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_terminal_cell"] CCell(t: SYSTEM.ADDRESS; row, col: SYSTEM.INT32; VAR s: ARRAY OF CHAR; n: SYSTEM.INT32; VAR attrib, fg, bg: SYSTEM.INT32);
 
 PROCEDURE OpenTerminal*(t: Terminal; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Fl.EndOpen(t, CNew(x, y, w, h, label, Fl.BeginOpen(t)))
@@ -588,5 +595,73 @@ PROCEDURE (t: Terminal) SelectionTextLength*(): INTEGER;
   VAR s: ARRAY 1 OF CHAR;
 BEGIN RETURN CSelection(Fl.Live(t), s, 0)
 END SelectionTextLength;
+
+(* Where the selection is, start first, in columns and in rows of the
+   ring (below): the screen's top row is DisplayStart, and a row of the
+   history scrolled back to is counted back from it, so that it may be
+   below 0; take it MOD RingRows() for a Cell. FALSE if nothing is
+   selected, and then the corners are the last selection's, or all 0. *)
+PROCEDURE (t: Terminal) GetSelection*(VAR srow, scol, erow, ecol: INTEGER): BOOLEAN;
+  VAR a, b, c, d: SYSTEM.INT32; r: BOOLEAN;
+BEGIN
+  r := CGetSelection(Fl.Live(t), a, b, c, d) # 0;
+  srow := a; scol := b; erow := c; ecol := d;
+  RETURN r
+END GetSelection;
+
+(* FLTK's ring, for a program that shows how the terminal works, as
+   FLTK's test/terminal does. The history and the screen are rows of one
+   ring of RingRows rows of RingCols cells: the history's rows from
+   HistoryStart to HistoryEnd, the screen's from DisplayStart to
+   DisplayEnd, each going on past the ring's last row at its row 0. The
+   ring turns as the screen scrolls: RingOffset is the history's first
+   row. *)
+
+PROCEDURE (t: Terminal) RingRows*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), ringRows)
+END RingRows;
+
+PROCEDURE (t: Terminal) RingCols*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), ringCols)
+END RingCols;
+
+PROCEDURE (t: Terminal) RingOffset*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), ringOffset)
+END RingOffset;
+
+PROCEDURE (t: Terminal) HistoryStart*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), histStart)
+END HistoryStart;
+
+PROCEDURE (t: Terminal) HistoryEnd*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), histEnd)
+END HistoryEnd;
+
+PROCEDURE (t: Terminal) DisplayStart*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), dispStart)
+END DisplayStart;
+
+PROCEDURE (t: Terminal) DisplayEnd*(): INTEGER;
+BEGIN RETURN CRing(Fl.Live(t), dispEnd)
+END DisplayEnd;
+
+(* FLTK's flags of the text written next: which of its colors are xterm
+   colors, which Bold and Dim change (1, the foreground; 2, the
+   background). *)
+PROCEDURE (t: Terminal) StyleFlags*(): SET;
+BEGIN RETURN SYSTEM.VAL(SET, CRing(Fl.Live(t), styleFlags))
+END StyleFlags;
+
+(* A cell of the ring, row 0 to RingRows() - 1 and col 0 to RingCols() - 1:
+   its character, cut to fit s, its attributes and its colors. *)
+PROCEDURE (t: Terminal) Cell*(row, col: INTEGER; VAR s: ARRAY OF CHAR; VAR attrib: SET; VAR fg, bg: INTEGER);
+  VAR h: SYSTEM.ADDRESS; a, f, b: SYSTEM.INT32;
+BEGIN
+  h := Fl.Live(t);
+  ASSERT((row >= 0) & (row < CRing(h, ringRows)) & (col >= 0) & (col < CRing(h, ringCols)),
+    Fl.IndexOutOfRange);
+  CCell(h, row, col, s, SHORT(LEN(s)), a, f, b);
+  attrib := SYSTEM.VAL(SET, a); fg := f; bg := b
+END Cell;
 
 END FlTerminal.

@@ -58,6 +58,32 @@ BEGIN b.GetText(line, s); RETURN s = text
 END Is;
 
 (* Clicks in win at x, y. *)
+(* Line spacing: lines set apart after they are added are measured again
+   (doc/fltk-issues.md, 159), so a browser scrolls as far as one whose
+   spacing was set first. FLTK's position stops at the lines' height less
+   the browser's. *)
+PROCEDURE LineSpacing;
+  VAR before, after: FlBrowsers.Browser; i: INTEGER;
+BEGIN
+  NEW(before); FlBrowsers.OpenBrowser(before, 0, 0, 100, 100, "");
+  NEW(after); FlBrowsers.OpenBrowser(after, 0, 0, 100, 100, "");
+  Check.Check(after.LineSpacing() = 0, "LineSpacing is 0 at first");
+  before.SetLineSpacing(10);
+  FOR i := 1 TO 20 DO before.Add("line"); after.Add("line") END;
+  after.SetLineSpacing(10);
+  Check.Check(after.LineSpacing() = 10, "SetLineSpacing");
+  (* SetBottomLine stops at the lines' height less the browser's *)
+  before.SetBottomLine(20); after.SetBottomLine(20);
+  Check.Check((after.VPosition() = before.VPosition()) & (after.VPosition() > 0),
+    "SetLineSpacing after the lines are added measures them again");
+  FOR i := 1 TO 20 DO after.Remove(1) END;
+  FOR i := 1 TO 20 DO after.Add("line") END;
+  after.SetVPosition(0); after.SetBottomLine(20);
+  Check.Check(after.VPosition() = before.VPosition(),
+    "and their removal leaves no height behind");
+  before.Delete; after.Delete
+END LineSpacing;
+
 PROCEDURE Click(x, y: INTEGER);
   VAR ok: BOOLEAN;
 BEGIN
@@ -161,6 +187,7 @@ BEGIN
     "SetKind: a hold browser set to MultiKind keeps the others");
   hold.SetKind(FlBrowsers.HoldKind);
   multi.Delete;
+  LineSpacing;
 
   (* A file browser *)
   NEW(files); FlBrowsers.OpenFileBrowser(files, 250, 0, 150, 100, "");

@@ -196,7 +196,15 @@ the system's colours; `Show` does neither.
     margins and image spacing), `LineStyle`, `LineStyleDocs`, `Pixmap`,
     `RotatedText`, `TiledImage`;
   - events and keys: `HandleKeys`, `Keyboard`, `Subwindow`;
-  - the large widget programs: `Editor`, `Preferences`, `Table`, `Tree`.
+  - the large widget programs: `Editor`, `Preferences`, `Table`, `Tree`;
+  - `HandleEvents`, every event a window gets; the games `Blocks`,
+    `Checkers` and `Sudoku`;
+  - `Unittests`: FLTK's test pages, one module each in
+    `examples/unittests/`; `Unittests --core` runs the core tests with
+    no window;
+  - `Terminal`: a terminal and a panel of its settings and tests;
+  - `Demo`: FLTK's launcher, which starts the other ports from the
+    menus of `examples/Demo.menu` (`Demo Demo.menu`, in `examples/`).
 
 ## Modules
 

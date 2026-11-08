@@ -95,6 +95,13 @@ struct LastSelect {
 };
 template struct Reach<LastSelect, &Fl_Tree::_lastselect>;
 
+// Fl_Browser's private full_height_, reached in the same way (Remeasure).
+struct FullHeight {
+  typedef int Fl_Browser::*type;
+  friend type member(FullHeight);
+};
+template struct Reach<FullHeight, &Fl_Browser::full_height_>;
+
 class Tr : public Items, public ofl::W<Fl_Tree> {
 public:
   using ofl::W<Fl_Tree>::W;
@@ -214,8 +221,29 @@ intptr_t ofl_browser_new(int32_t kind, int32_t x, int32_t y, int32_t w,
   }
 }
 
+// Fl_Browser's full_height_, the sum of its lines' heights, each with
+// the line spacing, is counted as lines come and go, so a spacing changed
+// after lines are added leaves it wrong, and negative once they go
+// (doc/fltk-issues.md, 159). This counts it again, as Fl_Browser::textsize
+// does, reaching the protected members through a class derived from it,
+// and the private full_height_ through Reach.
+struct Remeasure : Fl_Browser {
+  static void run(Fl_Browser *b) {
+    int Fl_Browser::*full = member(FullHeight());
+    void *(Fl_Browser::*first)() const = &Remeasure::item_first;
+    void *(Fl_Browser::*next)(void *) const = &Remeasure::item_next;
+    int (Fl_Browser::*height)(void *) const = &Remeasure::item_height;
+    int h = 0;
+    for (void *i = (b->*first)(); i; i = (b->*next)(i)) {
+      h += (b->*height)(i) + b->linespacing();
+    }
+    b->*full = h;
+  }
+};
+
 // Every browser (Fl_Browser_). what: 0 text font, 1 text size, 2 text
-// color, 3 has_scrollbar, 4 scrollbar size, 5 hposition, 6 vposition.
+// color, 3 has_scrollbar, 4 scrollbar size, 5 hposition, 6 vposition,
+// 7 line spacing.
 int32_t ofl_browser_get(intptr_t b, int32_t what) {
   Fl_Browser_ *br = base(b);
   switch (what) {
@@ -225,6 +253,7 @@ int32_t ofl_browser_get(intptr_t b, int32_t what) {
     case 4: return br->scrollbar_size();
     case 5: return br->hposition();
     case 6: return br->vposition();
+    case 7: return br->linespacing();
     default: return br->textfont();
   }
 }
@@ -248,6 +277,10 @@ void ofl_browser_set(intptr_t b, int32_t what, int32_t v) {
     case 4: br->scrollbar_size(v); break;
     case 5: br->hposition(v); break;
     case 6: br->vposition(v); break;
+    case 7:
+      br->linespacing(v);
+      if (Fl_Browser *l = dynamic_cast<Fl_Browser *>(br)) Remeasure::run(l);
+      break;
     default: br->textfont(v);
   }
   br->redraw();

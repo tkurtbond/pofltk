@@ -58,6 +58,27 @@ public:
   void fit();
   void restore();
 
+  // FLTK's ring, which only a subclass sees: what its numbers mean is
+  // FlTerminal.Mod's.
+  int ring(int what) const {
+    switch (what) {
+      case 0: return ring_rows();
+      case 1: return ring_cols();
+      case 2: return offset();
+      case 3: return hist_srow();
+      case 4: return hist_erow();
+      case 5: return disp_srow();
+      case 6: return disp_erow();
+      case 7: return current_style().charflags();
+      default: return 0;
+    }
+  }
+  typedef Fl_Terminal::Utf8Char Char;  // protected in FLTK
+  const Char *cell(int row, int col) const { return u8c_ring_row(row) + col; }
+  bool selection(int &srow, int &scol, int &erow, int &ecol) const {
+    return get_selection(srow, scol, erow, ecol);
+  }
+
   // Fl_Terminal::display_modified is private, and the printing and
   // cursor methods don't call it; this is the public way there, so
   // redraw_style is obeyed.
@@ -393,6 +414,33 @@ int32_t ofl_terminal_text(intptr_t h, int32_t below, char *buf, int32_t n) {
 
 int32_t ofl_terminal_selection(intptr_t h, char *buf, int32_t n) {
   return take(term(h)->selection_text(), buf, n);
+}
+
+// The ring's numbers, by what.
+int32_t ofl_terminal_ring(intptr_t h, int32_t what) { return term(h)->ring(what); }
+
+// A cell of the ring: its character, which isn't ended by a 0 in FLTK's
+// cell, into buf, of n bytes, and its attributes and colors. The row and
+// column are checked by Oberon.
+void ofl_terminal_cell(intptr_t h, int32_t row, int32_t col, char *buf,
+                       int32_t n, int32_t *attrib, uint32_t *fg, uint32_t *bg) {
+  const Term::Char *c = term(h)->cell(row, col);
+  int len = c->length();
+  if (len > n - 1) len = n - 1;
+  for (int i = 0; i < len; i++) buf[i] = c->text_utf8()[i];
+  buf[len] = 0;
+  *attrib = c->attrib();
+  *fg = c->fgcolor();
+  *bg = c->bgcolor();
+}
+
+// The selection's corners, start first, and whether there is one.
+int32_t ofl_terminal_get_selection(intptr_t h, int32_t *srow, int32_t *scol,
+                                   int32_t *erow, int32_t *ecol) {
+  int a, b, c, d;
+  bool r = term(h)->selection(a, b, c, d);
+  *srow = a; *scol = b; *erow = c; *ecol = d;
+  return r;
 }
 
 }  // extern "C"

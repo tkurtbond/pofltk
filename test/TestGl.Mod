@@ -20,6 +20,16 @@ TYPE
     draws: INTEGER
   END;
 
+  (* A window drawing with FlDraw over its scene, between DrawBegin and
+     DrawEnd, and its widgets with DrawWindow. With unended, it leaves
+     DrawEnd to pofltk. *)
+  Mixed = POINTER TO RECORD (FlGl.GlWindowDesc)
+    draws: INTEGER;
+    unended: BOOLEAN;
+    rect, kid, scene: ARRAY 4 OF CHAR;  (* pixels read back *)
+    error: INTEGER
+  END;
+
   (* A plain window, drawing with GL through Start. *)
   Plain = POINTER TO RECORD (Fl.WindowDesc)
     draws: INTEGER;
@@ -30,6 +40,8 @@ VAR
   win, win2: Red;
   more: More;
   plain: Plain;
+  mixed: Mixed;
+  green: Fl.Box;
   kid: Fl.Box;
   group: Fl.Window;
   inner: Red;
@@ -294,6 +306,63 @@ BEGIN
   END
 END Draw;
 
+(* The pixel at x, y in w's units, from the top. *)
+PROCEDURE ReadAt(w: Mixed; x, y: INTEGER; VAR p: ARRAY OF CHAR);
+BEGIN
+  FlGl.ReadPixels(x * w.PixelW() DIV w.W(), w.PixelH() - 1 - y * w.PixelH() DIV w.H(), 1, 1, p)
+END ReadAt;
+
+PROCEDURE (w: Mixed) Draw*;
+BEGIN
+  INC(w.draws);
+  FlGl.Viewport(0, 0, w.PixelW(), w.PixelH());
+  FlGl.ClearColor(0.0, 0.0, 1.0, 1.0);
+  FlGl.Clear(FlGl.ColorBufferBit);
+  w.DrawBegin;
+  w.DrawWindow;
+  FlDraw.SetColor(Fl.Red);
+  FlDraw.RectF(0, 0, 10, 10);
+  IF ~w.unended THEN
+    w.DrawEnd;
+    FlGl.Flush;
+    ReadAt(w, 5, 5, w.rect); ReadAt(w, 50, 5, w.kid); ReadAt(w, 30, 30, w.scene);
+    w.error := FlGl.GetError()
+  END
+END Draw;
+
+PROCEDURE Red3(p: ARRAY OF CHAR; r, g, b: INTEGER): BOOLEAN;
+BEGIN RETURN (ORD(p[0]) = r) & (ORD(p[1]) = g) & (ORD(p[2]) = b)
+END Red3;
+
+PROCEDURE Mix;
+  VAR i, n: INTEGER;
+BEGIN
+  NEW(mixed);
+  FlGl.OpenGlWindow(mixed, 60, 40, "");
+  mixed.Begin;
+  NEW(green); Fl.OpenBox(green, 40, 0, 20, 20, "");
+  green.SetBoxType(Fl.FlatBox); green.SetColor(Fl.Green);
+  mixed.End;
+  mixed.error := -1;
+  mixed.Show;
+  i := 0;
+  WHILE (mixed.draws = 0) & (i < Limit) DO Fl.Wait(0.02D0); INC(i) END;
+  Check.Check(Red3(mixed.rect, 255, 0, 0), "FlDraw draws in a GL window, y down");
+  Check.Check(Red3(mixed.kid, 0, 255, 0), "DrawWindow draws its widgets");
+  Check.Check(Red3(mixed.scene, 0, 0, 255), "over the GL scene");
+  Check.Check(mixed.error = FlGl.NoError, "with no GL error");
+
+  mixed.unended := TRUE;
+  n := mixed.draws; mixed.Redraw; i := 0;
+  WHILE (mixed.draws = n) & (i < Limit) DO Fl.Wait(0.02D0); INC(i) END;
+  mixed.unended := FALSE;
+  mixed.error := -1;
+  n := mixed.draws; mixed.Redraw; i := 0;
+  WHILE (mixed.draws = n) & (i < Limit) DO Fl.Wait(0.02D0); INC(i) END;
+  Check.Check(Red3(mixed.rect, 255, 0, 0) & (mixed.error = FlGl.NoError), "a Draw left begun is ended for it");
+  mixed.Delete
+END Mix;
+
 PROCEDURE (w: Plain) Draw*;
 BEGIN
   FlDraw.SetColor(Fl.Blue);
@@ -443,6 +512,8 @@ BEGIN
   WHILE (more.draws = 0) & (before < Limit) DO Fl.Wait(0.02D0); INC(before) END;
   Check.Check(more.draws > 0, "the window of GL's calls draws");
   more.Delete;
+
+  Mix;
 
   IF FlGl.CanStart() THEN
     NEW(plain);

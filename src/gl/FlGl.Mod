@@ -170,6 +170,10 @@ TYPE
 PROCEDURE ["C", "ofl_gl_window_new"] CNew(placed, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_gl_mode"] CMode(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_gl_drawing_now"] CDrawing(): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_draw_state"] CDrawState(w: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_gl_draw_begin"] CDrawBegin(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_gl_draw_end"] CDrawEnd(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_gl_draw_window"] CDrawWindow(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_gl_set_mode"] CSetMode(w: SYSTEM.ADDRESS; mode: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_gl_can_do"] CCanDo(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_gl_can_do_mode"] CCanDoMode(mode: SYSTEM.INT32): SYSTEM.INT32;
@@ -403,6 +407,36 @@ END HideOverlay;
 PROCEDURE (w: GlWindow) MakeOverlayCurrent*;
 BEGIN ASSERT(CMakeOverlayCurrent(Fl.Live(w)) # 0, Fl.OutOfOrder)
 END MakeOverlayCurrent;
+
+(* FLTK's drawing in a GL window's Draw, as Fl_Gl_Window's own: from
+   DrawBegin to DrawEnd, FlDraw draws over the scene, in the window's
+   coordinates (y down), and DrawWindow draws the window's box and its
+   widgets. w.Draw^ is the three together. A Draw that returns without
+   DrawEnd is ended for it. Each halts with Fl.OutOfOrder outside w's own
+   Draw, DrawBegin after DrawBegin, and the others before it. *)
+PROCEDURE (w: GlWindow) DrawBegin*;
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(w);
+  ASSERT(CDrawState(h) = 1, Fl.OutOfOrder);
+  CDrawBegin(h)
+END DrawBegin;
+
+PROCEDURE (w: GlWindow) DrawWindow*;
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(w);
+  ASSERT(CDrawState(h) = 2, Fl.OutOfOrder);
+  CDrawWindow(h)
+END DrawWindow;
+
+PROCEDURE (w: GlWindow) DrawEnd*;
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Fl.Live(w);
+  ASSERT(CDrawState(h) = 2, Fl.OutOfOrder);
+  CDrawEnd(h)
+END DrawEnd;
 
 (* GL in a plain window's Draw *)
 
