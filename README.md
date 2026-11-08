@@ -191,7 +191,8 @@ the system's colours; `Show` does neither.
     `Coordinates`, `Curve`, `Icon`, `Image`, `Label` (with the label's
     margins and image spacing), `LineStyle`, `LineStyleDocs`, `Pixmap`,
     `RotatedText`, `TiledImage`;
-  - events and keys: `HandleKeys`, `Keyboard`, `Subwindow`.
+  - events and keys: `HandleKeys`, `Keyboard`, `Subwindow`;
+  - the large widget programs: `Editor`, `Preferences`, `Table`, `Tree`.
 
 ## Modules
 

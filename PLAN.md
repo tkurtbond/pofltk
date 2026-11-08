@@ -3025,9 +3025,52 @@ GL; and last the unit tests and the demo launcher.
   2282, 20 skipped, with no SVG, printing or GL; 2510 with no Forms;
   2386 with no GL; 2570 with no GLEW; 2528 with no cairo; and on a
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2572 on Xvfb and 2551 on sway.
-- **Phase 29: The large widget programs.** `editor` (1105 lines),
+- **Phase 29: The large widget programs** [done]. `editor` (1105 lines),
   `preferences` (`preferences.fl`), `table` (506), `tree` (2083, with
   `tree.fl`) (4). Binds the tree's six methods.
+
+  Done 2026-11-08. Every shot of all 4 matches FLTK's build with no
+  fuzz (`Editor` 32 shots, `Preferences` 22, `Table` 21, `Tree` 46).
+  Found:
+  - The tree's six: `Tree.LastSelected` and `TreeItem.PrevSelected`
+    (`last_selected_item`, `next_selected_item(i, FL_Up)`),
+    `TreeItem.ToggleOpen` and `ToggleSelect` (`open_toggle`,
+    `select_toggle`, with no callback, as everywhere in the tree),
+    `ShowAtBottom` and `ShowInMiddle` (`show_item_bottom`,
+    `show_item_middle`), and `Tree.ShowSelf`, which prints the tree on
+    standard output and flushes it. `TestTree` checks them.
+  - `tree.fl` calls the toggles and `select`/`open` with docallback set
+    and counts the callbacks; the port calls its `Report` itself after
+    each, as Fl_Tree would, and its callback test passes. It releases
+    items' widgets (`SetWidget(NIL)`) before `Clear` and `Remove`,
+    since pofltk deletes an item's widget with it (`doc/fltk-issues.md`,
+    58) and FLTK's program reuses them. `Fl_Tree::load` of a
+    preferences file, and `Fl_Preferences(path, vendor, app)`, aren't
+    bound: the port reads the file through `FlPreferences.OpenFile`,
+    as `load` does.
+  - `preferences.fl` needed `FlInputs.SetMenuTexts` and
+    `GetMenuTexts` (`Fl_Input::cut_menu_text` and the rest, kept
+    pointers: the shim keeps copies) and `Preferences.UserdataPath`
+    (`getUserdataPath`, which makes a cut-short directory for a short
+    buffer and reports success: `doc/fltk-issues.md`, 157).
+    `TestInputs` and `TestPreferences` check them. The written
+    preference files are byte-identical to FLTK's program's.
+  - `editor`'s highlighter is told of changes after the editors in
+    pofltk (a buffer's `Modified`), before them in FLTK; no shot shows
+    it. Undoing a `/*` leaves the rest styled as a comment in both: a
+    bug of FLTK's program, not the library. `fl_open_callback` is
+    macOS's alone, and left out.
+  - `table`'s choices give each item its own callback and data in
+    FLTK; the port has one action per choice, indexing a table of
+    boxes.
+
+  Counts: 2591 (1 skipped), 2570 (8 skipped), 2316 (1 skipped) and
+  2296 (7 skipped) for `test-headless`, `test-sway`, `valgrind-headless`
+  and `valgrind-sway`; 2591, 1 skipped, on NetBSD and FreeBSD and 2583,
+  2 skipped, on OpenBSD; 2581, 4 skipped, with neither Cairo nor Pango;
+  2301, 20 skipped, with no SVG, printing or GL; 2529 with no Forms;
+  2405 with no GL; 2589 with no GLEW; 2547 with no cairo; and on a
+  Wayland FLTK without `FLTK_HAVE_CAIRO`, 2591 on Xvfb and 2570 on sway.
 - **Phase 30: OpenGL.** `CubeView` (`CubeViewUI.fl`), `fractals`
   (with `fracviewer`, through GLUT), `fullscreen`, `glpuzzle` (1512,
   GLUT), `handle_events`, `shape` (6), in `GLEXAMPLES`. Binds the

@@ -64,6 +64,8 @@ TYPE
 PROCEDURE ["C", "ofl_input_new"] CNew(class, x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_input_value"] CValue(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_set_value"] CSetValue(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_input_set_menu_texts"] CSetMenuTexts(cut, copy, paste: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_input_menu_text"] CMenuText(which: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_file_input_set_value"] CFileSetValue(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_file_input_down_box"] CFileDownBox(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_file_input_set_down_box"] CFileSetDownBox(i: SYSTEM.ADDRESS; b: SYSTEM.INT32);
@@ -134,6 +136,20 @@ END Bool;
 
 (* Opening each type. x, y are relative to the window, as FLTK's are; the
    label, shown beside the input, is copied. *)
+
+(* Sets the texts of the menu an input, or a text widget of FlText, pops
+   up on the right button: "Cut", "Copy" and "Paste" to start with (FLTK's
+   Fl_Input::cut_menu_text and the rest), as for another language. *)
+PROCEDURE SetMenuTexts*(cut-, copy-, paste-: ARRAY OF CHAR);
+BEGIN CSetMenuTexts(cut, copy, paste)
+END SetMenuTexts;
+
+(* The menu's texts, each cut to fit. *)
+PROCEDURE GetMenuTexts*(VAR cut, copy, paste: ARRAY OF CHAR);
+BEGIN
+  CMenuText(0, cut, SHORT(LEN(cut))); CMenuText(1, copy, SHORT(LEN(copy)));
+  CMenuText(2, paste, SHORT(LEN(paste)))
+END GetMenuTexts;
 
 PROCEDURE OpenInput*(i: Input; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN Open(i, input, x, y, w, h, label)

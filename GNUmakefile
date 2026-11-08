@@ -139,10 +139,14 @@ ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
+# The examples that write FLTK's preferences: make test gives them
+# XDG_CONFIG_HOME in build/, with fltk.org made there, so they never write
+# the user's own (FLTK goes to ~/.fltk when that directory isn't there).
+EXAMPLEPREFS := Preferences
 # Examples that wait for no one, and end by themselves.
 EXAMPLEONCE := GlutTest
 
@@ -327,7 +331,9 @@ test: tests display
 	for e in $(filter-out $(EXAMPLEONCE),$(EXAMPLES)); do \
 	  echo "== $$e (example: must still be running after $(EXAMPLETIME) s)"; \
 	  args=$$(for a in $(EXAMPLEARGS); do test "$${a%%=*}" = $$e && echo "$${a#*=}"; done); \
-	  (cd examples && timeout $(EXAMPLETIME) ../$(BUILD)/$$e $$args) > $(BUILD)/$$e.out 2>&1; got=$$?; \
+	  envs=; case " $(EXAMPLEPREFS) " in *" $$e "*) \
+	    mkdir -p $(CURDIR)/$(BUILD)/config/fltk.org; envs=XDG_CONFIG_HOME=$(CURDIR)/$(BUILD)/config;; esac; \
+	  (cd examples && env $$envs timeout $(EXAMPLETIME) ../$(BUILD)/$$e $$args) > $(BUILD)/$$e.out 2>&1; got=$$?; \
 	  if [ $$got -eq 124 ]; then echo "ok   - $$e"; \
 	  else echo "FAIL - $$e exited with $$got: $$(cat $(BUILD)/$$e.out)"; status=1; fi; \
 	done; \

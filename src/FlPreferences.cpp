@@ -18,6 +18,7 @@
 #include <FL/Fl_Preferences.H>
 #include <FL/filename.H>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <new>
 #include <string>
@@ -188,6 +189,33 @@ int32_t ofl_prefs_flush(intptr_t r) { return root(r)->flush(); }
 void ofl_prefs_filename(intptr_t r, char *buf, int32_t n) {
   buf[0] = 0;
   if (root(r)->filename(buf, n) == Fl_Preferences::MEMORY) buf[0] = 0;
+}
+
+// The directory for the database's own files, made if it isn't there, with
+// a final "/"; 0 and "" in memory, if it can't be made, or if it is n bytes
+// or more. FLTK's getUserdataPath makes the directory a short buffer cuts
+// its name to, and says it did; in memory it gives "data/"
+// (doc/fltk-issues.md, 157).
+int32_t ofl_prefs_userdata(intptr_t r, char *buf, int32_t n) {
+  buf[0] = 0;
+  std::string name(256, '\0');
+  for (;;) {
+    if (root(r)->filename(&name[0], name.size()) == Fl_Preferences::MEMORY)
+      return 0;
+    if (strlen(name.c_str()) + 1 < name.size()) break;
+    name.resize(name.size() * 2);
+  }
+  if (!name[0]) return 0;
+  std::string path(strlen(name.c_str()) + 8, '\0');
+  root(r)->getUserdataPath(&path[0], (int)path.size());
+  // Not fl_filename_isdir, which overruns on a long name (doc/fltk-issues.md,
+  // 121).
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) return 0;
+  size_t len = strlen(path.c_str());
+  if (len >= (size_t)n) return 0;
+  memcpy(buf, path.c_str(), len + 1);
+  return 1;
 }
 
 // A plugin. The class has none of that name: two would remove one node

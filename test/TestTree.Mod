@@ -133,6 +133,18 @@ BEGIN
   Check.Check(a.IsSelected() & e.IsSelected(), "SelectAll");
   t.DeselectAll;
   Check.Check((t.FirstSelected() = NIL) & (calls = 0), "DeselectAll; and nothing called back");
+  b.ToggleSelect; d.ToggleSelect;
+  Check.Check(b.IsSelected() & d.IsSelected() & FlBrowsers.Same(t.LastSelected(), d)
+    & FlBrowsers.Same(d.PrevSelected(), b) & (b.PrevSelected() = NIL), "ToggleSelect selects; LastSelected, PrevSelected");
+  b.ToggleSelect;
+  Check.Check(~b.IsSelected() & FlBrowsers.Same(t.FirstSelected(), d) & (calls = 0),
+    "ToggleSelect deselects, and calls nothing back");
+  t.DeselectAll;
+  Check.Check(t.LastSelected() = NIL, "LastSelected with none selected");
+  a.ToggleOpen;
+  Check.Check(~a.IsOpen() & ~b.IsVisible(), "ToggleOpen closes");
+  a.ToggleOpen;
+  Check.Check(a.IsOpen() & b.IsVisible() & (calls = 0), "ToggleOpen opens, and calls nothing back");
   b.Activate(FALSE);
   Check.Check(~b.IsActive(), "Activate");
   b.Activate(TRUE);
@@ -181,11 +193,25 @@ BEGIN
     "an item removed in its callback as it is pushed, and a drag");
   removeInCallback := FALSE;
 
+  (* Scrolling to an item: 40 more rows than the tree shows. A tree lays
+     its items out as it draws. *)
+  i := t.Add("many/0");
+  FOR n := 1 TO 39 DO s := "many/x"; s[5] := CHR(ORD("0") + n DIV 10); s[6] := CHR(ORD("0") + n MOD 10); j := t.Add(s) END;
+  i := t.Find("many/20");
+  ok := Probe.Capture(t); Probe.Release;
+  i.ShowAtTop; ok := Probe.Capture(t); Probe.Release; n := t.VPosition();
+  i.ShowInMiddle; ok := Probe.Capture(t); Probe.Release; calls := t.VPosition();
+  Check.Check(i.Displayed() & (n > calls), "ShowInMiddle scrolls less far than ShowAtTop");
+  i.ShowAtBottom; ok := Probe.Capture(t); Probe.Release;
+  Check.Check(i.Displayed() & (calls > t.VPosition()) & (t.VPosition() > 0), "ShowAtBottom less far still");
+
   t.Clear;
   Check.Check((t.Root() = NIL) & ~root.IsLive() & ~c.IsLive(), "Clear removes every item, the root too");
   i := t.Add("again");
   Check.Check(Is(t.Root(), "ROOT") & Is(i, "again"), "Add after Clear makes a root again");
   root := t.Root();
+  t.ShowSelf;
+  Check.Check(TRUE, "ShowSelf prints the tree, two lines");
 
   win.Delete;
   Check.Check(~root.IsLive() & (Fl.OpenWidgets() = 0), "an item of a deleted tree is not live");

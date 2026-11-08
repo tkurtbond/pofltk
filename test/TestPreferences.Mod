@@ -19,6 +19,7 @@ BEGIN
   Check.Check(p.IsOpen() & (FlPreferences.openDatabases = 1), "Open");
   p.FileName(s);
   Check.Check(s = "", "a database in memory has no file");
+  Check.Check(~p.UserdataPath(s) & (s = ""), "nor a directory for its files");
   Check.Check((p.Entries() = 0) & (p.Groups() = 0), "empty to start with");
   p.SetInt("n", -42); p.SetReal("x", 0.5D0); p.SetText("s", "hello");
   Check.Check((p.Int("n", 0) = -42) & (p.Real("x", 0.0D0) = 0.5D0), "SetInt, SetReal");
@@ -78,6 +79,10 @@ BEGIN
   p.FileName(s);
   n := 0; WHILE s[n] # 0X DO INC(n) END;
   Check.Check((n > 18) & (s[n - 18] = "/") & (s[n - 17] = "p") & (s[n - 6] = "."), "FileName: dir/pofltk-test.prefs");
+  Check.Check(p.UserdataPath(s), "UserdataPath");
+  n := 0; WHILE s[n] # 0X DO INC(n) END;
+  Check.Check((n > 13) & (s[n - 13] = "/") & (s[n - 12] = "p") & (s[n - 1] = "/"), "UserdataPath: dir/pofltk-test/");
+  Check.Check(~p.UserdataPath(short) & (short = ""), "UserdataPath too long for the array");
   p.SetInt("n", 12); p.SetReal("x", 0.25D0); p.SetText("odd", odd);
   NEW(a); p.Group(a, "a/b"); a.SetText("t", "deep");
   Check.Check(p.Flush(), "Flush");

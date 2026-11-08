@@ -190,6 +190,7 @@ PROCEDURE ["C", "ofl_check_browser_text"] CCheckText(b: SYSTEM.ADDRESS; item: SY
 
 PROCEDURE ["C", "ofl_tree_new"] CTreeNew(x, y, w, h: SYSTEM.INT32; label: ARRAY OF CHAR; self: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_tree_live"] CTreeLive(t, p: SYSTEM.ADDRESS; serial: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_tree_show_self"] CTreeShowSelf(t: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_tree_item"] CTreeItem(t: SYSTEM.ADDRESS; what: SYSTEM.INT32; VAR serial: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_tree_add"] CTreeAdd(t: SYSTEM.ADDRESS; path: ARRAY OF CHAR; VAR serial: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_tree_find"] CTreeFind(t: SYSTEM.ADDRESS; path: ARRAY OF CHAR; VAR serial: SYSTEM.INT32): SYSTEM.ADDRESS;
@@ -669,6 +670,16 @@ PROCEDURE (t: Tree) FirstSelected*(): TreeItem;
 BEGIN RETURN TreeItemOf(t, 3)
 END FirstSelected;
 
+PROCEDURE (t: Tree) LastSelected*(): TreeItem;
+BEGIN RETURN TreeItemOf(t, 6)
+END LastSelected;
+
+(* Prints every item on standard output, indented by depth, with its
+   children's count and its pointers: Fl_Tree::show_self, for debugging. *)
+PROCEDURE (t: Tree) ShowSelf*;
+BEGIN CTreeShowSelf(Fl.Live(t))
+END ShowSelf;
+
 (* In a Callback, the item the user acted on, and why (one of the Reason
    constants). *)
 PROCEDURE (t: Tree) CallbackItem*(): TreeItem;
@@ -989,6 +1000,11 @@ PROCEDURE (i: TreeItem) NextSelected*(): TreeItem;
 BEGIN RETURN ItemOf(i, 3)
 END NextSelected;
 
+(* The selected item before i; NIL if none. *)
+PROCEDURE (i: TreeItem) PrevSelected*(): TreeItem;
+BEGIN RETURN ItemOf(i, 6)
+END PrevSelected;
+
 (* The item drawn below i, and above; NIL if none is shown. *)
 PROCEDURE (i: TreeItem) NextVisible*(): TreeItem;
 BEGIN RETURN ItemOf(i, 4)
@@ -1156,6 +1172,11 @@ PROCEDURE (i: TreeItem) Close*;
 BEGIN ISet(i, 0, 0)
 END Close;
 
+(* Opens i if closed, and closes it if open. *)
+PROCEDURE (i: TreeItem) ToggleOpen*;
+BEGIN ISet(i, 13, 0)
+END ToggleOpen;
+
 PROCEDURE (i: TreeItem) IsOpen*(): BOOLEAN;
 BEGIN RETURN IGet(i, 3) # 0
 END IsOpen;
@@ -1170,6 +1191,11 @@ END Select;
 PROCEDURE (i: TreeItem) SelectOnly*;
 BEGIN ISet(i, 2, 1)
 END SelectOnly;
+
+(* Selects i if not selected, and deselects it if selected. *)
+PROCEDURE (i: TreeItem) ToggleSelect*;
+BEGIN ISet(i, 14, 0)
+END ToggleSelect;
 
 PROCEDURE (i: TreeItem) IsSelected*(): BOOLEAN;
 BEGIN RETURN IGet(i, 4) # 0
@@ -1203,6 +1229,15 @@ END Show;
 PROCEDURE (i: TreeItem) ShowAtTop*;
 BEGIN ISet(i, 10, 0)
 END ShowAtTop;
+
+(* Scrolls to put i at the bottom, or in the middle. *)
+PROCEDURE (i: TreeItem) ShowAtBottom*;
+BEGIN ISet(i, 11, 0)
+END ShowAtBottom;
+
+PROCEDURE (i: TreeItem) ShowInMiddle*;
+BEGIN ISet(i, 12, 0)
+END ShowInMiddle;
 
 (* Gives i the keyboard focus, among the tree's items. *)
 PROCEDURE (i: TreeItem) SetFocus*;

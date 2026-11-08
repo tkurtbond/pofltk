@@ -13,6 +13,8 @@
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Secret_Input.H>
 
+#include <string>
+
 namespace {
 
 template <class T>
@@ -29,6 +31,28 @@ Fl_Input_Choice *chooser(intptr_t i) { return ofl::as<Fl_Input_Choice>(i); }
 }  // namespace
 
 extern "C" {
+
+// The texts of the menu an input or a text widget pops up on the right
+// button. FLTK keeps the pointers, and sets its menu's labels from them as
+// each menu opens, so the copies here outlast every menu.
+void ofl_input_set_menu_texts(const char *cut, const char *copy,
+                              const char *paste) {
+  static std::string texts[3];
+  texts[0] = cut;
+  texts[1] = copy;
+  texts[2] = paste;
+  Fl_Input::cut_menu_text = texts[0].c_str();
+  Fl_Input::copy_menu_text = texts[1].c_str();
+  Fl_Input::paste_menu_text = texts[2].c_str();
+}
+
+// Text which (0 cut, 1 copy, 2 paste), cut to n - 1 bytes.
+void ofl_input_menu_text(int32_t which, char *buf, int32_t n) {
+  const char *t = which == 0 ? Fl_Input::cut_menu_text
+                : which == 1 ? Fl_Input::copy_menu_text
+                : Fl_Input::paste_menu_text;
+  ofl::copy_out(t ? t : "", buf, n);
+}
 
 // kind is 0 Fl_Input, 1 Fl_Int_Input, and so on, as FlInputs numbers them.
 intptr_t ofl_input_new(int32_t kind, int32_t x, int32_t y, int32_t w,

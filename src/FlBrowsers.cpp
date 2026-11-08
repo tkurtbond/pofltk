@@ -11,6 +11,7 @@
 #include <FL/Fl_Multi_Browser.H>
 #include <FL/Fl_Select_Browser.H>
 #include <FL/Fl_Tree.H>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -479,7 +480,7 @@ int32_t ofl_tree_live(intptr_t t, intptr_t p, int32_t serial) {
 }
 
 // what: 0 root, 1 first, 2 last, 3 first selected, 4 callback item, 5
-// focus item.
+// focus item, 6 last selected.
 intptr_t ofl_tree_item(intptr_t t, int32_t what, int32_t *serial) {
   Fl_Tree *tr = tree(t);
   Fl_Tree_Item *p;
@@ -489,9 +490,17 @@ intptr_t ofl_tree_item(intptr_t t, int32_t what, int32_t *serial) {
     case 3: p = tr->first_selected_item(); break;
     case 4: p = tr->callback_item(); break;
     case 5: p = tr->get_item_focus(); break;
+    case 6: p = tr->last_selected_item(); break;
     default: p = tr->root();
   }
   return hand(t, p, serial);
+}
+
+// Prints the tree on standard output, for debugging, and flushes it, since
+// Oberon's Out writes at once and C's printf doesn't.
+void ofl_tree_show_self(intptr_t t) {
+  tree(t)->show_self();
+  fflush(stdout);
 }
 
 // Fl_Tree::add makes the path's missing parents, and the root.
@@ -633,7 +642,7 @@ int32_t ofl_tree_select_all(intptr_t t, int32_t on) {
 // Items
 
 // what: 0 parent, 1 next, 2 prev, 3 next selected, 4 next visible
-// (below), 5 previous visible (above).
+// (below), 5 previous visible (above), 6 previous selected.
 intptr_t ofl_tree_item_item(intptr_t t, intptr_t p, int32_t what,
                             int32_t *serial) {
   Fl_Tree *tr = tree(t);
@@ -644,6 +653,7 @@ intptr_t ofl_tree_item_item(intptr_t t, intptr_t p, int32_t what,
     case 3: r = tr->next_selected_item(it); break;
     case 4: r = tr->next_visible_item(it, FL_Down); break;
     case 5: r = tr->next_visible_item(it, FL_Up); break;
+    case 6: r = tr->next_selected_item(it, FL_Up); break;
     default: r = it->parent();
   }
   return hand(t, r, serial);
@@ -790,7 +800,8 @@ int32_t ofl_tree_item_get(intptr_t t, intptr_t p, int32_t what) {
 
 // what: 0 open (or close), 1 select (or deselect), 2 select only, 3
 // activate, 4 label font, 5 size, 6 foreground, 7 background, 8 focus, 9
-// show (scroll to), 10 show at the top.
+// show (scroll to), 10 show at the top, 11 at the bottom, 12 in the
+// middle, 13 open or close (toggle), 14 select or deselect (toggle).
 void ofl_tree_item_set(intptr_t t, intptr_t p, int32_t what, int32_t v) {
   Fl_Tree *tr = tree(t);
   Fl_Tree_Item *it = item(p);
@@ -811,6 +822,10 @@ void ofl_tree_item_set(intptr_t t, intptr_t p, int32_t what, int32_t v) {
     case 8: tr->set_item_focus(it); break;
     case 9: tr->show_item(it); break;
     case 10: tr->show_item_top(it); break;
+    case 11: tr->show_item_bottom(it); break;
+    case 12: tr->show_item_middle(it); break;
+    case 13: tr->open_toggle(it, 0); break;
+    case 14: tr->select_toggle(it, 0); break;
     default:
       if (v) {
         tr->open(it, 0);

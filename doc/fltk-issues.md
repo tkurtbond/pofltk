@@ -2947,3 +2947,29 @@ any `SetScheme`. A program it starts inherits its scheme.
 `SetSystemScheme` after `SetScheme("gtk+")` gives "gtk+"; with
 `FLTK_SCHEME` set to "Plastic" it gives "plastic"; "nonesuch" gives
 none. `Message` matches FLTK's build with `FLTK_SCHEME=plastic` too.
+
+## 157. `getUserdataPath` makes a cut-short directory, and says it worked
+
+**What happens:** `Fl_Preferences::getUserdataPath(path, pathlen)`
+copies the database's file name into `path`, cut to `pathlen`, replaces
+its extension with `/`, and makes that directory. With a `pathlen` too
+short for the whole name, it makes a directory at the cut-short name (a
+file `~/.config/vend/app.prefs` with 48 bytes gave `~/.config/ve`, made
+beside `vend`), leaves the final `/` off, and returns 1, success. It
+also returns 1 when the directory can't be made: `fl_make_path` returns
+1 whether `fl_mkdir` worked or not. A database in memory gives `data/`
+and 0.
+
+**Cause:** `src/Fl_Preferences.cxx:1508` (`RootNode::getPath`: the
+`strlcpy` to `pathlen`, then `fl_make_path` and `strlcat` of the `/`,
+with no check that the name fitted), and `src/fl_utf8.cxx:618`
+(`fl_make_path`, which ignores `fl_mkdir`'s result).
+
+**Effect on pofltk:** `Preferences.UserdataPath` gives FLTK a buffer
+sized from the file's name, so it is never cut, then checks the
+directory with `stat` (not `fl_filename_isdir`, 121), and gives FALSE
+and "" in memory, for a directory not made, or a name that doesn't fit
+the array.
+
+**Confirmed:** a scratch C++ program, 2026-11-08 (the 48-byte case
+above, and memory's `data/`); `TestPreferences`.

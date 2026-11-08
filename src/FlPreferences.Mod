@@ -94,6 +94,7 @@ PROCEDURE ["C", "ofl_plugin_name"] CPluginName(class: ARRAY OF CHAR; i: SYSTEM.I
 PROCEDURE ["C", "ofl_plugin_load"] CPluginLoad(file: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_plugin_load_all"] CPluginLoadAll(dir, pattern: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_prefs_filename"] CFilename(r: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_prefs_userdata"] CUserdata(r: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 
 PROCEDURE Length(s-: ARRAY OF CHAR): INTEGER;
   VAR n: INTEGER;
@@ -211,6 +212,13 @@ END Flush;
 PROCEDURE (p: Preferences) FileName*(VAR name: ARRAY OF CHAR);
 BEGIN CFilename(Hd(p), name, SHORT(LEN(name)))
 END FileName;
+
+(* The directory for files of p's database's own (getUserdataPath), with a
+   final "/", made if it isn't there; FALSE, and "", for Memory, if it
+   can't be made, or if it doesn't fit path. *)
+PROCEDURE (p: Preferences) UserdataPath*(VAR path: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CUserdata(Hd(p), path, SHORT(LEN(path))) = 1
+END UserdataPath;
 
 (* Groups *)
 

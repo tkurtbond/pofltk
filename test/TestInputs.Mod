@@ -16,7 +16,7 @@ VAR
   mout: FlInputs.MultilineOutput;
   file: FlInputs.FileInput;
   chooser: FlInputs.InputChoice;
-  s: ARRAY 64 OF CHAR;
+  s, t, u: ARRAY 64 OF CHAR;
   small: ARRAY 4 OF CHAR;
   calls: INTEGER;
   ok: BOOLEAN;
@@ -208,6 +208,16 @@ BEGIN
   Check.Check((calls = 1) & (s = "x"), "typing in it calls back");
   chooser.Clear;
   Check.Check(chooser.Length() = 0, "Clear");
+
+  (* The right button's menu *)
+  FlInputs.GetMenuTexts(s, t, u);
+  Check.Check((s = "Cut") & (t = "Copy") & (u = "Paste"), "the menu's texts to start with");
+  FlInputs.SetMenuTexts("Ausschneiden", "Kopieren", "Einfuegen");
+  FlInputs.GetMenuTexts(s, t, u);
+  Check.Check((s = "Ausschneiden") & (t = "Kopieren") & (u = "Einfuegen"), "SetMenuTexts");
+  FlInputs.GetMenuTexts(small, t, u);
+  Check.Check(small = "Aus", "GetMenuTexts cuts to fit");
+  FlInputs.SetMenuTexts("Cut", "Copy", "Paste");
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");

@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-11-07, Phases 0 to 28 of PLAN.md are done, and `README.md`
+As of 2026-11-08, Phases 0 to 29 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
 (planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
@@ -272,7 +272,9 @@ make clean      # rm -rf build
   text, as `sed 's/^\(EXAMPLES := .*Last\)$/\1 New/'`, not by line
   number. An example that needs a command line under `make test` gets
   one in `EXAMPLEARGS`, as `name=argument`. One that ends by itself
-  goes in `EXAMPLEONCE`, and must exit 0.
+  goes in `EXAMPLEONCE`, and must exit 0. One that writes FLTK's
+  preferences goes in `EXAMPLEPREFS`, which `make test` runs with
+  `XDG_CONFIG_HOME` in `build/config`, so it never writes the user's.
 - **Constants**: never edit the block of a module between
   `BEGIN generated constants` and `END generated constants`. Add the
   name and C expression to `SPEC` in `tools/gen-constants.py`, after
@@ -737,8 +739,10 @@ held only in C++ memory**.
     keeps it, and Wayland leaks the program's own (a bug): `W<B>::handle`
     deletes any not taken;
   - Wayland has no selection buffer.
-- **Preferences** (`doc/fltk-issues.md`, 51): a group's `Fl_Preferences`
-  outlives its node, deleted with the group or the database.
+- **Preferences** (`doc/fltk-issues.md`, 51, 157): a group's
+  `Fl_Preferences` outlives its node, deleted with the group or the
+  database. `getUserdataPath` with a short buffer makes a directory at
+  the cut-short name and returns success; in memory it gives `data/`.
 - **Bitmaps, XBM and ICO** (`doc/fltk-issues.md`, 80 to 82): a bitmap's
   `fail()` is always -1, so judge it by its data and size.
   `Fl_XBM_Image` takes almost any text with two `#define`s, leaves
@@ -1091,7 +1095,14 @@ None at present.
   4 skipped, with neither Cairo nor Pango; 2282, 20 skipped, with no
   SVG, printing or GL; 2510 with no Forms; 2386 with no GL; 2570 with no
   GLEW; 2528 with no cairo; and on a Wayland FLTK without
-  `FLTK_HAVE_CAIRO`, 2572 on Xvfb and 2551 on sway.
+  `FLTK_HAVE_CAIRO`, 2572 on Xvfb and 2551 on sway. After Phase 29
+  (2026-11-08), 2591 (1 skipped), 2570 (8 skipped), 2316 (1 skipped)
+  and 2296 (7 skipped) here; 2591, 1 skipped, on NetBSD and FreeBSD and
+  2583, 2 skipped, on OpenBSD; 2581, 4 skipped, with neither Cairo nor
+  Pango; 2301, 20 skipped, with no SVG, printing or GL; 2529 with no
+  Forms; 2405 with no GL; 2589 with no GLEW; 2547 with no cairo; and on
+  a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2591 on Xvfb and 2570 on
+  sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
