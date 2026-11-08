@@ -95,7 +95,7 @@ TESTSRC := $(TESTCXX:%=test/%.Mod) $(TESTCXX:%=test/%.cpp)
 # Example modules, not programs, with a C++ part (examples/<Module>.cpp).
 EXAMPLECXX := Pipe
 # Example modules without a C++ part, imported by examples.
-EXAMPLEMODS := ResizeArrows
+EXAMPLEMODS := ResizeArrows BlocksPixmaps CheckersPieces
 EXAMPLESRC := $(EXAMPLECXX:%=examples/%.Mod) $(EXAMPLECXX:%=examples/%.cpp) $(EXAMPLEMODS:%=examples/%.Mod)
 
 CFLAGS := $(foreach f,$(FLTK_CXXFLAGS) $(X11_CXXFLAGS) $(CXXFLAGS),-c-flag $(f))
@@ -141,14 +141,14 @@ ASSERTSTATUS := 10
 
 # Example programs (examples/<name>.Mod). They wait for the user, so make
 # builds them and make test doesn't run them.
-EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree HandleEvents
+EXAMPLES := Hello Scribble Swatch Menus TableSimple TreeSimple TextEditorSimple BrowserSimple GridSimple FlexSimple TabsSimple WizardSimple ProgressSimple NativeFileChooserSimple SvgSimple Callbacks DrawAnX TextOverImageButton DragAndDrop TableAsContainer TableWithKeynav TableWithRightClickMenu TableWithRightColumnStretchFit TableSpreadsheetWithKeyboardNav TextDisplayWithColors TextEditorWithDynamicColors NativeFileChooserSimpleApp DraggableGroup TableSpreadsheet TreeCustomSort BrowserWithIcons MenuWithImages MenubarAdd ParseArgs AddFdAndPopen RemapNumpadKeyboardKeys TableSort TreeAsContainer TreeOfTables TreeCustomDrawItems ChartSimple ShapedWindow AnimGifImageSimple AnimGifImageResize AnimGifImagePlay AnimGifImage Clock DoubleBuffer Presets Positions Shortcuts FileInputs Tooltips Rects Trackers Overlay ColorChooser InputChoice MenuBar TreeIcons Selections Bitmap Icons FileChooser HelpDialog HelpPages SimpleTerminal Console Device PixmapBrowser SaveAs Plugins Boxtype Symbols CursorTest Offscreen Fonts Mandelbrot Utf8Test Adjuster Ask Browser Button Buttons ColBrowser FastSlow Iconize Inactive Input Message Minimum NativeFileChooser Navigation Output Pack Radio Resize ResizeBox Scroll Tabs Tile TwoWin Valuators WindowFocus Wizard ResizeExample1 ResizeExample2 ResizeExample3a ResizeExample3b ResizeExample3c ResizeExample4a ResizeExample4b ResizeExample5a ResizeExample5b ResizeExample5c FlexDemo FlexLogin GridAlignment GridButtons GridDialog GridLogin FltkVersions Animated Arc Clipboard Contrast Coordinates Curve Icon Image Label LineStyle LineStyleDocs Pixmap RotatedText TiledImage HandleKeys Keyboard Subwindow Editor Preferences Table Tree HandleEvents Blocks Checkers Sudoku
 # The command line an example is given by make test, as name=argument,
 # from examples/: those that need a file.
 EXAMPLEARGS := AnimGifImagePlay=../test/images/anim.gif AnimGifImageResize=../test/images/anim.gif
 # The examples that write FLTK's preferences: make test gives them
 # XDG_CONFIG_HOME in build/, with fltk.org made there, so they never write
 # the user's own (FLTK goes to ~/.fltk when that directory isn't there).
-EXAMPLEPREFS := Preferences
+EXAMPLEPREFS := Preferences Blocks Sudoku
 # Examples that wait for no one, and end by themselves.
 EXAMPLEONCE := GlutTest
 

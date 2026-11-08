@@ -420,6 +420,19 @@ int32_t ofl_menu_popup_at(intptr_t m, int32_t x, int32_t y, int32_t w,
   return i;
 }
 
+// The index of the item whose shortcut is the event being handled, after
+// its callback, or -1 for none, as Fl_Menu_::test_shortcut.
+int32_t ofl_menu_test_shortcut(intptr_t m) {
+  Fl_Menu_ *mn = menu(m);
+  const Fl_Menu_Item *items = mn->menu();
+  if (items == 0) return -1;
+  const Fl_Menu_Item *p = items->test_shortcut();
+  if (p == 0) return -1;
+  int32_t i = static_cast<int32_t>(p - items);
+  mn->picked(p);
+  return i;
+}
+
 // System menu bars. These change FLTK's one system menu bar under macOS,
 // and do nothing elsewhere.
 void ofl_sys_menu_about(Fl_Callback *cb) { Fl_Sys_Menu_Bar::about(cb, 0); }

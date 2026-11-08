@@ -453,6 +453,11 @@ void ofl_widget_set_damage(intptr_t w, int32_t d) {
 
 void ofl_widget_clear_damage(intptr_t w) { ofl::widget(w)->clear_damage(); }
 
+void ofl_widget_damage_area(intptr_t w, int32_t d, int32_t x, int32_t y,
+                            int32_t ww, int32_t h) {
+  ofl::widget(w)->damage(static_cast<uchar>(d), x, y, ww, h);
+}
+
 // The display is opened first: under Wayland, FLTK 1.4.5 crashes when a
 // text input takes the focus before it is open (doc/fltk-issues.md).
 // fl_open_display does nothing if it is open already.
@@ -636,14 +641,34 @@ void ofl_window_wait_for_expose(intptr_t w) {
 }
 
 void ofl_window_size_range(intptr_t w, int32_t minw, int32_t minh,
-                           int32_t maxw, int32_t maxh) {
-  ofl::as<Fl_Window>(w)->size_range(minw, minh, maxw, maxh);
+                           int32_t maxw, int32_t maxh, int32_t dw,
+                           int32_t dh, int32_t aspect) {
+  ofl::as<Fl_Window>(w)->size_range(minw, minh, maxw, maxh, dw, dh, aspect);
+}
+
+int32_t ofl_window_get_size_range(intptr_t w, int32_t *minw, int32_t *minh,
+                                  int32_t *maxw, int32_t *maxh, int32_t *dw,
+                                  int32_t *dh, int32_t *aspect) {
+  int v[7];
+  int set = ofl::as<Fl_Window>(w)->get_size_range(&v[0], &v[1], &v[2], &v[3],
+                                                  &v[4], &v[5], &v[6]);
+  *minw = v[0]; *minh = v[1]; *maxw = v[2]; *maxh = v[3];
+  *dw = v[4]; *dh = v[5]; *aspect = v[6];
+  return set;
 }
 
 void ofl_window_set_modal(intptr_t w) { ofl::as<Fl_Window>(w)->set_modal(); }
 
 void ofl_window_set_non_modal(intptr_t w) {
   ofl::as<Fl_Window>(w)->set_non_modal();
+}
+
+void ofl_window_hotspot_at(intptr_t w, int32_t x, int32_t y, int32_t off) {
+  ofl::as<Fl_Window>(w)->hotspot(x, y, off);
+}
+
+void ofl_window_hotspot(intptr_t w, intptr_t o, int32_t off) {
+  ofl::as<Fl_Window>(w)->hotspot(ofl::widget(o), off);
 }
 
 int32_t ofl_window_modal(intptr_t w) {
@@ -962,11 +987,19 @@ intptr_t ofl_group_child(intptr_t g, int32_t i) {
 // may name it, and the pointer to member that gives works on any group.
 struct Draws_child : Fl_Group {
   using Fl_Group::draw_child;
+  using Fl_Group::draw_children;
 };
 
 void ofl_group_draw_child(intptr_t g, intptr_t w) {
   void (Fl_Group::*draw)(Fl_Widget &) const = &Draws_child::draw_child;
   (ofl::as<Fl_Group>(g)->*draw)(*ofl::widget(w));
+}
+
+// Fl_Group::draw_children, protected too: each child as the group's
+// own draw does, by its damage, with the labels outside them.
+void ofl_group_draw_children(intptr_t g) {
+  void (Fl_Group::*draw)() = &Draws_child::draw_children;
+  (ofl::as<Fl_Group>(g)->*draw)();
 }
 
 void ofl_group_add(intptr_t g, intptr_t w) {

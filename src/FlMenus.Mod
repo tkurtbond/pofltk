@@ -126,6 +126,7 @@ PROCEDURE ["C", "ofl_menu_style"] CStyle(m: SYSTEM.ADDRESS; what: SYSTEM.INT32):
 PROCEDURE ["C", "ofl_menu_set_style"] CSetStyle(m: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_global"] CGlobal(m: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_menu_popup"] CPopup(m: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_menu_test_shortcut"] CTestShortcut(m: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_popup_at"] CPopupAt(m: SYSTEM.ADDRESS; x, y, w, h: SYSTEM.INT32; title: ARRAY OF CHAR; picked, pull: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_sys_menu_about"] CAbout(cb: AboutProc);
 PROCEDURE ["C", "ofl_sys_menu_create_window_menu"] CCreateWindowMenu;
@@ -465,6 +466,13 @@ BEGIN
   i := CPopupAt(hd, x, y, w, h, "", picked, 1); ASSERT(i # -2, Fl.ClosedResource);
   RETURN i
 END Pulldown;
+
+(* The item whose shortcut is the key being handled, as for a Handle of
+   Fl.EvShortcut or Fl.EvKeyDown: picks it, as a click would, and returns
+   it after its Callback, or -1 if no item's shortcut is the key. *)
+PROCEDURE (m: Menu) TestShortcut*(): INTEGER;
+BEGIN RETURN CTestShortcut(Fl.Live(m))
+END TestShortcut;
 
 (* Menu buttons *)
 

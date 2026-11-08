@@ -21,7 +21,7 @@ anything:
 
 ## Status
 
-As of 2026-11-08, Phases 0 to 30 of PLAN.md are done, and `README.md`
+As of 2026-11-08, Phases 0 to 31 of PLAN.md are done, and `README.md`
 is the user's guide. Phases 9 to 13 (planned 2026-10-07) ported the rest
 of FLTK's `examples/` and bound what they needed; Phases 25 to 32
 (planned 2026-11-07) port FLTK's `test/` programs. `src/` has the `Fl`, `FlDraw`, `FlButtons`,
@@ -282,6 +282,10 @@ make clean      # rm -rf build
   goes in `EXAMPLEONCE`, and must exit 0. One that writes FLTK's
   preferences goes in `EXAMPLEPREFS`, which `make test` runs with
   `XDG_CONFIG_HOME` in `build/config`, so it never writes the user's.
+  That needs `build/config/fltk.org` made first: without the vendor's
+  directory FLTK passes `XDG_CONFIG_HOME` over for `~/.fltk/fltk.org`
+  (`doc/fltk-issues.md`, 158). The same goes for a port compared by
+  hand.
 - **Constants**: never edit the block of a module between
   `BEGIN generated constants` and `END generated constants`. Add the
   name and C expression to `SPEC` in `tools/gen-constants.py`, after
@@ -472,6 +476,12 @@ to it as the user and as root.
   makefile drops (`doc/fltk-issues.md`, 71).
 - **poc** is 0.11.2 in `/usr/pkg/bin` (2026-11-07); put `/usr/pkg/bin`
   first on `PATH` (ssh doesn't).
+- **libc renames**: NetBSD's headers rename functions whose types
+  changed (`time` is `__time50`), so a `["C", "time"]` procedure gets
+  the old one, with a 32-bit `time_t`: take its result as a
+  `SYSTEM.INT32`, or the high half of a `LONGINT` is garbage on i386
+  (2026-11-08, `Blocks`). Check `__RENAME` in the header before binding
+  any libc function by its name.
 - **The display**: Xvfb is X11's, `/usr/X11R7/bin/Xvfb`; start it by
   hand as on cymoril. No sway, and no valgrind on NetBSD.
 - Tested there 2026-10-08: `make test` passes, all 814 checks;
@@ -747,10 +757,12 @@ held only in C++ memory**.
     keeps it, and Wayland leaks the program's own (a bug): `W<B>::handle`
     deletes any not taken;
   - Wayland has no selection buffer.
-- **Preferences** (`doc/fltk-issues.md`, 51, 157): a group's
+- **Preferences** (`doc/fltk-issues.md`, 51, 157, 158): a group's
   `Fl_Preferences` outlives its node, deleted with the group or the
   database. `getUserdataPath` with a short buffer makes a directory at
   the cut-short name and returns success; in memory it gives `data/`.
+  `XDG_CONFIG_HOME` counts only if its `fltk.org/` exists; otherwise
+  FLTK writes `~/.fltk/fltk.org`.
 - **Bitmaps, XBM and ICO** (`doc/fltk-issues.md`, 80 to 82): a bitmap's
   `fail()` is always -1, so judge it by its data and size.
   `Fl_XBM_Image` takes almost any text with two `#define`s, leaves
@@ -1128,7 +1140,14 @@ None at present.
   4 skipped, with neither Cairo nor Pango; 2320, 20 skipped, with no
   SVG, printing or GL; 2616 with no Forms; 2424 with no GL; 2676 with no
   GLEW; 2634 with no cairo; 2656 with no GLU; and on a Wayland FLTK
-  without `FLTK_HAVE_CAIRO`, 2678 on Xvfb and 2655 on sway.
+  without `FLTK_HAVE_CAIRO`, 2678 on Xvfb and 2655 on sway. After
+  Phase 31 (2026-11-08), 2695 (1 skipped), 2672 (9 skipped), 2406 (1
+  skipped) and 2384 (8 skipped) here; 2695, 1 skipped, on NetBSD and
+  FreeBSD and 2687, 2 skipped, on OpenBSD; 2685, 4 skipped, with neither
+  Cairo nor Pango; 2337, 20 skipped, with no SVG, printing or GL; 2633
+  with no Forms; 2441 with no GL; 2693 with no GLEW; 2651 with no cairo;
+  2673 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
+  2695 on Xvfb and 2672 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

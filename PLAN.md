@@ -3119,12 +3119,63 @@ GL; and last the unit tests and the demo launcher.
   2424 with no GL; 2676 with no GLEW; 2634 with no cairo; 2656 with no
   GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2678 on Xvfb and
   2655 on sway.
-- **Phase 31: Games.** `blocks` (1092), `checkers` (1363, and 1272 of
+- **Phase 31: Games** [done]. `blocks` (1092), `checkers` (1363, and 1272 of
   `checkers_pieces`), `sudoku` (1443) (3). `blocks` and `sudoku` play
   sounds through ALSA only where FLTK's `test/` was built with its
   headers, and are silent otherwise, as the build here is (`blocks` is
   linked with no `libasound`). The ports are silent too; `sudoku`'s
   `fl_beep` on a wrong number is kept.
+
+  Done 2026-11-08. Every shot of all 3 matches FLTK's build with no
+  fuzz (`Blocks` 18 shots, `Checkers` 14, `Sudoku` 23, its menus and
+  dialogs among them), with `time()` fixed by a preloaded shim, since
+  all three seed C's `rand` from it, and the ports call C's `rand`.
+  Found:
+  - `Fl`: `Group.DrawChildren` (`draw_children`, for a `Draw` that
+    draws its own background, as `blocks`' and `checkers`' do),
+    `Widget.DamageArea` (`damage(d, x, y, w, h)`), `Window.HotspotAt`
+    and `Hotspot` (`checkers`' and `sudoku`'s dialogs), and
+    `Window.SizeRangeStep` and `GetSizeRange` (`size_range` with steps
+    and aspect, which `sudoku` sets). `FlMenus`: `Menu.TestShortcut`
+    (`Fl_Menu_::test_shortcut`, `checkers`' pop-up's keys). `TestDraw`,
+    `TestWidget` and `TestMenus` check them.
+  - Preferences: with a scratch `XDG_CONFIG_HOME` lacking `fltk.org/`,
+    FLTK writes `~/.fltk/fltk.org` instead (`doc/fltk-issues.md`, 158).
+    `Blocks` and `Sudoku` are in `EXAMPLEPREFS`, and `make test` makes
+    `build/config/fltk.org` first.
+  - Faults of the programs, kept or worked around (each port's module
+    comment): `blocks` steps its column pointer before the first column
+    when the timer empties that one, and reads a count there; the port
+    ends the loop instead, which plays the same. `checkers` sets
+    `FL_HOR_NICE_SLIDER` as a type, without a nice slider's box, as the
+    port does; a king crowned at the top row loses its crown when the
+    move is undone, in both. `sudoku`'s `new_game`, when it starts
+    again, writes and reads rows -3 to -1, the 27 bytes before
+    `grid_values_`, and what is there decides the game dealt: the port
+    keeps 27 bytes of its own before its grid, as they are on x86-64,
+    and deals FLTK's usual game (FLTK's program deals another now and
+    then, by its heap addresses: 1 run of 8 at one second). And
+    `sudoku` marks `items[10 + difficulty]`, not the difficulty's radio
+    item, so none shows as chosen until one is picked; the port marks
+    none.
+  - poc has no string concatenation of constants, so `sudoku`'s help
+    page is built line by line at run time.
+  - NetBSD's `<time.h>` renames `time` to `__time50`; the bare symbol a
+    `["C", "time"]` procedure calls is the old `time()` of a 32-bit
+    `time_t`. Taken as a `LONGINT`, its high half was garbage on i386
+    (yishana), and `Blocks` divided by zero in its frame count
+    (SIGFPE). The three ports take `time`'s result as a
+    `SYSTEM.INT32`, its low half everywhere.
+
+  Counts: 2695 (1 skipped), 2672 (9 skipped), 2406 (1 skipped) and
+  2384 (8 skipped) for `test-headless`, `test-sway`, `valgrind-headless`
+  and `valgrind-sway`; 2695, 1 skipped, on NetBSD and FreeBSD and 2687,
+  2 skipped, on OpenBSD; 2685, 4 skipped, with neither Cairo nor Pango;
+  2337, 20 skipped, with no SVG, printing or GL; 2633 with no Forms;
+  2441 with no GL; 2693 with no GLEW; 2651 with no cairo; 2673 with no
+  GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2695 on Xvfb and
+  2672 on sway.
+  - No FLTK bug found beyond 158.
 - **Phase 32: The unit tests, the terminal and the demo.**
   `unittests` (14 pages, about 3700 lines with `unittest_*.cxx`), one
   port with a module per page; `terminal` (2521 lines, mostly

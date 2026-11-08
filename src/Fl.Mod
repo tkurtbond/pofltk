@@ -594,6 +594,7 @@ PROCEDURE ["C", "ofl_single_window_new"] CSingleWindowNew(menu, placed, x, y, w,
 PROCEDURE ["C", "ofl_window_set_xclass"] CSetXClass(w: SYSTEM.ADDRESS; name: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_window_xclass"] CXClass(w: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_group_draw_child"] CDrawChild(g, w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_group_draw_children"] CDrawChildren(g: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_tooltip_delay"] CTooltipDelay(what: SYSTEM.INT32): LONGREAL;
 PROCEDURE ["C", "ofl_tooltip_set_delay"] CTooltipSetDelay(what: SYSTEM.INT32; v: LONGREAL);
 PROCEDURE ["C", "ofl_tooltip_setting"] CTooltipSetting(what: SYSTEM.INT32): SYSTEM.INT32;
@@ -633,6 +634,7 @@ PROCEDURE ["C", "ofl_widget_set_changed"] CSetChanged(w: SYSTEM.ADDRESS; c: SYST
 PROCEDURE ["C", "ofl_widget_damage"] CDamage(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_set_damage"] CSetDamage(w: SYSTEM.ADDRESS; d: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_clear_damage"] CClearDamage(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_widget_damage_area"] CDamageArea(w: SYSTEM.ADDRESS; d, x, y, ww, h: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_widget_take_focus"] CTakeFocus(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_visible_focus"] CVisibleFocus(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_widget_set_visible_focus"] CSetVisibleFocus(w: SYSTEM.ADDRESS; v: SYSTEM.INT32);
@@ -749,9 +751,12 @@ PROCEDURE ["C", "ofl_group_resizable"] CResizable(g: SYSTEM.ADDRESS): SYSTEM.ADD
 PROCEDURE ["C", "ofl_window_shown"] CShown(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_make_current"] CMakeCurrent(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_wait_for_expose"] CWaitForExpose(w: SYSTEM.ADDRESS);
-PROCEDURE ["C", "ofl_window_size_range"] CSizeRange(w: SYSTEM.ADDRESS; minw, minh, maxw, maxh: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_window_size_range"] CSizeRange(w: SYSTEM.ADDRESS; minw, minh, maxw, maxh, dw, dh, aspect: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_window_get_size_range"] CGetSizeRange(w: SYSTEM.ADDRESS; VAR minw, minh, maxw, maxh, dw, dh, aspect: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_set_modal"] CSetModal(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_set_non_modal"] CSetNonModal(w: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_window_hotspot_at"] CHotspotAt(w: SYSTEM.ADDRESS; x, y, off: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_window_hotspot"] CHotspot(w, o: SYSTEM.ADDRESS; off: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_window_modal"] CModal(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_fullscreen"] CFullscreen(w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_fullscreen_off"] CFullscreenOff(w: SYSTEM.ADDRESS);
@@ -1248,6 +1253,15 @@ PROCEDURE (w: Widget) ClearDamage*;
 BEGIN CClearDamage(Live(w))
 END ClearDamage;
 
+(* Adds d to what needs redrawing, in the area x, y, w, h of the widget's
+   window alone, which draws only there, the rest clipped, at the next
+   flush. The widget and the groups up to its window get d too, the window
+   DamageChild. A window not shown, or an area outside the window, is
+   ignored. *)
+PROCEDURE (w: Widget) DamageArea*(d: SET; x, y, ww, h: INTEGER);
+BEGIN CDamageArea(Live(w), ORD(d), x, y, ww, h)
+END DamageArea;
+
 (* Gives w the keyboard focus, if it takes it: TRUE if it did. *)
 PROCEDURE (w: Widget) TakeFocus*(): BOOLEAN;
 BEGIN RETURN CTakeFocus(Live(w)) # 0
@@ -1348,6 +1362,14 @@ PROCEDURE (g: Group) DrawChild*(w: Widget);
 BEGIN ASSERT(g.Find(w) >= 0, NotAChild); CDrawChild(g.h, w.h)
 END DrawChild;
 
+(* For an extension's Draw: draws g's children as FLTK's own Draw of a
+   group does, after its box: each child by its damage (all of it if g's
+   damage is DamageAll), and the labels outside them. So Draw can draw
+   its own background in place of the box. *)
+PROCEDURE (g: Group) DrawChildren*;
+BEGIN CDrawChildren(Live(g))
+END DrawChildren;
+
 (* Window *)
 
 (* Shows w, as Show does, with FLTK's command-line options (ParseArgs,
@@ -1395,10 +1417,6 @@ PROCEDURE (w: Window) Shown*(): BOOLEAN;
 BEGIN RETURN CShown(Live(w)) # 0
 END Shown;
 
-(* Waits until a window just shown is on the screen, handling events
-   meanwhile; returns at once if it is there, or not shown. Under Wayland
-   a menu popped up over a window not yet on the screen kills the program
-   (doc/fltk-issues.md, 28), so MenuButton.Popup waits first. *)
 (* Sends drawing to w, outside a Draw, for FlDraw's OverlayRect and Scroll.
    What is drawn lasts until FLTK next draws w. A window not shown halts
    with OutOfOrder; under Wayland, use WaitForExpose first. *)
@@ -1406,14 +1424,40 @@ PROCEDURE (w: Window) MakeCurrent*;
 BEGIN ASSERT(CMakeCurrent(Live(w)) # 0, OutOfOrder)
 END MakeCurrent;
 
+(* Waits until a window just shown is on the screen, handling events
+   meanwhile; returns at once if it is there, or not shown. Under Wayland
+   a menu popped up over a window not yet on the screen kills the program
+   (doc/fltk-issues.md, 28), so MenuButton.Popup waits first. *)
 PROCEDURE (w: Window) WaitForExpose*;
 BEGIN CWaitForExpose(Live(w))
 END WaitForExpose;
 
 (* The sizes the user may give the window; 0 for a maximum is no limit. *)
 PROCEDURE (w: Window) SizeRange*(minw, minh, maxw, maxh: INTEGER);
-BEGIN CSizeRange(Live(w), minw, minh, maxw, maxh)
+BEGIN CSizeRange(Live(w), minw, minh, maxw, maxh, 0, 0, 0)
 END SizeRange;
+
+(* SizeRange, with the user's sizes in steps of dw by dh from the minimum
+   (0 for any size), and with aspect the window keeping its minimum's
+   shape. The window system may ignore the steps and the shape. *)
+PROCEDURE (w: Window) SizeRangeStep*(minw, minh, maxw, maxh, dw, dh: INTEGER; aspect: BOOLEAN);
+  VAR a: SYSTEM.INT32;
+BEGIN
+  IF aspect THEN a := 1 ELSE a := 0 END;
+  CSizeRange(Live(w), minw, minh, maxw, maxh, dw, dh, a)
+END SizeRangeStep;
+
+(* The size range SizeRange or SizeRangeStep gave the window. FALSE if
+   none was given: FLTK then decides one as the window is shown, from its
+   resizable widget, and the values are its last. *)
+PROCEDURE (w: Window) GetSizeRange*(VAR minw, minh, maxw, maxh, dw, dh: INTEGER; VAR aspect: BOOLEAN): BOOLEAN;
+  VAR a0, a1, a2, a3, a4, a5, a6: SYSTEM.INT32; set: BOOLEAN;
+BEGIN
+  set := CGetSizeRange(Live(w), a0, a1, a2, a3, a4, a5, a6) # 0;
+  minw := a0; minh := a1; maxw := a2; maxh := a3; dw := a4; dh := a5;
+  aspect := a6 # 0;
+  RETURN set
+END GetSizeRange;
 
 (* A modal window takes every event while it is shown. *)
 PROCEDURE (w: Window) SetModal*;
@@ -1425,6 +1469,24 @@ END SetModal;
 PROCEDURE (w: Window) SetNonModal*;
 BEGIN CSetNonModal(Live(w))
 END SetNonModal;
+
+(* Moves the window so that its point x, y is under the mouse, kept on the
+   screen with its borders unless offscreen. *)
+PROCEDURE (w: Window) HotspotAt*(x, y: INTEGER; offscreen: BOOLEAN);
+  VAR off: SYSTEM.INT32;
+BEGIN
+  IF offscreen THEN off := 1 ELSE off := 0 END;
+  CHotspotAt(Live(w), x, y, off)
+END HotspotAt;
+
+(* The same, with the middle of o, the window or a widget in it, under the
+   mouse. *)
+PROCEDURE (w: Window) Hotspot*(o: Widget; offscreen: BOOLEAN);
+  VAR off: SYSTEM.INT32;
+BEGIN
+  IF offscreen THEN off := 1 ELSE off := 0 END;
+  CHotspot(Live(w), Live(o), off)
+END Hotspot;
 
 PROCEDURE (w: Window) Modal*(): BOOLEAN;
 BEGIN RETURN CModal(Live(w)) # 0

@@ -19,11 +19,13 @@ VAR
   a, b, c, d: Fl.Box;
   s: ARRAY 64 OF CHAR;
   short: ARRAY 10 OF CHAR;
-  sx, sy, sw, sh, wx, wy, ww, wh: INTEGER;
+  sx, sy, sw, sh, wx, wy, ww, wh, dw, dh: INTEGER;
+  aspect: BOOLEAN;
   r, gr, bl: INTEGER;
   shown, ok: BOOLEAN;
   n, lw, lh, fw, fh: INTEGER;
-  other: Fl.Window;
+  other, hot: Fl.Window;
+  mx, my: INTEGER;
 
 PROCEDURE (t: Taker) Handle*(event: INTEGER): BOOLEAN;
 BEGIN
@@ -205,6 +207,31 @@ BEGIN
   win.SetModal;
   Check.Check(win.Modal(), "modal");
 
+  (* damage to an area, and a hotspot *)
+  NEW(a); Fl.OpenBox(a, 20, 20, 10, 10, ""); g.Add(a);
+  shown := Fl.Check(); win.ClearDamage; g.ClearDamage; a.ClearDamage;
+  a.DamageArea(Fl.DamageUser1, 20, 20, 10, 10);
+  Check.Check((a.Damage() = Fl.DamageUser1) & (g.Damage() = Fl.DamageChild)
+    & (win.Damage() = Fl.DamageChild), "DamageArea: the widget's, its group's and window's");
+  shown := Fl.Check(); win.ClearDamage;
+  win.DamageArea(Fl.DamageUser1, 1000, 1000, 10, 10);
+  Check.Check(win.Damage() = {}, "none outside the window");
+  win.DamageArea(Fl.DamageUser1, 5, 5, 10, 10);
+  Check.Check(win.Damage() = Fl.DamageUser1, "a window's own");
+  shown := Fl.Check(); g.Clear;
+  NEW(hot); Fl.OpenWindowAt(hot, 0, 0, 100, 80, "");
+  NEW(a); Fl.OpenBox(a, 30, 40, 20, 10, ""); hot.End;
+  hot.DamageArea(Fl.DamageUser1, 5, 5, 10, 10);
+  Check.Check(hot.Damage() = {}, "none for a window not shown");
+  Fl.GetMouse(mx, my);
+  hot.HotspotAt(10, 20, TRUE);
+  Check.Check((hot.X() = mx - 10) & (hot.Y() = my - 20), "HotspotAt puts the point under the mouse");
+  hot.Hotspot(a, TRUE);
+  Check.Check((hot.X() = mx - 40) & (hot.Y() = my - 45), "Hotspot, a widget's middle");
+  hot.Hotspot(hot, TRUE);
+  Check.Check((hot.X() = mx - 50) & (hot.Y() = my - 40), "or the window's");
+  hot.Delete;
+
   (* a window's title is its label *)
   win.SetLabel("retitled"); win.GetLabel(s);
   Check.Check(s = "retitled", "a shown window's title");
@@ -338,6 +365,18 @@ BEGIN
   NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
   other.SizeRange(50, 50, 0, 0); other.Maximize;
   Check.Check(~other.MaximizeActive(), "Maximize of a window not shown does nothing");
+  other.Delete;
+  (* A size range with steps and a shape, read back. *)
+  NEW(other); Fl.OpenWindow(other, 100, 80, "other"); other.End;
+  Check.Check(~other.GetSizeRange(sx, sy, sw, sh, dw, dh, aspect), "no size range given");
+  other.SizeRangeStep(100, 80, 0, 0, 5, 5, TRUE);
+  Check.Check(other.GetSizeRange(sx, sy, sw, sh, dw, dh, aspect)
+    & (sx = 100) & (sy = 80) & (sw = 0) & (sh = 0) & (dw = 5) & (dh = 5) & aspect,
+    "SizeRangeStep, read back");
+  other.SizeRange(60, 50, 200, 150);
+  Check.Check(other.GetSizeRange(sx, sy, sw, sh, dw, dh, aspect)
+    & (sx = 60) & (sy = 50) & (sw = 200) & (sh = 150) & (dw = 0) & (dh = 0) & ~aspect,
+    "SizeRange clears the steps and the shape");
   other.Delete;
   ww := win.W(); wh := win.H();
   win.Maximize;

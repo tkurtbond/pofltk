@@ -2973,3 +2973,25 @@ the array.
 
 **Confirmed:** a scratch C++ program, 2026-11-08 (the 48-byte case
 above, and memory's `data/`); `TestPreferences`.
+
+## 158. `XDG_CONFIG_HOME` without the vendor's directory is passed over
+
+**What happens:** a user database (`Fl_Preferences::USER_L`) is
+`$XDG_CONFIG_HOME/{vendor}/{application}.prefs` only if
+`$XDG_CONFIG_HOME/{vendor}` already exists. If it doesn't, and
+FLTK 1.3's `~/.fltk/{vendor}` does, FLTK uses that, in the user's home,
+whatever `XDG_CONFIG_HOME` says. So setting `XDG_CONFIG_HOME` to an
+empty directory doesn't keep a program off the user's preferences.
+
+**Cause:** `src/drivers/Unix/Fl_Unix_System_Driver.cxx:567`
+(`preference_rootnode`: "If this base path does not exist, try the 1.3
+path").
+
+**Effect on pofltk:** `make test` makes `build/config/fltk.org` before
+running an `EXAMPLEPREFS` example. A port compared by hand must have
+`fltk.org` in its `XDG_CONFIG_HOME` too: comparing `Blocks` with an
+empty one wrote `~/.fltk/fltk.org/blocks.prefs` (2026-11-08).
+
+**Confirmed:** `Blocks` and FLTK's `blocks`, 2026-11-08: with an empty
+`XDG_CONFIG_HOME` the high score went to `~/.fltk/fltk.org`; with
+`fltk.org` made in it, it went there.

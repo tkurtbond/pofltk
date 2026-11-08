@@ -13,7 +13,7 @@ VAR
   bar, other: FlMenus.MenuBar;
   choice: FlMenus.Choice;
   schemes: FlMenus.SchemeChoice;
-  button: FlMenus.MenuButton;
+  button, button2: FlMenus.MenuButton;
   sysBar: FlMenus.SysMenuBar;
   answer: Answer;
   last: Fl.Widget;
@@ -189,6 +189,17 @@ BEGIN
   other.Delete;
   ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
   Check.Check(~ok & (quitted = 3), "a global menu deleted is forgotten");
+
+  (* a menu in no window, asked of the key just handled, Ctrl+g *)
+  NEW(button2); FlMenus.OpenMenuButton(button2, 0, 0, 10, 10, "");
+  i := button2.Add("Stop", ORD("h"), Fl.Ctrl, Open, {});
+  i := button2.Add("Go", ORD("g"), Fl.Ctrl, Quit, FlMenus.MenuToggle);
+  i := button2.TestShortcut();
+  Check.Check((i = 1) & (quitted = 4) & (button2.ItemFlags(1) = FlMenus.MenuToggle + FlMenus.MenuValue),
+    "TestShortcut picks the item, after its action");
+  button2.Remove(1);
+  Check.Check((button2.TestShortcut() = -1) & (quitted = 4), "or -1, for no item's key");
+  button2.Delete;
 
   (* Under Wayland the compositor closes a pop-up menu of a window that
      doesn't have the focus, as a window no user clicked doesn't

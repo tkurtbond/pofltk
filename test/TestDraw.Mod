@@ -23,12 +23,15 @@ TYPE
   Bent = POINTER TO RECORD (Fl.BoxDesc) END;
   (* its first child alone, on white *)
   Pair = POINTER TO RECORD (Fl.GroupDesc) END;
+  (* its own white, then both children, by DrawChildren *)
+  Both = POINTER TO RECORD (Fl.GroupDesc) END;
 
 VAR
   win: Fl.Window;
   sw: Swatch; cl: Clipped; disc: Disc; tx: Texty; fr: Framed;
   plain, left, right: Fl.Box;
   pair: Pair;
+  both: Both;
   bent: Bent;
   r, g, b, x, y, dark, w, h: INTEGER;
   white, black: INTEGER;
@@ -53,6 +56,12 @@ PROCEDURE (p: Pair) Draw*;
 BEGIN
   FlDraw.SetColor(Fl.White); FlDraw.RectF(p.X(), p.Y(), p.W(), p.H());
   p.DrawChild(p.Child(0))
+END Draw;
+
+PROCEDURE (p: Both) Draw*;
+BEGIN
+  FlDraw.SetColor(Fl.White); FlDraw.RectF(p.X(), p.Y(), p.W(), p.H());
+  p.DrawChildren
 END Draw;
 
 PROCEDURE (c: Clipped) Draw*;
@@ -198,6 +207,18 @@ BEGIN
     "Group.DrawChild draws the child it is given, and no other");
   Probe.Release;
   pair.Delete;
+
+  (* a group's Draw, its own background and then all its children *)
+  NEW(both); Fl.OpenGroup(both, 0, 200, 150, 50, "");
+  NEW(left); Fl.OpenBox(left, 0, 200, 50, 50, ""); left.SetBoxType(Fl.FlatBox); left.SetColor(Fl.Red);
+  NEW(right); Fl.OpenBox(right, 100, 200, 50, 50, ""); right.SetBoxType(Fl.FlatBox); right.SetColor(Fl.Blue);
+  both.End;
+  Check.Check(Probe.Capture(both), "a group drawing its children");
+  Check.Check((Probe.Pixel(10, 10) = Fl.RGB(255, 0, 0)) & (Probe.Pixel(75, 10) = Fl.RGB(255, 255, 255))
+    & (Probe.Pixel(140, 40) = Fl.RGB(0, 0, 255)),
+    "Group.DrawChildren draws every child over the group's own drawing");
+  Probe.Release;
+  both.Delete;
 
   (* damage *)
   plain.Redraw;
