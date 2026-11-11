@@ -3280,3 +3280,21 @@ Still open, to look into, from binding GLUT's fonts (2026-10-31):
   from a C++ part. Whether they are worth binding is undecided.
 - **An example of GLUT's fonts.** There is none, none having been asked
   for, and FLTK's own tests and examples use none of these fonts.
+
+Decided 2026-11-11, with the user, after FLTKAda decided the other way:
+
+- ~~**Should `Menu.PopupAt` and `Pulldown` keep FLTK's behaviour, returning
+  the item without its callback?**~~ Decided: no; they keep calling the
+  menu's `picked` (`doc/fltk-issues.md`, 150). FLTKAda keeps FLTK's
+  behaviour, since its items are arrays apart from any widget, and FLTK's
+  programs call the item's callback themselves (`checkers.cxx:1098`).
+  pofltk's items always belong to a `Menu` widget, and FLTK's widget-level
+  calls, `Fl_Menu_Button::popup` (`MenuButton.Popup`) and
+  `Fl_Menu_::test_shortcut` (`Menu.TestShortcut`), both call `picked`, so
+  the four ways of choosing an item behave alike. An item's action is run
+  by `Menu.Callback` through `Value`, which only `picked` sets, so a
+  caller's equivalent of `do_callback` would be `Pick` anyway; and a
+  change would be silent, compiling as before while actions stopped
+  running and toggle and radio items stopped changing. If a program ever
+  needs the item returned with nothing done, add that as a parameter or a
+  method of its own, not by changing these.
