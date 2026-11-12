@@ -3239,6 +3239,18 @@ Not ported, and why:
 - `list_visuals`: plain Xlib, with no FLTK widget.
 - `shadow_variables`: a compile test, with no window.
 
+**Licences of the copied data (2026-11-12).** The files copied from
+FLTK's `test/` came with no licence notice, and `LICENSE` puts the
+whole repository under BSD 3-Clause. `examples/rgb.txt` is X.Org's
+colour database, whose licence allows copying only with its notice,
+and the file carries none; `examples/rgb.txt.COPYING` now has the
+COPYING of X.Org's `rgb` package (1.1.0, from Fedora 44's source
+package). `examples/valuators.fl` is FLTK's, under the FLTK License,
+and carries no notice either; `examples/valuators.fl.COPYING` now has
+FLTK 1.4.5's COPYING, which also covers `examples/browser.cxx`, whose
+own header names that licence. The examples README lists them. FLTKAda
+found this when it began shipping the same `rgb.txt`.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

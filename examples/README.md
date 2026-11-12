@@ -287,3 +287,12 @@ These need `pofltk-cairo`, and aren't built without cairo.
 command's output as it comes (`popen`). Running a command isn't FLTK's, so it
 isn't part of pofltk. `GlThree.Mod` and `GlThree.cpp` hold GLEW and the OpenGL 3
 code of the last two OpenGL examples.
+
+## Files under other licences
+
+Three data files are copied unchanged from FLTK 1.4.5's `test/`, and
+aren't under pofltk's BSD licence. `rgb.txt`, which `ColBrowser` reads,
+is X.Org's colour database, under X.Org's licence in `rgb.txt.COPYING`.
+`valuators.fl`, which the demo's `fluid` item opens, and `browser.cxx`,
+which `Browser` shows, are FLTK's, under the FLTK License in
+`valuators.fl.COPYING`.
