@@ -55,3 +55,30 @@ Not checked in pofltk itself.
 Done 2026-11-06: confirmed, and the guard removed. Checking it found that
 a NIL display or overlay procedure crashed; fixed too
 (doc/fltk-issues.md, 145).
+
+* TODO Work on FLTKAda reports FlGl.DrawImage reads past its data
+Found 2026-11-12 by FLTKAda, sorting its guards (FLTKAda-BUGS.md 28);
+recorded there as FLTK-issues.md F40. Not in doc/fltk-issues.md.
+
+FLTK's gl_draw_image (src/gl_draw.cxx:236-244) passes
+d < 4 ? GL_RGB : GL_RGBA to glDrawPixels, so depths 1 and 2 are read
+at three bytes a pixel, and it leaves GL_UNPACK_ALIGNMENT at 4, so a
+row whose length in bytes isn't a multiple of 4 is taken as padded.
+Either way it reads past data of exactly w * h * d bytes, and draws
+the wrong colours: grey as RGB, and such rows askew. A scratch C++
+program under Xvfb and valgrind, drawing a malloc'd w * 10 * d bytes:
+depth 3 at width 8 and depth 4 at width 10 were clean; depths 1 and 2
+at width 8 had 107 invalid reads each, and depth 3 at width 10 had 12,
+all in Mesa's glDrawPixels.
+
+FlGl.DrawImage (src/gl/FlGl.Mod:517) checks w * h * d <= LEN(data)
+and documents depth 1 as gray, then calls ofl_gl_draw_image
+(src/gl/FlGl.cpp:281), which calls gl_draw_image, so it has the same
+over-read. FLTKAda's fix (body/c_fl_gl.cpp, fl_gl_draw_image) draws
+the image itself: it saves GL_UNPACK_ROW_LENGTH, GL_UNPACK_ALIGNMENT,
+GL_UNPACK_SKIP_ROWS and GL_UNPACK_SKIP_PIXELS, sets them to w (or
+ld / d), 1, 0 and 0, calls glRasterPos2i and glDrawPixels with
+GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB or GL_RGBA for depths 1 to 4,
+and restores them. FLTKAda's test/unit/test_gl_draw_image.adb reads
+back what each case draws. Not checked in pofltk itself: this is from
+reading FlGl.Mod and FlGl.cpp.
