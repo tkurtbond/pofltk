@@ -289,10 +289,48 @@ BEGIN
   Check.Check(FlGl.GetError() = FlGl.NoError, "GLUT's shapes, without an error")
 END Shapes;
 
+(* An image of 3 by 2 pixels of depth d, drawn at 5, 7, read back as it
+   should be: channel c of pixel k is 40 * k + 10 * c + 20, gray when d is 1
+   or 2 (with no blending, alpha is dropped). Rows of 3, 6 and 9 bytes
+   aren't a multiple of 4, which FLTK's gl_draw_image took them as
+   (doc/fltk-issues.md, 170). *)
+PROCEDURE Image(d: INTEGER): BOOLEAN;
+  VAR data: POINTER TO ARRAY OF CHAR; p: ARRAY 4 OF CHAR;
+    k, c, v: INTEGER; ok: BOOLEAN;
+BEGIN
+  Black;
+  NEW(data, 6 * d);
+  FOR k := 0 TO 5 DO
+    FOR c := 0 TO d - 1 DO data[k * d + c] := CHR(40 * k + 10 * c + 20) END
+  END;
+  FlGl.DrawImage(data^, 5, 7, 3, 2, d);
+  FlGl.Flush;
+  ok := TRUE;
+  FOR k := 0 TO 5 DO
+    FlGl.ReadPixels(5 + k MOD 3, 7 + k DIV 3, 1, 1, p);
+    FOR c := 0 TO 2 DO
+      IF d < 3 THEN v := 40 * k + 20 ELSE v := 40 * k + 10 * c + 20 END;
+      IF ORD(p[c]) # v THEN ok := FALSE END
+    END
+  END;
+  RETURN ok
+END Image;
+
+PROCEDURE Images(w: More);
+BEGIN
+  w.Ortho;
+  Check.Check(Image(1), "DrawImage of gray");
+  Check.Check(Image(2), "DrawImage of gray and alpha");
+  Check.Check(Image(3), "DrawImage of RGB, rows not a multiple of 4");
+  Check.Check(Image(4), "DrawImage of RGBA");
+  Check.Check(FlGl.GetError() = FlGl.NoError, "DrawImage without an error")
+END Images;
+
 PROCEDURE (w: More) Draw*;
 BEGIN
   INC(w.draws);
   IF w.draws = 1 THEN
+    Images(w);
     FlGl.Viewport(0, 0, w.PixelW(), w.PixelH());
     FlGl.MatrixMode(FlGl.Projection); FlGl.LoadIdentity;
     FlGl.MatrixMode(FlGl.Modelview); FlGl.LoadIdentity;

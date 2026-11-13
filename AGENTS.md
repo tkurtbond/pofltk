@@ -844,7 +844,8 @@ held only in C++ memory**.
   after a delete. `Fl_Gl_Window::init` calls `end()`, so its widgets need
   `Begin` and `End`, and `Draw` must call the base's to show them. Wayland
   adds `FL_DOUBLE` to every mode. FLTK without GL still installs GL's
-  headers.
+  headers. `gl_draw_image` reads depths 1 and 2 as RGB and rows as
+  aligned to 4 (170): the shim draws the pixels itself.
 - **GL text's texture pile** (`doc/fltk-issues.md`, 152): a height of 0
   divides by zero, and a negative one segfaults, at the next text drawn
   with textures (GL 3 or later, or a texture rectangle extension).
@@ -1161,6 +1162,9 @@ None at present.
   skipped, with no SVG, printing or GL; 2677 with no Forms; 2479 with no
   GL; 2737 with no GLEW; 2695 with no cairo; 2717 with no GLU; and on a
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2739 on Xvfb and 2716 on sway.
+  After the `DrawImage` fix (2026-11-12), 2744 (1 skipped), 2721 (9
+  skipped), 2449 (1 skipped) and 2427 (8 skipped) here; the BSDs and the
+  FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

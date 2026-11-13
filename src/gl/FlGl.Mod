@@ -512,8 +512,11 @@ PROCEDURE DrawTextIn*(s-: ARRAY OF CHAR; x, y, w, h: INTEGER; align: SET);
 BEGIN ASSERT(CReady() # 0, Fl.OutOfOrder); CDrawIn(s, x, y, w, h, ORD(align))
 END DrawTextIn;
 
-(* An image of w by h pixels of d bytes each (1 gray, 3 RGB, 4 RGBA), row
-   after row from the top, drawn with its top left at x, y. *)
+(* An image of w by h pixels of d bytes each (1 gray, 2 gray and alpha, 3
+   RGB, 4 RGBA), rows packed, drawn as GL draws pixels: its first row at
+   x, y in the current projection, going up, so with Ortho row after row
+   from the bottom (as ReadPixels reads them). Not FLTK's gl_draw_image,
+   which reads past the data (doc/fltk-issues.md, 170). *)
 PROCEDURE DrawImage*(data-: ARRAY OF CHAR; x, y, w, h, d: INTEGER);
 BEGIN
   ASSERT((w >= 0) & (h >= 0) & (d >= 1) & (d <= 4), Fl.IndexOutOfRange);

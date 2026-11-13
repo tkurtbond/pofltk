@@ -56,7 +56,7 @@ Done 2026-11-06: confirmed, and the guard removed. Checking it found that
 a NIL display or overlay procedure crashed; fixed too
 (doc/fltk-issues.md, 145).
 
-* TODO Work on FLTKAda reports FlGl.DrawImage reads past its data
+* DONE Work on FLTKAda reports FlGl.DrawImage reads past its data
 Found 2026-11-12 by FLTKAda, sorting its guards (FLTKAda-BUGS.md 28);
 recorded there as FLTK-issues.md F40. Since 2026-11-12, doc/fltk-issues.md
 170 (until then this said it wasn't there).
@@ -83,3 +83,6 @@ GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB or GL_RGBA for depths 1 to 4,
 and restores them. FLTKAda's test/unit/test_gl_draw_image.adb reads
 back what each case draws. Not checked in pofltk itself: this is from
 reading FlGl.Mod and FlGl.cpp.
+
+Done 2026-11-12: confirmed by TestGl (depths 1 to 3 drawn wrong through
+gl_draw_image), and fixed as FLTKAda did (doc/fltk-issues.md, 170).

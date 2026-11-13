@@ -3251,6 +3251,19 @@ FLTK 1.4.5's COPYING, which also covers `examples/browser.cxx`, whose
 own header names that licence. The examples README lists them. FLTKAda
 found this when it began shipping the same `rgb.txt`.
 
+**`FlGl.DrawImage` (2026-11-12).** FLTKAda found that FLTK's
+`gl_draw_image` reads past its data: depths 1 and 2 are read as RGB, and
+rows as aligned to 4 bytes (`doc/fltk-issues.md`, 170). `DrawImage`
+passed through to it, so it had the same fault. `ofl_gl_draw_image` now
+draws the pixels itself, as FLTKAda's shim does, with a format for each
+depth and packed rows, and puts GL's unpack state back. `TestGl` reads
+back a 3 by 2 image at each depth: through `gl_draw_image` depths 1 to 3
+failed. That check also showed `DrawImage`'s comment was wrong: the first
+row is drawn at `y`, going up, not from the top. Counts: 2744 (1
+skipped), 2721 (9 skipped), 2449 (1 skipped) and 2427 (8 skipped) for
+`test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`,
+every valgrind error summary 0; the BSDs and the FLTK variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

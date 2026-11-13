@@ -278,9 +278,30 @@ void ofl_gl_draw_in(const char *s, int32_t x, int32_t y, int32_t w, int32_t h,
   fl_draw(s, x, -y - h, w, h, static_cast<Fl_Align>(align), draw_line, NULL, 0);
 }
 
+// Not gl_draw_image, which reads depths 1 and 2 as RGB and leaves rows
+// aligned to 4 bytes, so it reads past data of w * h * d bytes
+// (doc/fltk-issues.md, 170). After FLTKAda's fl_gl_draw_image
+// (body/c_fl_gl.cpp), which is public domain: a format for each depth,
+// rows packed, and the unpack state put back.
 void ofl_gl_draw_image(const char *data, int32_t x, int32_t y, int32_t w,
                        int32_t h, int32_t d) {
-  gl_draw_image(reinterpret_cast<const uchar *>(data), x, y, w, h, d);
+  static const GLenum formats[4] = {GL_LUMINANCE, GL_LUMINANCE_ALPHA, GL_RGB,
+                                    GL_RGBA};
+  GLint row_length, alignment, skip_rows, skip_pixels;
+  glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
+  glGetIntegerv(GL_UNPACK_ALIGNMENT, &alignment);
+  glGetIntegerv(GL_UNPACK_SKIP_ROWS, &skip_rows);
+  glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, w);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+  glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
+  glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+  glRasterPos2i(x, y);
+  glDrawPixels(w, h, formats[d - 1], GL_UNSIGNED_BYTE, data);
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
+  glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
+  glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+  glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
 }
 
 void ofl_gl_texture_reset(void) { gl_texture_reset(); }

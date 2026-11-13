@@ -3277,6 +3277,13 @@ for each depth (`GL_LUMINANCE`, `GL_LUMINANCE_ALPHA`, `GL_RGB`,
 `GL_RGBA`) and an alignment of 1, and restores the unpack state it
 changes.
 
+**Workaround** (2026-11-12): `ofl_gl_draw_image` does as FLTKAda's
+shim does. `TestGl` draws a 3 by 2 image at each depth, rows of 3, 6, 9
+and 12 bytes, and reads back every pixel: with `gl_draw_image` depths 1,
+2 and 3 fail, and with the shim's own drawing all four pass. The same
+check showed that the first row is drawn at `y`, going up, as GL draws
+pixels; `DrawImage`'s comment had said from the top.
+
 **Confirmed:** in FLTKAda, a scratch C++ program under Xvfb and
 valgrind: depths 1 and 2 at width 8 had 107 invalid reads each, and
 depth 3 at width 10 had 12, all in Mesa's `glDrawPixels`.
