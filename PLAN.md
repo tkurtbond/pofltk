@@ -3345,6 +3345,25 @@ remembered one, so `FlDialogs.ChooseColor`'s comment says so. With
 these, every finding from FLTKAda (160 to 173) has a fix or a warning.
 Comments only; the modules build.
 
+**A run path for a private shared FLTK (2026-11-13).** A CMake build
+of FLTK with shared libraries, installed under a prefix of its own,
+gives no run path in `fltk-config --ldflags`, so pofltk's programs
+loaded the system's `libfltk.so` at run time: the noforms and nogl
+variants' tests did, and failed TestPrint's checks of 164, which
+depend on Pango, until run with `LD_LIBRARY_PATH`. The makefile now
+adds `-Wl,-rpath` for `FLTK_LIBDIR` (`FLTK_RPATH`) to `LINK` when the
+directory has a `libfltk.so*`, isn't the system's, and `fltk-config`
+gives no run path for it (pkgsrc's gives `-Wl,-R/usr/pkg/lib`). The
+manifest records it, so users' programs and the optional parts get it
+too. On a fresh noforms build without `LD_LIBRARY_PATH`, the tests,
+`libpofltk.so` and the parts' shared objects have that RUNPATH, `ldd`
+finds the prefix's FLTK, and `make test-headless` gives 2691 ok, 5
+skipped, as with `LD_LIBRARY_PATH`. Locally and on yishana it adds
+nothing. Counts: 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped)
+and 2447 (8 skipped) here, as before; valgrind-sway's error summaries
+were 0 but TestGlut's, 181 errors in glycin's worker threads, outside
+pofltk (`test/display.supp`); the BSDs and the other variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

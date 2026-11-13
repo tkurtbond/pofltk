@@ -102,6 +102,13 @@ makefile gives poc `-no-shared-library`, which needs poc 0.11.0, and the
 libraries are archives alone. `POC_LIBRARY_FLAGS=` tries the shared link
 regardless.
 
+A shared FLTK outside the system's library directories, such as one
+installed by CMake under a prefix of its own, needs a run path, or a
+program loads the system's FLTK, or none, when it runs. Where
+`fltk-config` gives none, the makefile adds `-Wl,-rpath` for FLTK's
+directory, and the library records it, so programs using it find that
+FLTK too.
+
 ## Example
 
 This is `examples/Hello.Mod`, FLTK's `test/hello.cxx`:

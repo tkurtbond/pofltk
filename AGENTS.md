@@ -337,6 +337,15 @@ library with a shared object can't need one without.
 pkgsrc's FLTK, on yishana and artos, has both. `fltk-config` is found on
 `PATH`, then in `/usr/local/sw/versions/fltk/*/bin`.
 
+A shared FLTK outside the system's directories gets a run path,
+`FLTK_RPATH` (2026-11-13): a CMake build's `fltk-config` gives none, so
+the noforms and nogl variants' tests loaded the system's `libfltk.so`,
+and passed only by its having Pango. It goes on `LINK`, so the manifest
+and `libpofltk.so` record it, and the optional parts, importing
+`pofltk`, get it from the manifest. Not added where
+`fltk-config` gives one (pkgsrc's `-Wl,-R/usr/pkg/lib`) or the directory
+is the system's (`/usr/lib64` here), so a normal build has none.
+
 `POCLIBDIR` defaults to `$(PREFIX)/lib/poc`, with `PREFIX` default
 `~/.local`. Try it elsewhere first with `make install
 POCLIBDIR=<scratch dir>`. The manifest records `c++`, `-lfltk_images` and
@@ -1216,7 +1225,11 @@ None at present.
   2765 on Xvfb and 2741 on sway. The no Forms and no GL runs are the
   first with their own shared libraries at run time
   (`LD_LIBRARY_PATH`): the makefile sets no rpath, so before, their
-  tests loaded the system's FLTK, and skipped 1.
+  tests loaded the system's FLTK, and skipped 1. After the run path
+  (`FLTK_RPATH`, 2026-11-13), the same four here, with TestGlut's 181
+  errors in glycin's threads on valgrind-sway, outside pofltk; noforms,
+  rebuilt, 2691, 5 skipped, with no `LD_LIBRARY_PATH`; the BSDs and the
+  other variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

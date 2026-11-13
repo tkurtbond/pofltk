@@ -67,6 +67,17 @@ HAVE_GL       := $(if $(wildcard $(FLTK_LIBDIR)libfltk_gl.*),yes)
 # library with one can't need a library without, so this goes to all four.
 # POC_LIBRARY_FLAGS= tries the shared link regardless.
 POC_LIBRARY_FLAGS ?= $(if $(wildcard $(FLTK_LIBDIR)libfltk.so*),,-no-shared-library)
+# A shared FLTK outside the system's directories needs a run path, or a
+# program finds another FLTK, or none, when it runs: a CMake build's
+# fltk-config gives none, and the tests of one without Pango loaded the
+# system's, with it (2026-11-13). It goes in the manifest, so the
+# library's users get it too. Not where fltk-config gives one (pkgsrc's
+# -Wl,-R), nor for a system directory.
+comma         := ,
+FLTK_LIBDIR_  := $(patsubst %/,%,$(FLTK_LIBDIR))
+FLTK_HASRPATH := $(filter -R$(FLTK_LIBDIR_) -Wl$(comma)-R$(FLTK_LIBDIR_) -Wl$(comma)-rpath$(comma)$(FLTK_LIBDIR_),$(FLTK_LIBS))
+FLTK_SYSTEM   := $(filter /lib /lib64 /usr/lib /usr/lib64 /usr/lib/%-gnu /usr/lib/%-gnueabihf,$(FLTK_LIBDIR_))
+FLTK_RPATH    := $(if $(and $(wildcard $(FLTK_LIBDIR)libfltk.so*),$(if $(FLTK_HASRPATH)$(FLTK_SYSTEM),,yes)),-Wl$(comma)-rpath$(comma)$(FLTK_LIBDIR_))
 # X11's own directories, which fltk-config leaves out: needed where X11
 # is outside the compiler's search path (OpenBSD's /usr/X11R6), empty
 # where it is not or pkg-config isn't there.
@@ -99,7 +110,7 @@ EXAMPLEMODS := ResizeArrows BlocksPixmaps CheckersPieces
 EXAMPLESRC := $(EXAMPLECXX:%=examples/%.Mod) $(EXAMPLECXX:%=examples/%.cpp) $(EXAMPLEMODS:%=examples/%.Mod)
 
 CFLAGS := $(foreach f,$(FLTK_CXXFLAGS) $(X11_CXXFLAGS) $(CXXFLAGS),-c-flag $(f))
-LINK   := $(CFLAGS) $(foreach f,$(X11_LIBS) $(FLTK_LIBS),-link $(f))
+LINK   := $(CFLAGS) $(foreach f,$(X11_LIBS) $(FLTK_LIBS) $(FLTK_RPATH),-link $(f))
 
 # Each library is built in a directory of its own, and all are installed
 # in one, $(POCLIBDIR).
