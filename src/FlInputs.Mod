@@ -377,7 +377,12 @@ PROCEDURE OpenInputChoice*(i: InputChoice; x, y, w, h: INTEGER; label-: ARRAY OF
 BEGIN Fl.EndOpen(i, CNew(inputChoice, x, y, w, h, label, Fl.BeginOpen(i)))
 END OpenInputChoice;
 
-(* Adds an item with the label s; "|" in s separates several. *)
+(* Adds an item with the label s; "|" in s separates several. A tab
+   ends an item's label, and what follows the last tab is its shortcut,
+   as FLTK's fl_old_shortcut reads it: prefixes "#" Alt, "+" Shift, "^"
+   Ctrl, "!" Meta and "@" Command, in that order, then a character or a
+   number ("^a" is Ctrl+A). A label is cut to 1023 bytes, as
+   FlMenus.Menu.Insert cuts one. *)
 PROCEDURE (i: InputChoice) Add*(s-: ARRAY OF CHAR);
 BEGIN CChoiceAdd(Fl.Live(i), s)
 END Add;

@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -414,6 +415,42 @@ inline void copy_out(const char *s, char *buf, int32_t n) {
 // line of text, so an image with it is drawn above an empty line, not in
 // the middle (doc/fltk-issues.md, 46).
 inline const char *label_text(const char *s) { return s && *s ? s : 0; }
+
+// A menu item's label or path as Fl_Menu_Item::insert can take it. insert
+// copies each part of a path, between /s, its \ escapes undone, into a
+// buffer of 1024 bytes with no bound (doc/fltk-issues.md, 172), so each
+// part is cut to 1023 bytes, at the start of a character. A part starting
+// with / is the rest of the path, which insert takes as it is: a file name.
+inline std::string menu_path(const char *s) {
+  const size_t most = 1023;
+  std::string r;
+  for (;;) {
+    if (*s == '/') {
+      r += s;
+      break;
+    }
+    if (*s == '_') r += *s++; // a divider before the item
+    size_t n = 0;             // the part's bytes, escapes undone
+    size_t start = r.size();  // where the last character starts in r
+    while (*s && *s != '/') {
+      size_t w = s[0] == '\\' && s[1] ? 2 : 1; // insert's escape: \x is x
+      unsigned char c = static_cast<unsigned char>(s[w - 1]);
+      bool lead = (c & 0xC0) != 0x80;
+      if (n == most) {
+        if (!lead) r.resize(start); // cut where a character starts
+        while (*s && *s != '/') s += s[0] == '\\' && s[1] ? 2 : 1;
+        break;
+      }
+      if (lead) start = r.size();
+      r.append(s, w);
+      s += w;
+      n++;
+    }
+    if (*s != '/') break;
+    r += *s++;
+  }
+  return r;
+}
 
 inline Fl_Widget *widget(intptr_t h) {
   return reinterpret_cast<Fl_Widget *>(h);

@@ -688,7 +688,11 @@ held only in C++ memory**.
     segfaults, and `Fl_Menu_Item::popup` and `pulldown` do no callback
     (150): `FlMenus` halts 73, and calls `picked`;
   - `Fl_Scheme_Choice`'s callback with nothing chosen reads the item
-    before the first (166): the shim calls it only with a value.
+    before the first (166): the shim calls it only with a value;
+  - `insert` copies a path's part into 1024 bytes on the stack, unbounded
+    (172): `ofl::menu_path` cuts each to 1023 bytes; `add(const char *)`
+    cuts a part at 1022 into items, dropping a byte, and misreads a
+    shortcut after a tab (161, 173): `InputChoice.Add` splits it itself.
 - **Dialogs**: `fl_message` and the rest take a printf format, so pass
   text as `"%s"`; `fl_file_chooser`, and `Fl_Native_File_Chooser` using
   FLTK's chooser, keep their title pointer (`doc/fltk-issues.md`, 30,
@@ -1176,7 +1180,10 @@ None at present.
   (1 skipped), 2722 (9 skipped), 2450 (1 skipped) and 2428 (8 skipped)
   here; the BSDs and the FLTK variants not run. After the image size fix
   (2026-11-13), 2753 (1 skipped), 2730 (9 skipped), 2458 (1 skipped) and
-  2436 (8 skipped) here; the BSDs and the FLTK variants not run.
+  2436 (8 skipped) here; the BSDs and the FLTK variants not run. After
+  the long menu label fix (2026-11-13), 2761 (1 skipped), 2738 (9
+  skipped), 2466 (1 skipped) and 2444 (8 skipped) here; the BSDs and the
+  FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

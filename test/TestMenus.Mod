@@ -1,6 +1,6 @@
 MODULE TestMenus; (* FlMenus: items, picking, shortcuts, choices, a global menu and a pop-up *)
 
-IMPORT Fl, FlMenus, Check, Probe;
+IMPORT Strings, Fl, FlMenus, Check, Probe;
 
 TYPE
   (* Answers a pop-up menu: Down and Enter to pick its first item, Enter
@@ -59,6 +59,37 @@ PROCEDURE Is(m: FlMenus.Menu; i: INTEGER; label: ARRAY OF CHAR): BOOLEAN;
   VAR s: ARRAY 64 OF CHAR;
 BEGIN m.ItemLabel(i, s); RETURN s = label
 END Is;
+
+(* Labels with a part longer than FLTK's buffer for it, which FLTK copies
+   past its end (doc/fltk-issues.md, 172). *)
+PROCEDURE LongLabels;
+  VAR m: FlMenus.MenuButton; long, got: ARRAY 3100 OF CHAR; k, i: INTEGER;
+BEGIN
+  NEW(m); FlMenus.OpenMenuButton(m, 0, 0, 100, 20, "");
+  FOR k := 0 TO 2999 DO long[k] := "x" END; long[3000] := 0X;
+  i := m.Add(long, 0, {}, NIL, {});
+  m.ItemLabel(i, got);
+  Check.Check((m.Length() = 2) & (Strings.Length(got) = 1023) & (got[1022] = "x"),
+    "a label's part is cut to 1023 bytes");
+  m.Clear;
+  long[1022] := 0C3X; long[1023] := 0A9X; long[1024] := 0X;
+  i := m.Add(long, 0, {}, NIL, {});
+  m.ItemLabel(i, got);
+  Check.Check(Strings.Length(got) = 1022, "where a character starts");
+  m.Clear;
+  FOR k := 0 TO 1499 DO long[k] := "y" END; long[1500] := "/"; long[1501] := "z"; long[1502] := 0X;
+  i := m.Add(long, 0, {}, NIL, {});
+  m.ItemLabel(i, got);
+  Check.Check((got = "z") & (m.Length() = 4), "a submenu's title too");
+  m.ItemLabel(0, got);
+  Check.Check(Strings.Length(got) = 1023, "to the same length");
+  m.Clear;
+  long[0] := "/"; long[1500] := "x";
+  i := m.Add(long, 0, {}, NIL, {});
+  m.ItemLabel(i, got);
+  Check.Check((got = long) & (m.Length() = 2), "but a path starting / is one item, whole");
+  m.Delete
+END LongLabels;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 300, 200, "TestMenus");
@@ -280,6 +311,8 @@ BEGIN
   sysBar.Clear;
   Check.Check(sysBar.Length() = 0, "and Clear");
   sysBar.Delete;
+
+  LongLabels;
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");

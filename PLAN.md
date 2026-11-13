@@ -3287,6 +3287,20 @@ more than `INT_MAX / 4` pixels, the rule `dib_ok` has for BMPs.
 `TestImageFiles` and `TestHelp` check both.
 Counts: 2753 (1 skipped), 2730 (9 skipped), 2458 (1 skipped) and 2436 (8 skipped), from `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`, every valgrind error summary 0; the BSDs and the FLTK variants not run.
 
+**Long menu labels and `InputChoice.Add` (2026-11-13).** FLTKAda found
+that `Fl_Menu_::add(const char *)` cuts a part over 1022 bytes into
+several items, dropping a byte at each cut (`doc/fltk-issues.md`, 161),
+which `InputChoice.Add` used. Calling `insert` instead would have
+exposed another fault: `Fl_Menu_Item::insert` copies each part of a
+path into 1024 bytes on the stack with no bound (172), which a
+3000-byte label through `FlMenus.Menu.Add` showed as stack smashing.
+And `add`'s shortcut after a tab is read from the tab, so only a number
+works (173). `ofl::menu_path` in `pofltk.h` now cuts each part to 1023
+bytes, where a character starts, for `FlMenus` and `FlInputs` alike, and
+`ofl_input_choice_add` splits the text at `|`s and reads each
+shortcut itself. `TestMenus` and `TestInputs` check both.
+Counts: 2761 (1 skipped), 2738 (9 skipped), 2466 (1 skipped) and 2444 (8 skipped), from `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`, every valgrind error summary 0; the BSDs and the FLTK variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

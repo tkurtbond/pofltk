@@ -151,10 +151,11 @@ Fl_Sys_Menu_Bar *sys(Fl_Menu_ *m) {
 
 int insert_item(Fl_Menu_ *m, int index, const char *label, int shortcut,
                 void *action, int flags) {
+  std::string path = ofl::menu_path(label); // doc/fltk-issues.md, 172
   if (Fl_Sys_Menu_Bar *s = sys(m)) {
-    return s->insert(index, label, shortcut, 0, action, flags);
+    return s->insert(index, path.c_str(), shortcut, 0, action, flags);
   }
-  return m->insert(index, label, shortcut, 0, action, flags);
+  return m->insert(index, path.c_str(), shortcut, 0, action, flags);
 }
 
 void remove_item(Fl_Menu_ *m, int i) {

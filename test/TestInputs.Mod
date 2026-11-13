@@ -3,7 +3,7 @@ MODULE TestInputs; (* FlInputs: text in and out, typing, editing, numbers *)
 (* Keys are sent as from the window system (Probe) to the focus, in a
    window never shown. *)
 
-IMPORT Fl, FlInputs, Check, Probe;
+IMPORT Strings, Fl, FlInputs, Check, Probe;
 
 VAR
   win: Fl.Window;
@@ -34,6 +34,29 @@ BEGIN
     t[0] := keys[i]; used := Probe.Key(Fl.EvKeyDown, ORD(keys[i]), {}, t); INC(i)
   END
 END Type;
+
+(* An input choice's long item, which FLTK cuts into two, losing a byte
+   between them (doc/fltk-issues.md, 161), and a shortcut after a tab,
+   which FLTK misreads (173). *)
+PROCEDURE LongItem;
+  VAR long, got: ARRAY 3100 OF CHAR; k: INTEGER; ok: BOOLEAN;
+BEGIN
+  chooser.Clear;
+  FOR k := 0 TO 2999 DO long[k] := CHR(ORD("a") + k MOD 26) END; long[3000] := 0X;
+  chooser.Add(long);
+  chooser.Item(0, got);
+  long[1023] := 0X;
+  Check.Check((chooser.Length() = 2) & (got = long),
+    "Add makes a long item one, its first 1023 bytes, as FlMenus does");
+  chooser.Clear;
+  long := "five ^f|six"; long[4] := 09X;
+  chooser.Add(long);
+  chooser.Item(0, got);
+  Check.Check((chooser.Length() = 3) & (got = "five"), "a tab ends an item's label");
+  ok := Probe.Shortcut(win, ORD("f"), Fl.Ctrl, "f");
+  chooser.Value(got);
+  Check.Check(got = "five", "and the shortcut after it picks the item")
+END LongItem;
 
 BEGIN
   NEW(win); Fl.OpenWindow(win, 400, 300, "TestInputs");
@@ -206,6 +229,7 @@ BEGIN
   Type("x");
   chooser.Value(s);
   Check.Check((calls = 1) & (s = "x"), "typing in it calls back");
+  LongItem;
   chooser.Clear;
   Check.Check(chooser.Length() = 0, "Clear");
 

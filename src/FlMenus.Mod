@@ -211,7 +211,10 @@ END Shortcut;
    character's code or one of Fl's Key constants, and a set of Fl's
    Shift, Ctrl, Alt, Meta and Command; key 0 is none. action may be NIL.
    flags is a set of the Menu constants: Submenu makes the item a
-   submenu's title, to which items may be added by path. *)
+   submenu's title, to which items may be added by path. Each part of
+   a path, between "/"s, is cut to 1023 bytes, at the start of a
+   character, since FLTK copies it into a buffer of 1024 with no bound;
+   a part starting "/" is kept whole. *)
 PROCEDURE (m: Menu) Insert*(index: INTEGER; label-: ARRAY OF CHAR; key: INTEGER; state: SET; action: Action; flags: SET): INTEGER;
   VAR h: SYSTEM.ADDRESS; n: INTEGER;
 BEGIN

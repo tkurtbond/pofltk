@@ -3098,7 +3098,16 @@ were a `|` (`Fl_Menu_add.cxx:451-457`).
 Its comment doesn't say so. `FlMenus` adds items with `insert`
 (`src/FlMenus.cpp:155-157`), which doesn't have this fault.
 
-**Confirmed:** FLTKAda's `test_menu_add_items`, on X11 and on sway.
+**Workaround** (2026-11-13): `ofl_input_choice_add` splits the text at
+`|`s itself, and adds each part with `Fl_Menu_::add(label, shortcut, ...)`,
+which goes to `insert`, its label cut to 1023 bytes as `FlMenus` cuts
+them (172) and its shortcut read from after the tab (173). A long part
+is one item, losing no byte within it.
+
+**Confirmed:** FLTKAda's `test_menu_add_items`, on X11 and on sway. In
+pofltk, before the fix, `TestInputs`' `Add` of 1030 bytes gave items of
+1022 and 7 bytes, the second starting with the 1024th byte, not the
+1023rd; after it, one item of the first 1023.
 
 ## 162. `FL_CONTRAST_CUSTOM` with no function uses CIELAB at level 0
 
@@ -3338,3 +3347,57 @@ the same.
 
 **Confirmed:** FLTKAda's `test_foreign_widgets`, which on X11 opens a
 pop-up menu: `Has_Grab` is true and `Get_Grab` gives null.
+
+## 172. `Fl_Menu_Item::insert` overruns its stack buffer on a long part
+
+**What happens:** a part of an item's path, between `/`s, longer than
+1023 bytes (after its `\` escapes are undone) is copied past the end of
+a 1024-byte buffer on the stack: a label of 3000 bytes aborts the
+program with "stack smashing detected", or worse where there is no
+stack protector.
+
+**Cause:** `Fl_Menu_Item::insert` copies each part into `char buf[1024]`
+with `for (p=mytext; *p && *p != '/'; *q++ = *p++)`, which has no bound
+(`Fl_Menu_add.cxx:147,163`). `Fl_Menu_::insert` and `add(label, ...)`
+come here, and so does `add(const char *)`, whose own copy stops at 1022
+bytes (161). A part starting with `/` is taken whole, unbounded but
+uncopied, as a file name.
+
+**Effect on pofltk:** `Menu.Insert` and `Menu.Add` (`src/FlMenus.Mod`)
+call `insert` with the program's label, so any label part over 1023
+bytes overran.
+
+**Workaround** (2026-11-13): `ofl::menu_path` (`src/pofltk.h`) cuts each
+part to 1023 bytes, counting an escape as the one byte it becomes,
+where a UTF-8 character starts, and keeps a part starting with `/`
+whole. `FlMenus.cpp`'s `insert_item` and `InputChoice.Add` give FLTK
+its result.
+
+**Confirmed:** a C++ program under Xvfb, and `TestMenus`, adding a
+3000-byte label through `FlMenus.Menu.Add`: "*** stack smashing
+detected ***" and SIGABRT before the fix; after it, an item of 1023
+bytes, and a submenu's title of 1500 bytes cut the same.
+
+## 173. `Fl_Menu_::add(const char *)` misreads a shortcut after a tab
+
+**What happens:** in the text `add(const char *)` takes, a tab ends an
+item's label and starts its shortcut, but only a number is read: "^a",
+which `fl_old_shortcut` reads as Ctrl+A, gives no shortcut.
+
+**Cause:** `add` calls `fl_old_shortcut(str)` with `str` at the tab
+itself, not after it (`Fl_Menu_add.cxx:452`). `fl_old_shortcut`
+(`fl_shortcut.cxx:275`) looks for `#`, `+`, `^` and `!` at the start,
+finds the tab, and passes it to `strtol`, which skips the tab and reads
+a number, or 0.
+
+**Effect on pofltk:** `InputChoice.Add` called `add(const char *)`, so a
+shortcut after a tab worked only as a number.
+
+**Workaround** (2026-11-13): `ofl_input_choice_add` (161) reads the
+shortcut with `fl_old_shortcut` from after the last tab, and the label
+ends at the first.
+
+**Confirmed:** a C++ program: `add("A\t^a|B\tx|C\t0x62|D\t^a|E")` gave
+shortcuts 0, 0, 0x62, 0 and 0, while `fl_old_shortcut("^a")` is
+0x40061. `TestInputs` adds "five", a tab and "^f", and Ctrl+F picks the
+item, which it didn't before the fix.

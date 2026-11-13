@@ -179,9 +179,30 @@ void ofl_input_set_cursor_color(intptr_t i, int32_t c) {
 
 // Fl_Input_Choice is a group, but its children are FLTK's own, with no
 // Oberon objects, and deleting one leaves it holding a dead pointer, so
-// FlInputs gives it none of Fl.Group's methods. Its menu's calls here
-// parse and copy as Fl_Menu_::add does.
-void ofl_input_choice_add(intptr_t i, const char *s) { chooser(i)->add(s); }
+// FlInputs gives it none of Fl.Group's methods.
+//
+// Fl_Menu_::add(const char *), done here: it cuts a part between |s at
+// 1022 bytes into several items, dropping the byte after each cut
+// (doc/fltk-issues.md, 161), and reads a shortcut from the tab before it,
+// which strtol skips, so "^a" gives none (173). Each part is an item, its
+// label up to a tab, cut as FlMenus cuts them (172), and its shortcut what
+// follows the last tab, read by fl_old_shortcut.
+void ofl_input_choice_add(intptr_t i, const char *s) {
+  Fl_Menu_Button *m = chooser(i)->menubutton();
+  while (*s) {
+    size_t n = strcspn(s, "|");
+    std::string part(s, n);
+    size_t tab = part.find('\t');
+    int sc = 0;
+    if (tab != std::string::npos) {
+      sc = static_cast<int>(fl_old_shortcut(part.c_str() + part.rfind('\t') + 1));
+      part.resize(tab);
+    }
+    m->add(ofl::menu_path(part.c_str()).c_str(), sc, 0, 0, 0);
+    s += n;
+    if (*s) s++;
+  }
+}
 void ofl_input_choice_clear(intptr_t i) { chooser(i)->clear(); }
 
 // As ofl_menu_is_item: an index FLTK wouldn't check.
