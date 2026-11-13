@@ -897,6 +897,11 @@ held only in C++ memory**.
   encodes the character in UTF-8 (135). GLUT font numbers
   are cut to a byte. A stroke capital is 100 units tall, and the stroke
   measures need no window.
+- **Core profile** (`doc/fltk-issues.md`, 174): `FL_OPENGL3` gives a
+  compatibility context on X11 and Wayland, as plain `glXCreateContext`
+  and EGL version 2 do. On a core context, forced with
+  `Fl_Gl_Window::context`, GL text and GLUT's fonts draw nothing
+  (`GL_INVALID_OPERATION`), without crashing.
 - **Cairo** (`doc/fltk-issues.md`, 114): `Fl_Cairo_Window` is only in
   an FLTK built for it, and under Wayland its context is FLTK's own, so
   one `cairo_restore` too many stops the window for good. `fl_wl_gc()` is

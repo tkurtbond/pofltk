@@ -3453,3 +3453,42 @@ ends at the first.
 shortcuts 0, 0, 0x62, 0 and 0, while `fl_old_shortcut("^a")` is
 0x40061. `TestInputs` adds "five", a tab and "^f", and Ctrl+F picks the
 item, which it didn't before the fix.
+
+## 174. `FL_OPENGL3` gives no core profile on X11 or Wayland
+
+**What happens:** a window with `FL_OPENGL3` in its mode, an
+`Fl_Gl_Window` or GLUT's (`glutInitDisplayMode`), gets the same context
+as without it: on Mesa, "4.6 (Compatibility Profile)", on both back ends.
+So GL's legacy calls, and FLTK's GL text and GLUT's fonts, which use
+them, keep working there. On a core-profile context those fonts draw
+nothing, with no crash.
+
+**Cause:** the X11 driver makes every context with `glXCreateContext`
+(`src/drivers/X11/Fl_X11_Gl_Window_Driver.cxx:203`), and the Wayland
+driver asks EGL for version 2 (`EGL_CONTEXT_CLIENT_VERSION`,
+`src/drivers/Wayland/Fl_Wayland_Gl_Window_Driver.cxx:161`), and Mesa
+gives both its highest compatibility version. Only the Cocoa and WinAPI
+drivers read `FL_OPENGL3` (core 3.2 on macOS), where `draw_begin`
+switches to a GL 1 context for FLTK's own drawing
+(`Fl_Gl_Window.cxx:383`). On a core context `gl_draw` draws with
+`glRasterPos` and `glCallLists`, the stroke fonts with `glBegin`, and
+`glOrtho` and the matrix stack are gone: each is
+`GL_INVALID_OPERATION`. The measures (`gl_width`, `glutBitmapWidth`,
+`glutBitmapLength`) use no GL and still work.
+
+**Effect on pofltk:** none to work around. pofltk runs on X11 and
+Wayland, where a program can't get a core context through FLTK, and it
+doesn't bind `Fl_Gl_Window::context`, the one way to set another.
+`FlGl.OpenGL3`'s comment says so.
+
+**Confirmed:** a C++ program, 2026-11-13, printing `GL_VERSION` and
+`GL_CONTEXT_PROFILE_MASK` (2, compatibility) for both kinds of window,
+on Xvfb and headless sway. A second, on Xvfb, made a 3.3 core context
+(`glXCreateContextAttribsARB`, the window's own `GLX_FBCONFIG_ID`), set
+it with `context(ctx, 1)`, and got "4.6 (Core Profile)": `gl_draw` (at a
+point, a float point and in a box), `glutBitmapString`,
+`glutBitmapCharacter`, `glutStrokeString` and `glutStrokeCharacter` each
+gave `GL_INVALID_OPERATION` and lit no pixel (`glReadPixels`), where the
+same program on the compatibility context lit 150 to 1473 bytes per
+step; `gl_width("Hello")` was 34 and `glutBitmapWidth` of `A` 8 on both.
+No valgrind error on any step.

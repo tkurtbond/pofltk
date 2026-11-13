@@ -2532,8 +2532,9 @@ left out but for its shapes and `glutGetProcAddress`:
   `valgrind-sway` and the FLTK with neither Cairo nor Pango, after the last
   change; the six BSDs and the other FLTK variants before it, the removal
   of one `TestGlut` check. That check, `BitmapWidth(f, 0X) = 0`, failed on
-  plain Xlib, where `0X` has a width. Core-profile GL is untested:
-  `glutInitDisplayMode` gave a compatibility context here. The counts are
+  plain Xlib, where `0X` has a width. Core-profile GL was untested:
+  `glutInitDisplayMode` gave a compatibility context here (found why,
+  and tested, 2026-11-13: `doc/fltk-issues.md`, 174). The counts are
   in AGENTS.md.
 
 ### Copy surfaces, masks and dashes `[done]`
@@ -3400,10 +3401,12 @@ written:
 
 Still open, to look into, from binding GLUT's fonts (2026-10-31):
 
-- **GLUT's fonts on a core-profile GL context.** Untested:
-  `glutInitDisplayMode` with `FL_OPENGL3` still gave a compatibility
-  context here (`GLUT_3_2_CORE_PROFILE` isn't in FLTK's headers), so what
-  the fonts do on a core context is unknown. Find a way to get one first.
+- ~~**GLUT's fonts on a core-profile GL context.**~~ Decided
+  2026-11-13: nothing to do. FLTK makes no core context on X11 or
+  Wayland, `FL_OPENGL3` or not, and on one forced into a window
+  (`Fl_Gl_Window::context`, which pofltk doesn't bind) the fonts and
+  `gl_draw` draw nothing, with `GL_INVALID_OPERATION`, and don't crash
+  (`doc/fltk-issues.md`, 174).
 - **GLUT's shapes and `glutGetProcAddress`.** Unbound, as FlGl binds only
   a part of GL (`FlGlut`'s module comment); a program draws with FlGl or
   from a C++ part. Whether they are worth binding is undecided.

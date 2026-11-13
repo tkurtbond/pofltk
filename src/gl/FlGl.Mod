@@ -291,7 +291,9 @@ END Mode;
 (* Whether this display has the mode m; if not, the window keeps its mode.
    A shown window takes a new context, and is drawn again. FLTK forbids
    this in a Draw, where it halts with Fl.OutOfOrder. Under Wayland FLTK adds
-   Double to the mode of every window, so Mode gives it back with Double. *)
+   Double to the mode of every window, so Mode gives it back with Double.
+   OpenGL3 still gives a compatibility context, on X11 and Wayland alike:
+   FLTK makes no core one there (doc/fltk-issues.md, 174). *)
 PROCEDURE (w: GlWindow) SetMode*(m: INTEGER): BOOLEAN;
   VAR h: SYSTEM.ADDRESS;
 BEGIN
