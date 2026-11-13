@@ -12,9 +12,32 @@
 #
 # Only Addr8 errors whose top frame is crossbeam_epoch's (inlined frames
 # count) are suppressed.
+#
+# The same threads showed it again in glycin's change_memory_format, by
+# rayon (2026-11-13): 181 errors from 5 contexts in one valgrind-sway run
+# of TestGlut, invalid writes and reads of 8 and 16 bytes, each address
+# "on thread 37's stack, in frame #0, created by" rayon's
+# bridge_producer_consumer::helper, the function at fault. Addr8 and
+# Addr16 errors with change_memory_format in their stack are suppressed.
+# Written from that run's log: 24 runs of TestGlut on sway under valgrind
+# since showed no such error, so it hasn't yet been seen to fire.
 
 {
    glycin-crossbeam-epoch-addr8
    Memcheck:Addr8
    fun:*crossbeam_epoch*
+}
+
+{
+   glycin-memory-format-addr8
+   Memcheck:Addr8
+   ...
+   fun:*glycin_utils*change_memory_format*
+}
+
+{
+   glycin-memory-format-addr16
+   Memcheck:Addr16
+   ...
+   fun:*glycin_utils*change_memory_format*
 }

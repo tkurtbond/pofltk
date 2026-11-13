@@ -545,7 +545,9 @@ font, the drawing back end, or the FPU:
   `test/display.supp` for valgrind's mistakes outside pofltk: on sway,
   glycin's worker threads (`gly-rayon-N`) sometimes show 8-byte accesses
   in crossbeam_epoch that valgrind places in the function's own frame
-  (TestGlut, 3 runs of 13, 2026-11-07).
+  (TestGlut, 3 runs of 13, 2026-11-07), and 8- and 16-byte ones in
+  glycin's `change_memory_format` (TestGlut, once, 2026-11-13; not seen
+  in 24 runs since).
 - **FLTK's display stack leaks by design**: fontconfig and Pango's font
   cache, and GTK's decorations under Wayland. That is hundreds of KB and
   thousands of records, from programs that free everything they made
