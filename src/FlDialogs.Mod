@@ -336,7 +336,10 @@ END Beep;
 
 (* Asks for a color, starting with r, g, b, each from 0 to 255 (others are
    brought into that range); mode is one of the Color constants. TRUE and
-   the color in r, g, b if the user pushed OK. *)
+   the color in r, g, b if the user pushed OK. With ColorDefault, the mode
+   last used, a component of 0 shows as "0", not "0.000", as in FLTK's own
+   programs; any other mode shows every field with its decimals
+   (doc/fltk-issues.md, 168). *)
 PROCEDURE ChooseColor*(title-: ARRAY OF CHAR; VAR r, g, b: INTEGER; mode: INTEGER): BOOLEAN;
   VAR R, G, B: SYSTEM.INT32;
 BEGIN

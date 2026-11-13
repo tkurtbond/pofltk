@@ -3153,6 +3153,12 @@ local. Printing a PDF with the chooser (`ofl_print_pdf`,
 `src/FlPrint.cpp:284`) loses the bytes once a call. FLTK allocates
 them, so `test/vg-check.sh` doesn't count them.
 
+**Workaround** (2026-11-13): none; the string never leaves FLTK's
+function. `FlPrint.OpenPDFChooser`'s comment says each call loses the
+bytes, whatever the user answers (they are read before the chooser is
+shown, `Fl_PostScript.cxx:1683`), and that `OpenPDF`, which calls
+`begin_document`, doesn't.
+
 **Confirmed:** FLTKAda's `test_pdf_surface` under valgrind.
 
 ## 164. `Fl_PDF_File_Surface::begin_document` keeps its `FILE` when Cairo fails
@@ -3289,6 +3295,11 @@ to force the redraw.
 (`src/FlDialogs.Mod:340-345`) passes `ColorDefault` (-1) through, and
 `examples/Input.Mod:105` and `examples/Tree.Mod:329` use it, so their
 zero fields show "0", as the C++ originals do.
+
+**Workaround** (2026-11-13): none. Forcing a mode would fix the text,
+but would lose what `ColorDefault` means, the mode the user last chose,
+and the ports would no longer match FLTK's programs. `ChooseColor`'s
+comment says a zero shows as "0" with `ColorDefault`.
 
 **Confirmed:** FLTKAda, its `test/input.adb` against FLTK's
 `test/input` on Xvfb.

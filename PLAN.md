@@ -3336,6 +3336,15 @@ at all. `TestMenus` checks `HasGrab` with a pop-up up (X11), and
 Counts: 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped) and
 2447 (8 skipped) here; the BSDs and the FLTK variants not run.
 
+**Two of FLTKAda's findings left as FLTK has them (2026-11-13).**
+`Fl_PDF_File_Surface::begin_job` leaks the page size it reads from the
+preferences, a string pofltk never sees (`doc/fltk-issues.md`, 163):
+`FlPrint.OpenPDFChooser`'s comment says so. `fl_color_chooser` with no
+mode shows a zero component as "0" (168): forcing a mode would lose the
+remembered one, so `FlDialogs.ChooseColor`'s comment says so. With
+these, every finding from FLTKAda (160 to 173) has a fix or a warning.
+Comments only; the modules build.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

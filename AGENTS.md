@@ -987,6 +987,10 @@ held only in C++ memory**.
   `BelowMouse`, `Pushed` and `Grab` give NIL for one, such as a pop-up
   menu's window or a value input's field; `HasFocus` and the rest say
   whether there is one at all.
+- **Left as FLTK has them** (`doc/fltk-issues.md`, 163, 168): each PDF
+  `begin_job` (`OpenPDFChooser`) leaks the page size's name, FLTK's,
+  whatever the answer; `fl_color_chooser` with no mode shows a zero
+  component as "0". The comments say so.
 - **Command-line options** (`doc/fltk-issues.md`, 57): FLTK keeps
   pointers into `argv`, and poc's `Args.argv` is C's own, which lasts
   the program's life. `Fl::args` returns 0 for an unknown option only

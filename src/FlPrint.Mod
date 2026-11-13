@@ -261,7 +261,9 @@ END OpenPDF;
 
 (* Lets the user pick a file, and then a format and layout, offering name,
    and makes f a job writing PDF there. JobOk, JobCancelled, or JobFailed,
-   and f is left unopened unless JobOk. *)
+   and f is left unopened unless JobOk. Each call loses a few bytes of
+   FLTK's, the page size it reads from the preferences, whatever the
+   answer; OpenPDF doesn't (doc/fltk-issues.md, 163). *)
 PROCEDURE OpenPDFChooser*(f: PDFFile; name-: ARRAY OF CHAR): INTEGER;
   VAR h: SYSTEM.ADDRESS; r: INTEGER;
 BEGIN
