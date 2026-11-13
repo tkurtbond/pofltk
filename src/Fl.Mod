@@ -2264,7 +2264,11 @@ PROCEDURE SetMenuLinespacing*(n: INTEGER);
 BEGIN CSetMenuLinespacing(n)
 END SetMenuLinespacing;
 
-(* A shortcut as FLTK shows it ("Ctrl+S"), truncated to fit s. *)
+(* A shortcut as FLTK shows it ("Ctrl+S"), truncated to fit s. Beyond
+   letters and FLTK's named keys it depends on the back end: X11 names a
+   key by its keysym ("Ctrl+EuroSign", "Enter" for 0DX), and Wayland
+   gives the character itself (the euro sign, and 0DX) (doc/fltk-issues.md,
+   167). *)
 PROCEDURE ShortcutLabel*(key: INTEGER; state: SET; VAR s: ARRAY OF CHAR);
 BEGIN CShortcutLabel(key + ORD(state), s, SHORT(LEN(s)))
 END ShortcutLabel;
@@ -2848,8 +2852,11 @@ PROCEDURE ContrastMode*(): INTEGER;
 BEGIN RETURN CContrastMode()
 END ContrastMode;
 
-(* mode is ContrastNone to ContrastCustom. ContrastCustom is
-   ContrastCielab until SetContrastFunction. Each mode has its level. *)
+(* mode is ContrastNone to ContrastCustom. Each mode has its level.
+   ContrastCustom with no SetContrastFunction contrasts as ContrastCielab
+   at Custom's level, which is 0 to start, and so changes no colour, even
+   white on white: set a level in Custom mode, such as 39, CIELAB's, for
+   CIELAB's contrast (doc/fltk-issues.md, 162). *)
 PROCEDURE SetContrastMode*(mode: INTEGER);
 BEGIN
   ASSERT((mode >= ContrastNone) & (mode <= ContrastCustom), IndexOutOfRange);

@@ -224,7 +224,9 @@ PROCEDURE (t: Table) ColPosition*(): INTEGER;
 BEGIN RETURN Get(t, 13)
 END ColPosition;
 
-(* The box drawn around the cells, Fl.NoBox to start with. *)
+(* The box drawn around the cells, Fl.NoBox to start with. A filled box
+   in a table with no widgets can be drawn over cells a redraw leaves
+   alone, as after a drag selecting rows (doc/fltk-issues.md, 169). *)
 PROCEDURE (t: Table) SetTableBox*(b: INTEGER);
 BEGIN Set(t, 14, b)
 END SetTableBox;

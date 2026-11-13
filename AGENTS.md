@@ -976,6 +976,13 @@ held only in C++ memory**.
   `begin`, `end`, `children`, `child`, `add` and the rest, which reach
   the inner group holding the cells' widgets: Fl.cpp calls a table as
   an `Fl_Table`.
+  A filled `table_box` in a table with no widgets can cover cells a
+  redraw leaves alone (169).
+- **Back ends and defaults** (`doc/fltk-issues.md`, 162, 165, 167):
+  `FL_CONTRAST_CUSTOM` with no function changes no colour until its
+  level is set; Wayland's GL swap interval is one value for all
+  windows; `fl_shortcut_label` names keys by keysym on X11 and by
+  character on Wayland. The comments say so; nothing to work around.
 - **Command-line options** (`doc/fltk-issues.md`, 57): FLTK keeps
   pointers into `argv`, and poc's `Args.argv` is C's own, which lasts
   the program's life. `Fl::args` returns 0 for an unknown option only

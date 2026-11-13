@@ -3315,6 +3315,15 @@ Pango FLTK opens nothing, and its driver's file is never set, so that
 case is left alone.
 Counts: 2763 (1 skipped), 2740 (9 skipped), 2468 (1 skipped) and 2446 (8 skipped), from `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`, every valgrind error summary 0; the BSDs and the FLTK variants not run.
 
+**Comments for four of FLTKAda's findings (2026-11-13).** Four need no
+code, only a warning where users meet them: `Fl.SetContrastMode`, that
+Custom with no function changes no colour until a level is set
+(`doc/fltk-issues.md`, 162); `GlWindow.SwapInterval`, one value for
+every window on Wayland (165); `Fl.ShortcutLabel`, which depends on the
+back end (167); and `Table.SetTableBox`, whose filled box can cover
+cells a redraw leaves alone (169), seen in a copy of `examples/Table.Mod`
+under Xvfb. No test changes.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

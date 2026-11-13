@@ -364,7 +364,9 @@ PROCEDURE (w: GlWindow) SwapBuffers*;
 BEGIN CSwapBuffers(Fl.Live(w))
 END SwapBuffers;
 
-(* Frames between swaps, or -1 if it can't be told. *)
+(* Frames between swaps, or -1 if it can't be told, as on X11 for a
+   window not shown. On Wayland it is one value for every GL window, the
+   last set on any, or 1 (doc/fltk-issues.md, 165). *)
 PROCEDURE (w: GlWindow) SwapInterval*(): INTEGER;
 BEGIN RETURN CSwapInterval(Fl.Live(w))
 END SwapInterval;

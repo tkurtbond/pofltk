@@ -3133,6 +3133,10 @@ behaviour.
 white on white gives white at Custom's level 0, and black after
 setting the level to 39 in Custom mode.
 
+**Workaround** (2026-11-13): none needed; the comment on
+`Fl.SetContrastMode` now says Custom with no function changes no colour
+until a level is set in Custom mode.
+
 ## 163. The PDF surface's `begin_job` leaks the page size it reads
 
 **What happens:** each `Fl_PDF_File_Surface::begin_job` under X11 or
@@ -3205,6 +3209,10 @@ told", doesn't say that on Wayland it is one value for all windows.
 **Confirmed:** FLTKAda's `test_widget_methods`: an unshown window reads
 1 under headless sway and -1 under Xvfb.
 
+**Workaround** (2026-11-13): none needed; the comment on
+`GlWindow.SwapInterval` now says that on Wayland it is one value for
+every GL window.
+
 ## 166. `Fl_Scheme_Choice`'s callback reads before its menu when nothing is chosen
 
 **What happens:** `do_callback()` on a scheme choice whose `value()`
@@ -3259,6 +3267,9 @@ which is the same on both.
 **Confirmed:** FLTKAda, a C++ program printing `fl_shortcut_label` for
 `menubar.cxx`'s international shortcuts under Xvfb and headless sway.
 
+**Workaround** (2026-11-13): none needed; the comment on
+`Fl.ShortcutLabel` now says the label depends on the back end.
+
 ## 168. `fl_color_chooser` shows a zero component as "0" unless given a mode
 
 **What happens:** `fl_color_chooser` with no mode (-1), for a colour
@@ -3300,11 +3311,20 @@ redraw gets depends on how events and redraws fall.
 
 **Effect on pofltk:** `Table.SetTableBox` (`src/FlTable.Mod:228-230`)
 passes it through, and its comment doesn't warn. `examples/Table.Mod`
-offers filled boxes, as the C++ demo does, so it should draw the same
-partial table (inferred, not run).
+offers filled boxes, as the C++ demo does, so it draws the same partial
+table (confirmed below).
 
 **Confirmed:** FLTKAda, FLTK's `test/table` and the Ada port under Xvfb
 with `xdotool`; the cause is from reading the source.
+
+**Workaround** (2026-11-13): none in the binding, since what FLTK
+draws is right for its damage; the comment on `Table.SetTableBox` now
+warns.
+
+**Confirmed in pofltk** (2026-11-13): a copy of `examples/Table.Mod`
+with Up Box and SelectSingle set at start, under Xvfb: a drag with
+`xdotool` down the first column, from row 0 to row 17, left rows 18 to
+20 showing the box, not their cells; a click then redrew them.
 
 ## 170. `gl_draw_image` reads past its data
 
