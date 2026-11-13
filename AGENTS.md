@@ -684,7 +684,9 @@ held only in C++ memory**.
     leave none, and a menu button shows its value under the mouse;
   - a pop-up or pull-down of a menu in no window, with no window shown,
     segfaults, and `Fl_Menu_Item::popup` and `pulldown` do no callback
-    (150): `FlMenus` halts 73, and calls `picked`.
+    (150): `FlMenus` halts 73, and calls `picked`;
+  - `Fl_Scheme_Choice`'s callback with nothing chosen reads the item
+    before the first (166): the shim calls it only with a value.
 - **Dialogs**: `fl_message` and the rest take a printf format, so pass
   text as `"%s"`; `fl_file_chooser`, and `Fl_Native_File_Chooser` using
   FLTK's chooser, keep their title pointer (`doc/fltk-issues.md`, 30,
@@ -1164,7 +1166,9 @@ None at present.
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2739 on Xvfb and 2716 on sway.
   After the `DrawImage` fix (2026-11-12), 2744 (1 skipped), 2721 (9
   skipped), 2449 (1 skipped) and 2427 (8 skipped) here; the BSDs and the
-  FLTK variants not run.
+  FLTK variants not run. After the `SchemeChoice` fix (2026-11-12), 2745
+  (1 skipped), 2722 (9 skipped), 2450 (1 skipped) and 2428 (8 skipped)
+  here; the BSDs and the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

@@ -3264,6 +3264,16 @@ skipped), 2721 (9 skipped), 2449 (1 skipped) and 2427 (8 skipped) for
 `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`,
 every valgrind error summary 0; the BSDs and the FLTK variants not run.
 
+**`SchemeChoice.Callback` with nothing chosen (2026-11-12).** FLTKAda
+found that `Fl_Scheme_Choice::scheme_cb_` reads `menu_[-1]` when the
+value is -1 (`doc/fltk-issues.md`, 166), which pofltk reached by
+`SetValue(-1)` and `DoCallback`: valgrind showed the read in
+`TestMenus`. The shim now calls it only when an item is chosen, as
+FLTKAda does, and the callback then leaves the scheme as it is.
+Counts: 2745 (1 skipped), 2722 (9 skipped), 2450 (1 skipped) and 2428
+(8 skipped), every valgrind error summary 0; the BSDs and the FLTK
+variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

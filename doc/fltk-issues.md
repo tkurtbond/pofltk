@@ -3178,9 +3178,16 @@ so `SetValue(-1)` and then `Callback` or `DoCallback` reads
 `menu_[-1]`. FLTKAda calls `scheme_cb_` only when the value is an
 item; pofltk could do the same.
 
+**Workaround** (2026-11-12): the shim's `Scheme::chosen`
+(`src/FlMenus.cpp`) calls `scheme_cb_` only when the value is 0 or more,
+so with nothing chosen `SchemeChoice.Callback` leaves the scheme alone.
+
 **Confirmed:** in FLTKAda, a C++ program under Xvfb and valgrind:
 `value(-1)` then `do_callback()` gave an invalid read of 8 bytes at
-`Fl_Scheme_Choice.cxx:90`.
+`Fl_Scheme_Choice.cxx:90`. In pofltk, `TestMenus`' `SetValue(-1)` and
+`DoCallback` under valgrind gave the same invalid read, through
+`ofl::callback_trampoline`, before the fix, and none after; without
+valgrind the check passed either way.
 
 ## 167. A shortcut's label depends on the backend
 

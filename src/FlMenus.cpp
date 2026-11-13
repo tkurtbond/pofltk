@@ -194,8 +194,12 @@ void set_shortcut(Fl_Menu_ *m, int i, int key) {
 
 // Fl_Scheme_Choice's own callback, which pofltk's replaces: sets the
 // scheme chosen (SchemeChoice.Callback's default). It is protected.
+// With nothing chosen it would read the item before the first
+// (doc/fltk-issues.md, 166), so then it does nothing.
 struct Scheme : Fl_Scheme_Choice {
-  static void chosen(Fl_Widget *w) { scheme_cb_(w, 0); }
+  static void chosen(Fl_Widget *w) {
+    if (static_cast<Fl_Choice *>(w)->value() >= 0) scheme_cb_(w, 0);
+  }
 };
 
 }  // namespace

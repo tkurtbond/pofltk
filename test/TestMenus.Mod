@@ -241,6 +241,9 @@ BEGIN
   ok := schemes.SetValue(3); schemes.DoCallback;
   Fl.GetScheme(s);
   Check.Check(s = "gleam", "and sets the one chosen");
+  ok := schemes.SetValue(-1); schemes.DoCallback;
+  Fl.GetScheme(s);
+  Check.Check((schemes.Value() = -1) & (s = "gleam"), "with none chosen, its callback leaves the scheme");
   schemes.Delete;
 
   (* a system menu bar, here a menu bar, through its own class's calls *)

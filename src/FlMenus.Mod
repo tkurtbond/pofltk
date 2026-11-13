@@ -385,8 +385,9 @@ BEGIN
   IF a # NIL THEN a(m) ELSE m.Callback^ END
 END Callback;
 
-(* Sets the scheme chosen, as FLTK's own callback for the choice does;
-   or calls the action, if one is set, instead. *)
+(* Sets the scheme chosen, as FLTK's own callback for the choice does
+   (nothing, with none chosen); or calls the action, if one is set,
+   instead. *)
 PROCEDURE (m: SchemeChoice) Callback*;
 BEGIN
   IF m.action # NIL THEN m.action(m) ELSE CSchemeChosen(Fl.Live(m)) END
