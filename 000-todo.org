@@ -58,7 +58,8 @@ a NIL display or overlay procedure crashed; fixed too
 
 * TODO Work on FLTKAda reports FlGl.DrawImage reads past its data
 Found 2026-11-12 by FLTKAda, sorting its guards (FLTKAda-BUGS.md 28);
-recorded there as FLTK-issues.md F40. Not in doc/fltk-issues.md.
+recorded there as FLTK-issues.md F40. Since 2026-11-12, doc/fltk-issues.md
+170 (until then this said it wasn't there).
 
 FLTK's gl_draw_image (src/gl_draw.cxx:236-244) passes
 d < 4 ? GL_RGB : GL_RGBA to glDrawPixels, so depths 1 and 2 are read

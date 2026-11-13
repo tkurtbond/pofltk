@@ -796,6 +796,13 @@ Unless an entry says otherwise, the version is FLTK 1.4.5 (Fedora's
   `BOOLEAN`, the lines being `Count()`.
 - **Confirmed**: `TestBrowsers` loads `test/Check.Mod` (35 lines, 36 in
   the browser).
+- **The byte after each split is lost** (found by FLTKAda, its F10,
+  2026-11-04): a line of 1030 bytes loads as lines of 1023 and 6. The
+  loop reads a byte with `getc`, and when the buffer is full ends the
+  line without storing it (`Fl_Browser_load.cxx:43-50`). `Browser.Load`
+  calls `Fl_Browser::load` (`src/FlBrowsers.cpp:329`), so it loses the
+  byte too, and its comment doesn't say so. Confirmed in FLTKAda
+  (`test_browser_load`); in pofltk from reading the code, not run.
 
 ### 41. `Fl_Tree` keeps a removed item as the last one clicked
 
@@ -3021,3 +3028,277 @@ browser's icon size, so it isn't used.
 **Confirmed:** a scratch C++ program, 2026-11-08 (the figures above,
 and 250 with the spacing set before the lines); `TestBrowsers`, whose
 two checks fail without `Remeasure`.
+
+The entries from 160 were found by FLTKAda and recorded here on
+2026-11-12 (FLTKAda's `FLTK-issues.md`, whose F-numbers they give).
+Each was confirmed in FLTKAda, by the test or program named there. In
+pofltk each was checked only by reading its code, not by running
+anything, and none is worked around yet.
+
+## 160. The PNG, JPEG and PNM loaders size the image as an `int`
+
+**What happens:** a PNG or JPEG whose header claims more than
+`INT_MAX` bytes of image passes FLTK's size check, and the size of
+the buffer it allocates overflows. A size that turns negative makes
+`new` throw; one that wraps to a small number (65536 by 65536 by 1 is
+0) gets a buffer the decoder then writes past. (FLTKAda's F7.)
+
+**Cause:** each loader checks the size against `max_size()` as a
+`size_t` (`Fl_PNG_Image.cxx:217`, `Fl_JPEG_Image.cxx:323`,
+`Fl_PNM_Image.cxx:133`), then allocates `new uchar[w() * h() * d()]`, an
+`int` product (`:218`, `:324`, `:139`). `max_size` is unlimited by
+default (`Fl_Image.cxx:335`). `Fl_BMP_Image.cxx:280-285` and
+`Fl_ICO_Image.cxx:193` have the same shape.
+
+**Effect on pofltk:** the loads catch `std::bad_alloc`
+(`src/FlImages.cpp:733`, `753`, `925`, `943`), which covers a size that
+turns negative, but nothing sets `Fl_Image::max_size`, so a size that
+wraps gets through. FLTKAda sets `max_size` to `INT_MAX` at start-up,
+so the check refuses such a file.
+
+**Confirmed:** in FLTKAda, `test_image_crafted` with a 65535 by 65535
+PNG and a JPEG whose header says 65500 by 65500. The wrapping case is
+from FLTK's source, and wasn't run in either binding.
+
+## 161. `Fl_Menu_::add(const char *)` drops a byte where it cuts a long part
+
+**What happens:** a part of the text, between `|`s, longer than 1022
+bytes is cut into items of 1022 bytes, and the byte after each 1022 is
+lost: a part of 1030 bytes adds items of 1022 and 7. (FLTKAda's F11.)
+
+**Cause:** the copy into the 1024-byte `buf` stops at 1022 bytes, and
+after adding the item `if (*str) str++` skips the next byte as if it
+were a `|` (`Fl_Menu_add.cxx:451-457`).
+
+**Effect on pofltk:** `InputChoice.Add` (`src/FlInputs.Mod:380`) calls
+`ofl_input_choice_add` (`src/FlInputs.cpp:184`), which calls
+`Fl_Input_Choice::add`, that is `menu_->add(s)`, so it loses the byte.
+Its comment doesn't say so. `FlMenus` adds items with `insert`
+(`src/FlMenus.cpp:155-157`), which doesn't have this fault.
+
+**Confirmed:** FLTKAda's `test_menu_add_items`, on X11 and on sway.
+
+## 162. `FL_CONTRAST_CUSTOM` with no function uses CIELAB at level 0
+
+**What happens:** in Custom mode with no contrast function set,
+`fl_contrast` returns the foreground colour unchanged, even white on
+white. FLTK's documentation says it falls back to CIELAB, but it
+doesn't contrast as CIELAB mode does. (FLTKAda's F12.)
+
+**Cause:** the fallback calls `fl_contrast_cielab`
+(`fl_contrast.cxx:513-519`), which reads its threshold from
+`fl_contrast_level()`, the current mode's level (400, 202). Custom's
+level is 0 to start (37-43), and every pair of colours passes a
+threshold of 0 (410).
+
+**Effect on pofltk:** the shim passes the calls through
+(`src/Fl.cpp:1434-1440`). The comment on `Fl.SetContrastMode`
+(`src/Fl.Mod:2850`) says "ContrastCustom is ContrastCielab until
+SetContrastFunction", which is wrong in this way: it should say to set
+a level in Custom mode, such as CIELAB's 39, to get CIELAB's
+behaviour.
+
+**Confirmed:** FLTKAda's `test_statics_core`, on X11 and on sway:
+white on white gives white at Custom's level 0, and black after
+setting the level to 39 in Custom mode.
+
+## 163. The PDF surface's `begin_job` leaks the page size it reads
+
+**What happens:** each `Fl_PDF_File_Surface::begin_job` under X11 or
+Wayland loses a few bytes, the page size's name. Valgrind reports them
+definitely lost, from `Fl_Preferences::get`. (FLTKAda's F19.)
+
+**Cause:** `Fl_PDF_Pango_File_Surface::begin_job` reads
+`PDF/page_size` with the `char *&` form of `Fl_Preferences::get`, which
+returns a `strdup`ed copy for the caller to free, and never frees it
+(`Fl_PostScript.cxx:1683`).
+
+**Effect on pofltk:** none it can fix, since the string is FLTK's
+local. Printing a PDF with the chooser (`ofl_print_pdf`,
+`src/FlPrint.cpp:257`) loses the bytes once a call. FLTK allocates
+them, so `test/vg-check.sh` doesn't count them.
+
+**Confirmed:** FLTKAda's `test_pdf_surface` under valgrind.
+
+## 164. `Fl_PDF_File_Surface::begin_document` keeps its `FILE` when Cairo fails
+
+**What happens:** `begin_document` opens the file, and if
+`cairo_pdf_surface_create_for_stream` then fails it returns 2 without
+closing it. (FLTKAda's F21, which also lists two pitfalls that don't
+apply here: `pdf_filename()` without Pango dereferences null, and
+pofltk doesn't bind it; and the dialog's texts in a `--disable-print`
+FLTK, which is 104.)
+
+**Cause:** `Fl_PostScript.cxx:1721-1737`.
+
+**Effect on pofltk:** `ofl_print_pdf` calls `begin_document`
+(`src/FlPrint.cpp:258`), and on a failure the `FILE` and its
+descriptor are lost. Nothing guards it. It needs Cairo to fail, so it
+is rare.
+
+**Confirmed:** from FLTK's source, in both bindings.
+
+## 165. On Wayland a GL window's swap interval is one setting for all
+
+**What happens:** on Wayland, `Fl_Gl_Window::swap_interval()` reads
+the last interval set on any GL window, or 1 if none was, even for a
+window that isn't shown. On X11 a window not shown reads -1, and a
+shown one its own interval, if the driver can say. (FLTKAda's F22.)
+
+**Cause:** the Wayland driver keeps the interval in one static,
+`swap_interval_`
+(`src/drivers/Wayland/Fl_Wayland_Gl_Window_Driver.cxx:66`), sets it
+whenever `eglSwapInterval` succeeds, and returns it (`:461-472`). The
+X11 driver asks GLX about the window's own drawable, and returns -1
+before the window has one
+(`src/drivers/X11/Fl_X11_Gl_Window_Driver.cxx:374-376`).
+
+**Effect on pofltk:** nothing to work around, but the comment on
+`GlWindow.SwapInterval` (`src/gl/FlGl.Mod:367`), "-1 if it can't be
+told", doesn't say that on Wayland it is one value for all windows.
+
+**Confirmed:** FLTKAda's `test_widget_methods`: an unshown window reads
+1 under headless sway and -1 under Xvfb.
+
+## 166. `Fl_Scheme_Choice`'s callback reads before its menu when nothing is chosen
+
+**What happens:** `do_callback()` on a scheme choice whose `value()`
+is -1 reads the menu item before the first. (FLTKAda's F28.)
+
+**Cause:** `Fl_Scheme_Choice::scheme_cb_` takes
+`c->text(c->value())` (`src/Fl_Scheme_Choice.cxx:90`), and
+`Fl_Menu_::text(i)` is `menu_[i].text`, unchecked (`FL/Fl_Menu_.H:214`).
+A pick always sets a value first, so FLTK itself only gets there when
+a program calls the callback with nothing chosen.
+
+**Effect on pofltk:** `SchemeChoice.Callback` (`src/FlMenus.Mod:390-393`)
+calls `scheme_cb_` (through `src/FlMenus.cpp:198`) without looking at
+the value, and `Menu.SetValue(-1)` is allowed (`src/FlMenus.Mod:276`),
+so `SetValue(-1)` and then `Callback` or `DoCallback` reads
+`menu_[-1]`. FLTKAda calls `scheme_cb_` only when the value is an
+item; pofltk could do the same.
+
+**Confirmed:** in FLTKAda, a C++ program under Xvfb and valgrind:
+`value(-1)` then `do_callback()` gave an invalid read of 8 bytes at
+`Fl_Scheme_Choice.cxx:90`.
+
+## 167. A shortcut's label depends on the backend
+
+**What happens:** `fl_shortcut_label` gives a different label for the
+same shortcut under X11 and under Wayland. `FL_COMMAND+0x20ac` is
+"Ctrl+EuroSign" under X11 and "Ctrl+€" under Wayland; `'\r'` is
+"Enter" under X11, and under Wayland a carriage return, which shows as
+nothing. (FLTKAda's F32.)
+
+**Cause:** `Fl_X11_Screen_Driver::shortcut_add_key_name` writes "Enter"
+for `FL_Enter` and `'\r'`, the character itself for 33 to 0xff, and
+otherwise `XKeysymToString(key)`
+(`src/drivers/X11/Fl_X11_Screen_Driver.cxx:137-155`). The default,
+which the Wayland driver doesn't override, looks the key up in
+`key_table` and otherwise encodes `fl_toupper(key)` as UTF-8
+(`src/fl_shortcut.cxx:381-416`), and the table has `FL_Enter` but not
+`'\r'`.
+
+**Effect on pofltk:** none on the binding: `Fl.ShortcutLabel`
+(`src/Fl.Mod:2266-2270`) gives what FLTK gives. Its comment doesn't say
+the label depends on the backend. `TestMenus` checks only "Ctrl+S",
+which is the same on both.
+
+**Confirmed:** FLTKAda, a C++ program printing `fl_shortcut_label` for
+`menubar.cxx`'s international shortcuts under Xvfb and headless sway.
+
+## 168. `fl_color_chooser` shows a zero component as "0" unless given a mode
+
+**What happens:** `fl_color_chooser` with no mode (-1), for a colour
+such as `FL_SELECTION_COLOR` (0, 0, 128), shows its R and G fields as
+"0" and its B field as "0.502". Given a mode, even RGB, all three have
+three decimals: "0.000". (FLTKAda's F37.)
+
+**Cause:** the `Fl_Color_Chooser` constructor calls `set_valuators`
+(`src/Fl_Color_Chooser.cxx:571`) while every value is 0, so each
+`Fl_Value_Input` keeps the text it was made with. `rgb(r, g, b)` calls
+`set_valuators` again (:143), but `Fl_Valuator::value` redraws the text
+only when the value changes, so a component still 0 keeps "0".
+`mode(m)` runs `mode_cb` (:451-458), which first sets every value to -1
+to force the redraw.
+
+**Effect on pofltk:** cosmetic. `FlDialogs.ChooseColor`
+(`src/FlDialogs.Mod:340-345`) passes `ColorDefault` (-1) through, and
+`examples/Input.Mod:105` and `examples/Tree.Mod:329` use it, so their
+zero fields show "0", as the C++ originals do.
+
+**Confirmed:** FLTKAda, its `test/input.adb` against FLTK's
+`test/input` on Xvfb.
+
+## 169. `Fl_Table` with a filled table box paints over cells it doesn't redraw
+
+**What happens:** a table whose `table_box` is a filled box, such as
+`FL_UP_BOX`, and which has no child widgets, sometimes shows the box
+over every cell except a few rows. In FLTK's `test/table` with Table
+Box set to Up Box and Type to SelectSingle, a drag down the rows left
+only rows 12 to 17 drawn. (FLTKAda's F38.)
+
+**Cause:** with no children, the table's inner `Fl_Scroll` is hidden
+(`src/Fl_Table.cxx:181`, `FL/Fl_Table.H:775-781`). `Fl_Table::draw`
+then draws `table->box()` over the whole table area whenever the
+damage includes `FL_DAMAGE_CHILD` (`src/Fl_Table.cxx:1327-1331`), but
+without `FL_DAMAGE_ALL` it redraws only the cells from
+`_redraw_toprow` to `_redraw_botrow` (:1336-1344). Which damage bits a
+redraw gets depends on how events and redraws fall.
+
+**Effect on pofltk:** `Table.SetTableBox` (`src/FlTable.Mod:228-230`)
+passes it through, and its comment doesn't warn. `examples/Table.Mod`
+offers filled boxes, as the C++ demo does, so it should draw the same
+partial table (inferred, not run).
+
+**Confirmed:** FLTKAda, FLTK's `test/table` and the Ada port under Xvfb
+with `xdotool`; the cause is from reading the source.
+
+## 170. `gl_draw_image` reads past its data
+
+**What happens:** `gl_draw_image` with depth 1 or 2, or with rows whose
+length in bytes isn't a multiple of 4, reads past the end of data that
+holds exactly `w * h * d` bytes, and draws the wrong colours: grey is
+drawn as RGB, and such rows are drawn askew. FLTK's manual says nothing
+of either. (FLTKAda's F40; `000-todo.org` has FLTKAda's report.)
+
+**Cause:** `gl_draw_image` (`src/gl_draw.cxx:236-244`) passes
+`d < 4 ? GL_RGB : GL_RGBA` to `glDrawPixels`, so depths 1 and 2 are
+read at three bytes a pixel. It sets `GL_UNPACK_ROW_LENGTH` but not
+`GL_UNPACK_ALIGNMENT`, whose default of 4 makes GL take each row as
+padded to a multiple of 4 bytes.
+
+**Effect on pofltk:** `FlGl.DrawImage` (`src/gl/FlGl.Mod:514-520`)
+checks `w * h * d <= LEN(data)`, allows depths 1 and 2, and documents
+depth 1 as grey, then calls `ofl_gl_draw_image`
+(`src/gl/FlGl.cpp:281-284`), which calls `gl_draw_image`, so it has the
+same over-read. FLTKAda's shim draws the image itself, with a format
+for each depth (`GL_LUMINANCE`, `GL_LUMINANCE_ALPHA`, `GL_RGB`,
+`GL_RGBA`) and an alignment of 1, and restores the unpack state it
+changes.
+
+**Confirmed:** in FLTKAda, a scratch C++ program under Xvfb and
+valgrind: depths 1 and 2 at width 8 had 107 invalid reads each, and
+depth 3 at width 10 had 12, all in Mesa's `glDrawPixels`.
+
+## 171. While a pop-up menu is up, the grab is a window FLTK made
+
+**What happens:** `Fl::grab()` while a pop-up or pull-down menu is up
+is the menu's own window, which FLTK made. A binding that gives NIL
+for a window FLTK made then can't tell an open menu from no grab at
+all. The same holds for `Fl::pushed()`, `Fl::belowmouse()` and
+`Fl::focus()`, which can be parts of widgets FLTK made. (FLTKAda's
+FLTKAda-BUGS.md 44.)
+
+**Cause:** `Fl_Menu_Item::pulldown` grabs its own `menuwindow`
+(`Fl_Menu.cxx:1002`), which FLTK constructs.
+
+**Effect on pofltk:** safe: `Fl.Grab`, `Fl.Focus`, `Fl.BelowMouse` and
+`Fl.Pushed` give NIL for one FLTK made (`src/Fl.Mod:2135`, `2146-2148`,
+`3086`, through `ofl::object_of`). But nothing says whether there is
+one. FLTKAda added `Has_Grab`, `Has_Pushed`, `Has_Below_Mouse` and
+`Has_Focus`, which compare FLTK's pointer with null; pofltk could add
+the same.
+
+**Confirmed:** FLTKAda's `test_foreign_widgets`, which on X11 opens a
+pop-up menu: `Has_Grab` is true and `Get_Grab` gives null.
