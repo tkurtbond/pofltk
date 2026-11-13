@@ -134,7 +134,19 @@ BEGIN
   Check.Check(~FlImages.OpenAnimGIF(a, "images/loop.gif", NIL, {}), "nor such an animation");
   Check.Check(~FlImages.OpenAnimGIF(a, "images/beyond.gif", NIL, {}), "nor a frame off its screen");
   Check.Check(FlImages.Load(i, "images/beyond.gif"), "though that loads as a still image");
-  i.Close;
+  i.Close; NEW(i);
+
+  (* sizes whose bytes wrap an int: 65536 by 65536 is 0 *)
+  Check.Check(~FlImages.Load(i, "images/wrap.png") & ~i.IsOpen(), "nor a PNG whose size wraps an int");
+  n := Read("images/wrap.png");
+  Check.Check(~FlImages.LoadData(i, data, n), "from memory either");
+  Check.Check(~FlImages.Load(i, "images/wrap.jpg"), "nor such a JPEG");
+  n := Read("images/wrap.jpg");
+  Check.Check(~FlImages.LoadData(i, data, n), "from memory either");
+  Check.Check(~FlImages.Load(i, "images/wrap.pgm"), "nor such a PNM");
+  Check.Check(~FlImages.Load(i, "images/wrap.ico"), "nor such a PNG in an ICO");
+  n := Read("images/wrap.ico");
+  Check.Check(~FlImages.LoadData(i, data, n), "from memory either");
 
   (* an ICO holding a PNG, which FLTK reads from files alone *)
   Check.Check(FlImages.Load(i, "images/rbpng.ico") & (i.W() = 4) & RedLeftBlueRight(i),

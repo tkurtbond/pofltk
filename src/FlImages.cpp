@@ -35,6 +35,7 @@
 #include <FL/Fl_XPM_Image.H>
 #include <FL/fl_draw.H>
 #include <FL/platform.H>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -509,6 +510,87 @@ bool dib_ok(const unsigned char *p, size_t n, bool in_ico) {
   return colors <= 256 && w > 0 && h > 0 && w * h <= 0x7fffffff / 4;
 }
 
+// Whether an image of w by h pixels fits an int at 4 bytes a pixel, the
+// most a loaded image has. FLTK's PNG, JPEG and PNM loaders check the size
+// as a size_t, then allocate it as an int product, so a size that wraps
+// an int gets a buffer they write past; on a 32-bit system the size_t
+// product wraps too, past FLTK's max_size (doc/fltk-issues.md, 160).
+bool size_ok(int64_t w, int64_t h) {
+  return w > 0 && h > 0 && w * h <= 0x7fffffff / 4;
+}
+
+uint32_t be32(const unsigned char *p) {
+  return (static_cast<uint32_t>(p[0]) << 24) | (p[1] << 16) | (p[2] << 8) |
+         p[3];
+}
+
+// Whether the PNG beginning with the n bytes at p has a size FLTK can
+// load: its first chunk is IHDR, which libpng requires.
+bool png_ok(const unsigned char *p, size_t n) {
+  return n >= 24 && memcmp(p + 12, "IHDR", 4) == 0 &&
+         size_ok(be32(p + 16), be32(p + 20));
+}
+
+// Whether the JPEG in the n bytes at p has a size FLTK can load. Its
+// markers are found as libjpeg finds them (jdmarker.c, next_marker): bytes
+// up to an FF, any more FFs, and a 0 after them is data. Its first frame
+// header, an SOF marker, has the size; libjpeg fails on an image with none
+// before its scan, or an unknown marker.
+bool jpeg_ok(const unsigned char *p, size_t n) {
+  if (n < 2 || p[0] != 0xff || p[1] != 0xd8) return false;
+  size_t i = 2;
+  for (;;) {
+    while (i < n && p[i] != 0xff) i++;
+    while (i < n && p[i] == 0xff) i++;
+    if (i >= n) return false;
+    unsigned m = p[i++];
+    if (m == 0) continue;
+    if (m == 0x01 || (m >= 0xd0 && m <= 0xd7)) continue;  // no parameters
+    if (m == 0xd8 || m == 0xd9 || m == 0xda) return false;  // SOI, EOI, SOS
+    if (m < 0xc0 || (m >= 0xf0 && m != 0xfe)) return false;  // unknown
+    if (i + 2 > n) return false;
+    size_t length = (p[i] << 8) | p[i + 1];
+    if (m >= 0xc0 && m <= 0xcf && m != 0xc4 && m != 0xc8 && m != 0xcc) {
+      if (length < 8 || i + 7 > n) return false;
+      return size_ok((p[i + 5] << 8) | p[i + 6], (p[i + 3] << 8) | p[i + 4]);
+    }
+    if (length < 2) return false;
+    i += length;
+  }
+}
+
+// Whether the PNM file name has a size FLTK can load. Its width and height
+// are read as Fl_PNM_Image reads them, by the same code
+// (Fl_PNM_Image.cxx:82-107): any byte but a digit separates numbers, a "#"
+// ends a line of 1023 bytes or less, and a number past an int's range
+// isn't the one written.
+bool pnm_ok(const char *name) {
+  FILE *f = fl_fopen(name, "rb");
+  if (f == 0) return false;
+  char line[1024];
+  char *p = fgets(line, sizeof line, f);
+  int wh[2] = {0, 0};
+  if (p != 0) {
+    p++;
+    int format = atoi(p);
+    while (isdigit(static_cast<unsigned char>(*p))) p++;
+    if (format == 7) p = line + strlen(line);
+    for (int k = 0; k < 2; k++) {
+      while (p != 0 && wh[k] == 0) {
+        if (*p == '\0' || *p == '#') {
+          p = fgets(line, sizeof line, f);
+        } else if (isdigit(static_cast<unsigned char>(*p))) {
+          wh[k] = static_cast<int>(strtol(p, &p, 10));
+        } else {
+          p++;
+        }
+      }
+    }
+  }
+  fclose(f);
+  return size_ok(wh[0], wh[1]);
+}
+
 // A BMP's header follows its 14 byte file header.
 Fl_Image *new_bmp(const char *name, const unsigned char *head, size_t n,
                   bool in_memory) {
@@ -679,6 +761,7 @@ Fl_Image *load_ico(const char *name, const unsigned char *data, size_t n,
   if (at == 0 || at >= n || size == 0) return 0;
   if (n - at >= 8 && memcmp(data + at, "\x89PNG\r\n\x1a\n", 8) == 0) {
     if (size > n - at) size = n - at;
+    if (!png_ok(data + at, size)) return 0;
     return good(new Fl_PNG_Image(0, data + at, static_cast<int>(size)));
   }
   if (!dib_ok(data + at, n - at, true)) return 0;
@@ -699,13 +782,23 @@ Fl_Image *decode_file(const char *name) {
   unsigned char head[1024];
   size_t n = 0;
   switch (file_format(name, head, sizeof head, &n)) {
-    case png: return good(new Fl_PNG_Image(name));
-    case jpeg: return good(new Fl_JPEG_Image(name));
+    case png:
+      if (!png_ok(head, n)) return 0;
+      return good(new Fl_PNG_Image(name));
+    case jpeg: {
+      size_t size;
+      unsigned char *p = read_file(name, &size);
+      if (p == 0) return 0;
+      bool ok = jpeg_ok(p, size);
+      free(p);
+      return ok ? good(new Fl_JPEG_Image(name)) : 0;
+    }
     case gif: return load_gif_file(name);
     case bmp: return new_bmp(name, head, n, false);
     case xpm: return good(new Fl_XPM_Image(name));
     case ico: return load_ico_file(name, -1);
     case pnm: {
+      if (!pnm_ok(name)) return 0;
       Fl_Image *i = new Fl_PNM_Image(name);
       scale_pnm(i, pnm_maxval(head, n));
       return good(i);
@@ -909,8 +1002,12 @@ intptr_t ofl_image_load_data(const unsigned char *data, int32_t n) {
   size_t size = static_cast<size_t>(n);
   try {
     switch (format(data, size)) {
-      case png: return make(new Fl_PNG_Image(0, data, n));
-      case jpeg: return make(new Fl_JPEG_Image(0, data, n));
+      case png:
+        if (!png_ok(data, size)) return 0;
+        return make(new Fl_PNG_Image(0, data, n));
+      case jpeg:
+        if (!jpeg_ok(data, size)) return 0;
+        return make(new Fl_JPEG_Image(0, data, n));
       case gif:
         if (!gif_ok(data, size, false)) return 0;
         return make(new Fl_GIF_Image(0, data, size));

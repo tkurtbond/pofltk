@@ -150,6 +150,21 @@ BEGIN
   w.Delete
 END TestBrokenImage;
 
+(* An image FLTK loads itself, through its own handlers, whose bytes are
+   past an int: Fl's body sets FLTK's max_size, or its loader allocates a
+   negative size (doc/fltk-issues.md, 160). *)
+PROCEDURE TestHugeImage;
+  VAR w: Fl.Window; v: View;
+BEGIN
+  NEW(w); Fl.OpenWindow(w, 300, 100, "help");
+  NEW(v); FlHelp.OpenHelpView(v, 0, 0, 300, 100, "");
+  w.End;
+  v.SetValue('<p><img src="images/big.png"></p>');
+  ok := Probe.Capture(v);
+  Check.Check(v.images = 1, "an image too large for an int is asked about, and refused");
+  w.Delete
+END TestHugeImage;
+
 (* Clicks at x, y in w, from the top of v's page, until a link is there. *)
 PROCEDURE ClickLink(w: Fl.Window; v: View): BOOLEAN;
   VAR y: INTEGER; ok: BOOLEAN;
@@ -240,6 +255,7 @@ BEGIN
   TestSettings;
   TestLoad;
   TestBrokenImage;
+  TestHugeImage;
   TestClick;
   TestDialog;
   Check.Summary

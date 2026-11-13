@@ -23,7 +23,8 @@ MODULE FlImages; (* Images: loaded from files or memory, made from pixels, drawn
    one, since FLTK keeps its address wherever it shows.
 
    Bad data is not an error: a file that can't be read or decoded comes
-   back as FALSE. An XPM file's colors should be written "#rrggbb": FLTK
+   back as FALSE, as does an image of more than MAX(INTEGER) DIV 4 pixels
+   (doc/fltk-issues.md, 160). An XPM file's colors should be written "#rrggbb": FLTK
    knows color names ("red") on X11 alone, and draws them gray under
    Wayland. The C++ part is FlImages.cpp. *)
 

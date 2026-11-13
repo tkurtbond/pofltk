@@ -3274,6 +3274,19 @@ Counts: 2745 (1 skipped), 2722 (9 skipped), 2450 (1 skipped) and 2428
 (8 skipped), every valgrind error summary 0; the BSDs and the FLTK
 variants not run.
 
+**Image sizes past an `int` (2026-11-13).** FLTKAda found that FLTK's
+PNG, JPEG and PNM loaders check an image's size as a `size_t` and
+allocate it as an `int` (`doc/fltk-issues.md`, 160). Crafted files in
+`test/images/` (`wrap.png`, `wrap.jpg`, `wrap.pgm`, `wrap.ico`) had FLTK
+write past a buffer of 0 or 175436 bytes, and `big.png` in a help view
+had it allocate a negative size. Fl's body now sets `max_size` to
+`INT_MAX`, as FLTKAda does, which covers FLTK's own loads on a 64-bit
+system; since a 32-bit `size_t` product wraps too, `FlImages.cpp` also
+reads each PNG, JPEG and PNM's size as the decoder will, and refuses
+more than `INT_MAX / 4` pixels, the rule `dib_ok` has for BMPs.
+`TestImageFiles` and `TestHelp` check both.
+Counts: 2753 (1 skipped), 2730 (9 skipped), 2458 (1 skipped) and 2436 (8 skipped), from `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`, every valgrind error summary 0; the BSDs and the FLTK variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

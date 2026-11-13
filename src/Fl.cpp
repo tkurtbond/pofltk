@@ -7,6 +7,7 @@
 #include <FL/Fl_Double_Window.H>
 #include <FL/Fl_Flex.H>
 #include <FL/Fl_Group.H>
+#include <FL/Fl_Image.H>
 #include <FL/Fl_Menu_Window.H>
 #include <FL/Fl_Overlay_Window.H>
 #include <FL/Fl_Pack.H>
@@ -19,6 +20,7 @@
 #include <FL/filename.H>
 #include <FL/names.h>
 #include <FL/platform.H>
+#include <limits.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -204,6 +206,12 @@ void ofl_register_statics(ofl::SelfFn check, ofl::SelfFn atclose,
   on_atclose = atclose;
   on_abort = abort;
   on_clipboard = clipboard;
+  // FLTK's PNG, JPEG, PNM, BMP and ICO loaders allocate an image's bytes
+  // as an int, after checking them against max_size as a size_t, which is
+  // unlimited by default (doc/fltk-issues.md, 160). This covers what FLTK
+  // loads itself, as a help view's images; FlImages checks its own loads,
+  // since on a 32-bit system the size_t product wraps too.
+  Fl_RGB_Image::max_size(INT_MAX);
 }
 
 void ofl_redraw_all() { Fl::redraw(); }

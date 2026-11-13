@@ -3054,11 +3054,33 @@ default (`Fl_Image.cxx:335`). `Fl_BMP_Image.cxx:280-285` and
 (`src/FlImages.cpp:733`, `753`, `925`, `943`), which covers a size that
 turns negative, but nothing sets `Fl_Image::max_size`, so a size that
 wraps gets through. FLTKAda sets `max_size` to `INT_MAX` at start-up,
-so the check refuses such a file.
+so the check refuses such a file. On a 32-bit system that isn't enough:
+FLTK's `size_t` product wraps too, so 65536 by 65536 by 1 is 0 there
+as well, and passes any `max_size`.
+
+**Workaround** (2026-11-13): Fl's body sets `Fl_RGB_Image::max_size`
+to `INT_MAX` (`ofl_register_statics`, `src/Fl.cpp`), which covers what
+FLTK loads itself, such as a help view's images, on a 64-bit system.
+And `FlImages.cpp` checks each PNG, JPEG and PNM it loads, and the PNG in
+an ICO, before FLTK sees it, as `dib_ok` checks BMPs: an image of more
+than `INT_MAX / 4` pixels (4 bytes a pixel, the most a loaded image has)
+doesn't load. It reads the size as each decoder does: a PNG's from its
+`IHDR`, a JPEG's from its first frame header, with the markers found as
+libjpeg finds them, and a PNM's by Fl_PNM_Image's own code, `fgets` and
+`strtol` into an `int`. What FLTK loads itself on a 32-bit system stays
+exposed, as with 87 and 88.
 
 **Confirmed:** in FLTKAda, `test_image_crafted` with a 65535 by 65535
-PNG and a JPEG whose header says 65500 by 65500. The wrapping case is
-from FLTK's source, and wasn't run in either binding.
+PNG and a JPEG whose header says 65500 by 65500. In pofltk, under valgrind
+(2026-11-13), `TestImageFiles` loading `test/images/wrap.png` (65536 by
+65536, gray) wrote past a buffer of 0 bytes, in `png_combine_row`, then
+crashed; a scratch program loading `wrap.jpg` (`rb.jpg` said to be 37838
+by 37838, RGB, which wraps to 175436 bytes), `wrap.pgm` (65536 by 65536)
+and `wrap.ico` (holding `wrap.png`) each wrote past FLTK's buffer. A help
+view showing `big.png` (46341 by 46341, gray, just over `INT_MAX`
+bytes) had `Fl_PNG_Image` allocate -2147479015 bytes, which throws,
+uncaught, through `Fl_Help_View::value`. After the fix none of them
+loads, with no error under valgrind.
 
 ## 161. `Fl_Menu_::add(const char *)` drops a byte where it cuts a long part
 

@@ -198,7 +198,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     `rb.ico` (two sizes), `rbpng.ico`, `box.fti`, and files that must
     fail to load: `not-xbm.h`, `short.xbm`, `huge.xbm`, `bad.fti`,
     `colors.bmp`, `size.bmp`, `depth.bmp`, `colors.ico`, `loop.gif`,
-    `zero.gif`, `code.gif` and `beyond.gif`; `rb.rbx` and `long.rbx`,
+    `zero.gif`, `code.gif`, `beyond.gif`, and `wrap.png`, `wrap.jpg`,
+    `wrap.pgm` and `wrap.ico`, whose sizes wrap an `int`; `big.png`,
+    just over `INT_MAX` bytes, for `TestHelp`; `rb.rbx` and `long.rbx`,
     a format of `TestImageHandlers`' own;
   - `help.html`, `help2.html`: pages for `TestHelp` and `HelpDialog`;
   - `names/`: empty files whose names each directory sort orders
@@ -789,12 +791,16 @@ held only in C++ memory**.
   crashes on an SVG or `notxbm.h`, `load` returns nothing, and
   `load_fti` returns 0 on bad data: `FileIcon.Load` decodes through
   `load_file`, and catches `Fl::error`.
-- **Crafted image files** (`doc/fltk-issues.md`, 87, 88):
+- **Crafted image files** (`doc/fltk-issues.md`, 87, 88, 160):
   `Fl_BMP_Image` trusts its color count, and `Fl_GIF_Image` follows a
   cycle in its code table and writes past an empty image, overrunning
   the stack and heap with a file's bytes. The shim refuses such files;
   what FLTK loads by itself (the chooser's previews) stays exposed.
   An animation's frames must fit its screen; such a GIF still `Load`s.
+  The PNG, JPEG, PNM, BMP and ICO loaders allocate an image's bytes as
+  an `int` (160): Fl's body sets `max_size` to `INT_MAX`, and the shim
+  refuses a PNG, JPEG or PNM of more than `INT_MAX / 4` pixels, since a
+  32-bit `size_t` wraps too.
 - **File choosers** (`doc/fltk-issues.md`, 91 to 93): deleted in its
   own callback it is used after, and an extra widget deleted first is
   read at the next `add_extra`. `filter()` is the pattern in use.
@@ -1168,7 +1174,9 @@ None at present.
   skipped), 2449 (1 skipped) and 2427 (8 skipped) here; the BSDs and the
   FLTK variants not run. After the `SchemeChoice` fix (2026-11-12), 2745
   (1 skipped), 2722 (9 skipped), 2450 (1 skipped) and 2428 (8 skipped)
-  here; the BSDs and the FLTK variants not run.
+  here; the BSDs and the FLTK variants not run. After the image size fix
+  (2026-11-13), 2753 (1 skipped), 2730 (9 skipped), 2458 (1 skipped) and
+  2436 (8 skipped) here; the BSDs and the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
