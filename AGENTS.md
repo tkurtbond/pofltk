@@ -1207,7 +1207,9 @@ None at present.
   skipped), 2740 (9 skipped), 2468 (1 skipped) and 2446 (8 skipped) here;
   the BSDs and the FLTK variants not run. After `HasGrab` and the rest
   (2026-11-13), 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped)
-  and 2447 (8 skipped) here; the BSDs and the FLTK variants not run.
+  and 2447 (8 skipped) here; 2765, 1 skipped, on NetBSD and FreeBSD and
+  2757, 2 skipped, on OpenBSD (fbb89ca, with the comments of 163 and
+  168); the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
