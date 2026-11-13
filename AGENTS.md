@@ -1230,8 +1230,10 @@ None at present.
   tests loaded the system's FLTK, and skipped 1. After the run path
   (`FLTK_RPATH`, 2026-11-13), the same four here, with TestGlut's 181
   errors in glycin's threads on valgrind-sway, outside pofltk; noforms,
-  rebuilt, 2691, 5 skipped, with no `LD_LIBRARY_PATH`; the BSDs and the
-  other variants not run.
+  rebuilt, 2691, 5 skipped, with no `LD_LIBRARY_PATH`, and nogl 2488, 5
+  skipped; 2765, 1 skipped, on NetBSD and FreeBSD and 2757, 2 skipped,
+  on OpenBSD (11ecc5b); the other variants, which get no run path, not
+  run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

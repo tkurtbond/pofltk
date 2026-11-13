@@ -3362,7 +3362,11 @@ skipped, as with `LD_LIBRARY_PATH`. Locally and on yishana it adds
 nothing. Counts: 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped)
 and 2447 (8 skipped) here, as before; valgrind-sway's error summaries
 were 0 but TestGlut's, 181 errors in glycin's worker threads, outside
-pofltk (`test/display.supp`); the BSDs and the other variants not run.
+pofltk (`test/display.supp`). At 11ecc5b, nogl, rebuilt, 2488, 5
+skipped, with no `LD_LIBRARY_PATH`, `ldd` finding its own FLTK; and
+2765, 1 skipped, on NetBSD and FreeBSD and 2757, 2 skipped, on OpenBSD,
+where the makefile adds no run path (pkgsrc's `fltk-config` gives one;
+the others' FLTKs are static).
 
 ## Open questions
 
