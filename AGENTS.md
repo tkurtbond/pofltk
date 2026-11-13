@@ -1209,7 +1209,14 @@ None at present.
   (2026-11-13), 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped)
   and 2447 (8 skipped) here; 2765, 1 skipped, on NetBSD and FreeBSD and
   2757, 2 skipped, on OpenBSD (fbb89ca, with the comments of 163 and
-  168); the FLTK variants not run.
+  168); 2753, 5 skipped, with neither Cairo nor Pango; 2394, 20
+  skipped, with no SVG, printing or GL; 2691, 5 skipped, with no Forms;
+  2488, 5 skipped, with no GL; 2763 with no GLEW; 2721 with no cairo;
+  2743 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
+  2765 on Xvfb and 2741 on sway. The no Forms and no GL runs are the
+  first with their own shared libraries at run time
+  (`LD_LIBRARY_PATH`): the makefile sets no rpath, so before, their
+  tests loaded the system's FLTK, and skipped 1.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
