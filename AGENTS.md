@@ -184,6 +184,10 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     part. `TestFormsConstants.Mod` and `CFormsConstants` are the same
     for `FlForms` (`OPTIONAL` in the script), apart so that they go
     when it does;
+  - `BreakCairo.Mod` and `BreakCairo.cpp`, a test module with a C++
+    part, which replaces Cairo's `cairo_pdf_surface_create_for_stream`
+    in `TestPrint`, to make it fail, and finds the lowest free file
+    descriptor;
   - `Probe.Mod` and `Probe.cpp`, a test module with a C++ part: a
     widget's pixels, captured into an `Fl_Image_Surface`; mouse, wheel
     and key events sent as the window system would; the modal window (a
@@ -966,7 +970,8 @@ held only in C++ memory**.
   `end_job` reports only by an alert. An SVG surface has no font
   descriptor, so test `fl_size()` too. The print panel is built once,
   keeping its texts' pointers, so `FlPrint` keeps every text (144). A window never shown isn't
-  visible, so no surface draws it.
+  visible, so no surface draws it. A PDF's `begin_document` leaves its
+  file open when Cairo fails (164): the shim closes it, with Pango only.
 - **Tables** (`doc/fltk-issues.md`, 52): `Fl_Table` hides `Fl_Group`'s
   `begin`, `end`, `children`, `child`, `add` and the rest, which reach
   the inner group holding the cells' widgets: Fl.cpp calls a table as
@@ -1183,7 +1188,9 @@ None at present.
   2436 (8 skipped) here; the BSDs and the FLTK variants not run. After
   the long menu label fix (2026-11-13), 2761 (1 skipped), 2738 (9
   skipped), 2466 (1 skipped) and 2444 (8 skipped) here; the BSDs and the
-  FLTK variants not run.
+  FLTK variants not run. After the PDF file fix (2026-11-13), 2763 (1
+  skipped), 2740 (9 skipped), 2468 (1 skipped) and 2446 (8 skipped) here;
+  the BSDs and the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

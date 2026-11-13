@@ -3301,6 +3301,20 @@ bytes, where a character starts, for `FlMenus` and `FlInputs` alike, and
 shortcut itself. `TestMenus` and `TestInputs` check both.
 Counts: 2761 (1 skipped), 2738 (9 skipped), 2466 (1 skipped) and 2444 (8 skipped), from `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`, every valgrind error summary 0; the BSDs and the FLTK variants not run.
 
+**A PDF's file left open when Cairo fails (2026-11-13).** FLTKAda
+found that `Fl_PDF_File_Surface::begin_document` opens its file and
+keeps it when `cairo_pdf_surface_create_for_stream` fails
+(`doc/fltk-issues.md`, 164). Cairo fails there only out of memory, so
+`TestPrint` makes it fail: a new test module, `BreakCairo`, defines that
+function in the program, ahead of Cairo's, passing on to Cairo's
+(`RTLD_NEXT`) unless told to give a surface in error, and needs neither
+Cairo's headers nor `-lcairo`. The lowest free file descriptor rose by
+one after a failed `OpenPDF`. `ofl_print_pdf` now closes the file, which
+it reaches through the surface's private platform surface; without
+Pango FLTK opens nothing, and its driver's file is never set, so that
+case is left alone.
+Counts: 2763 (1 skipped), 2740 (9 skipped), 2468 (1 skipped) and 2446 (8 skipped), from `test-headless`, `test-sway`, `valgrind-headless` and `valgrind-sway`, every valgrind error summary 0; the BSDs and the FLTK variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

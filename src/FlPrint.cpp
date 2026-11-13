@@ -27,6 +27,7 @@
 #include <deque>
 #include <new>
 #include <string>
+#include <typeinfo>
 
 // FLTK built with --disable-print has stubs for these classes, with null
 // drivers, and doesn't have these four, and says so only in config.h,
@@ -203,6 +204,32 @@ const char **const texts[] = {
     &ofl_pdf_orientation,              &ofl_pdf_default,
 };
 const int32_t text_count = sizeof texts / sizeof texts[0];
+// Fl_PDF_File_Surface's private platform_surface_, reached through an
+// explicit instantiation, which may name a private member ([temp.explicit]),
+// as FlBrowsers.cpp reaches Fl_Tree's.
+template <class Tag, typename Tag::type M> struct Reach {
+  friend typename Tag::type member(Tag) { return M; }
+};
+struct Platform {
+  typedef Fl_Paged_Device *Fl_PDF_File_Surface::*type;
+  friend type member(Platform);
+};
+template struct Reach<Platform, &Fl_PDF_File_Surface::platform_surface_>;
+
+// begin_document opens the file, and leaves it open when Cairo then fails
+// (doc/fltk-issues.md, 164): closes it. With Pango, the platform surface is
+// FLTK's own class derived from Fl_PostScript_File_Device, whose driver
+// holds the file (file()), NULL until it is opened. Without, it is an
+// Fl_PostScript_File_Device itself, which fails before opening anything,
+// and whose driver's file is never set: so the exact class is left alone.
+void close_failed(Fl_PDF_File_Surface *d) {
+  Fl_Paged_Device *s = d->*member(Platform());
+  Fl_PostScript_File_Device *p = dynamic_cast<Fl_PostScript_File_Device *>(s);
+  if (p == 0 || typeid(*s) == typeid(Fl_PostScript_File_Device)) return;
+  FILE *f = p->file();
+  if (f) fclose(f);
+}
+
 // FLTK builds the Print dialog's panel once (Fl_Posix_Printer_Driver.cxx,
 // "if (!print_panel)"), with these pointers as its widgets' labels, and
 // keeps it: so each copy lasts as long as the program, as FlDialogs'
@@ -262,6 +289,7 @@ int32_t ofl_print_pdf(const char *path, int32_t chooser, int32_t format,
     return 0;
   }
   if (r != 1) take_message(message);
+  if (r == 2) close_failed(d);
   delete d;
   return r == 1 ? 1 : 2;
 }

@@ -3146,7 +3146,7 @@ returns a `strdup`ed copy for the caller to free, and never frees it
 
 **Effect on pofltk:** none it can fix, since the string is FLTK's
 local. Printing a PDF with the chooser (`ofl_print_pdf`,
-`src/FlPrint.cpp:257`) loses the bytes once a call. FLTK allocates
+`src/FlPrint.cpp:284`) loses the bytes once a call. FLTK allocates
 them, so `test/vg-check.sh` doesn't count them.
 
 **Confirmed:** FLTKAda's `test_pdf_surface` under valgrind.
@@ -3162,12 +3162,26 @@ FLTK, which is 104.)
 
 **Cause:** `Fl_PostScript.cxx:1721-1737`.
 
-**Effect on pofltk:** `ofl_print_pdf` calls `begin_document`
-(`src/FlPrint.cpp:258`), and on a failure the `FILE` and its
-descriptor are lost. Nothing guards it. It needs Cairo to fail, so it
+**Effect on pofltk:** `ofl_print_pdf` calls `begin_document`, or
+`begin_job`, which calls it (`src/FlPrint.cpp:284`), and on a failure
+the `FILE` and its descriptor were lost. It needs Cairo to fail, so it
 is rare.
 
-**Confirmed:** from FLTK's source, in both bindings.
+**Workaround** (2026-11-13): on 2, `ofl_print_pdf` closes the file
+(`close_failed`). The surface's private `platform_surface_`, reached by
+an explicit instantiation, is with Pango FLTK's own class derived from
+`Fl_PostScript_File_Device`, whose `file()` is the driver's `output`,
+NULL until opened. Without Pango it is an `Fl_PostScript_File_Device`
+itself, which returns 2 before opening anything, and whose driver never
+sets `output` (`Fl_PostScript_Graphics_Driver`'s constructor,
+`Fl_PostScript.cxx:149`), so that exact class is left alone.
+
+**Confirmed:** from FLTK's source, in both bindings; and in pofltk by
+`TestPrint`, whose `BreakCairo` module replaces
+`cairo_pdf_surface_create_for_stream` in the program with one that
+gives a surface in error: `OpenPDF` failed, and the lowest free file
+descriptor was one higher after it ("and its file is closed" failed).
+It passes with the workaround, under valgrind too.
 
 ## 165. On Wayland a GL window's swap interval is one setting for all
 

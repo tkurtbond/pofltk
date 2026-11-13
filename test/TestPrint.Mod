@@ -3,7 +3,7 @@ MODULE TestPrint; (* FlPrint: files written and read back, the order of things, 
 (* No test here may break Cairo on a PostScript file: FLTK then uses the
    file after closing it (doc/fltk-issues.md, 101). *)
 
-IMPORT Files, Fl, FlDraw, FlImages, FlPrint, Check, Probe;
+IMPORT Files, Fl, FlDraw, FlImages, FlPrint, Check, Probe, BreakCairo;
 
 CONST
   tries = 400;  (* of 0.05 s, waiting for a dialog; generous, for valgrind *)
@@ -288,7 +288,7 @@ END TestDialogs;
 (* Files that can't be written: FALSE, not a halt. *)
 PROCEDURE TestFailing;
   VAR p: FlPrint.PostScriptFile; q: FlPrint.PDFFile; e: FlPrint.EPSFile; s: FlPrint.SVGFile;
-    device: Files.File;
+    device: Files.File; fd: INTEGER;
 BEGIN
   NEW(p); Check.Check(~FlPrint.OpenPostScript(p, nowhere, FlPrint.A4, FlPrint.Portrait), "PostScript: no such directory");
   Check.Check(~p.IsOpen() & Reason(), "unopened, and why");
@@ -298,6 +298,17 @@ BEGIN
   NEW(e); Check.Check(~FlPrint.OpenEPS(e, nowhere, 20, 20, Fl.White) & ~e.IsOpen() & Reason(), "EPS");
   NEW(s); Check.Check(~FlPrint.OpenSVG(s, nowhere, 20, 20) & ~s.IsOpen() & Reason(), "SVG");
   Check.Check(FlPrint.openSurfaces = 0, "nothing opened");
+
+  (* FLTK opens a PDF's file, and leaves it open when Cairo fails
+     (doc/fltk-issues.md, 164). *)
+  IF noPDF THEN Check.Skip("PDF needs Pango")
+  ELSE
+    fd := BreakCairo.NextFd(); BreakCairo.BreakPDF(TRUE);
+    NEW(q); Check.Check(~FlPrint.OpenPDF(q, pdf, FlPrint.A4, FlPrint.Portrait) & ~q.IsOpen() & Reason(),
+      "PDF, Cairo failing");
+    BreakCairo.BreakPDF(FALSE);
+    Check.Check(BreakCairo.NextFd() = fd, "and its file is closed")
+  END;
 
   device := Files.Old(full);
   IF device = NIL THEN Check.Skip("no /dev/full")

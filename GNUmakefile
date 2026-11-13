@@ -90,7 +90,7 @@ MODULES := Fl FlDraw FlButtons FlInputs FlValuators FlLayout FlMenus FlDialogs F
 HEADERS := src/pofltk.h
 LIBSRC  := $(MODULES:%=src/%.Mod) $(MODULES:%=src/%.cpp) $(HEADERS)
 # Test modules with a C++ part (test/<Module>.cpp).
-TESTCXX := CCairoConstants CConstants CFormsConstants CGlConstants CGluConstants CGlutConstants Probe
+TESTCXX := BreakCairo CCairoConstants CConstants CFormsConstants CGlConstants CGluConstants CGlutConstants Probe
 TESTSRC := $(TESTCXX:%=test/%.Mod) $(TESTCXX:%=test/%.cpp)
 # Example modules, not programs, with a C++ part (examples/<Module>.cpp).
 EXAMPLECXX := Pipe

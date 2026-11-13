@@ -197,11 +197,12 @@ BEGIN
   SetFilter(files); Clobber;
   files.Filter(s);
   Check.Check(s = "*.cpp", "SetFilter, copied");
-  Check.Check(files.LoadDirectory(".") & (files.Count() = 11) & Is(files, 1, "../")
-    & Is(files, 2, "images/") & Is(files, 3, "names/") & Is(files, 4, "CCairoConstants.cpp")
-    & Is(files, 5, "CConstants.cpp") & Is(files, 6, "CFormsConstants.cpp")
-    & Is(files, 7, "CGlConstants.cpp") & Is(files, 8, "CGluConstants.cpp")
-    & Is(files, 9, "CGlutConstants.cpp") & Is(files, 10, "CPlugin.cpp") & Is(files, 11, "Probe.cpp"),
+  Check.Check(files.LoadDirectory(".") & (files.Count() = 12) & Is(files, 1, "../")
+    & Is(files, 2, "images/") & Is(files, 3, "names/") & Is(files, 4, "BreakCairo.cpp")
+    & Is(files, 5, "CCairoConstants.cpp")
+    & Is(files, 6, "CConstants.cpp") & Is(files, 7, "CFormsConstants.cpp")
+    & Is(files, 8, "CGlConstants.cpp") & Is(files, 9, "CGluConstants.cpp")
+    & Is(files, 10, "CGlutConstants.cpp") & Is(files, 11, "CPlugin.cpp") & Is(files, 12, "Probe.cpp"),
     "LoadDirectory: the directories, then the files matching");
   files.SetFileType(FlBrowsers.Directories);
   Check.Check(files.LoadDirectory(".") & (files.Count() = 3), "or the directories alone");

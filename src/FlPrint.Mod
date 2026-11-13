@@ -250,7 +250,8 @@ BEGIN
 END OpenPostScript;
 
 (* The same, for PDF. FALSE too if this FLTK has no Pango, which it needs
-   for PDF. *)
+   for PDF. A file opened is closed again on failure, which FLTK leaves
+   open when Cairo fails (doc/fltk-issues.md, 164). *)
 PROCEDURE OpenPDF*(f: PDFFile; path-: ARRAY OF CHAR; format, layout: INTEGER): BOOLEAN;
   VAR h: SYSTEM.ADDRESS;
 BEGIN
