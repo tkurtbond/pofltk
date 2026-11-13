@@ -672,6 +672,7 @@ PROCEDURE ["C", "ofl_event_inside"] CEventInside(x, y, w, h: SYSTEM.INT32): SYST
 PROCEDURE ["C", "ofl_focus"] CFocus(): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_belowmouse"] CBelowmouse(): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_pushed"] CPushed(): SYSTEM.ADDRESS;
+PROCEDURE ["C", "ofl_any"] CAny(which: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_open_uri"] COpenURI(uri: ARRAY OF CHAR; VAR msg: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_register_loop"] CRegisterLoop(idle, fd: SelfProc; dispatch: DispatchProc; handler: HandlerProc);
 PROCEDURE ["C", "ofl_register_statics"] CRegisterStatics(check, atclose, abort: SelfProc; clipboard: ClipboardProc);
@@ -2154,6 +2155,21 @@ PROCEDURE Pushed*(): Widget;
 BEGIN RETURN SYSTEM.VAL(Widget, CPushed())
 END Pushed;
 
+(* Whether any widget has the focus, is below the mouse, or took the push,
+   the program's or one FLTK made, such as a value input's field, for
+   which Focus, BelowMouse and Pushed give NIL (doc/fltk-issues.md, 171). *)
+PROCEDURE HasFocus*(): BOOLEAN;
+BEGIN RETURN CAny(0) # 0
+END HasFocus;
+
+PROCEDURE HasBelowMouse*(): BOOLEAN;
+BEGIN RETURN CAny(1) # 0
+END HasBelowMouse;
+
+PROCEDURE HasPushed*(): BOOLEAN;
+BEGIN RETURN CAny(2) # 0
+END HasPushed;
+
 (* Screens, numbered from 0 *)
 
 (* The work area of the main screen, screen 0: the screen less what the
@@ -3090,10 +3106,17 @@ PROCEDURE GetMouse*(VAR x, y: INTEGER);
 BEGIN CGetMouse(cx, cy); x := cx; y := cy
 END GetMouse;
 
-(* The window with the grab, if it is the program's; NIL with no grab. *)
+(* The window with the grab, if it is the program's; NIL with no grab, or
+   one FLTK made, such as a pop-up menu's window (HasGrab). *)
 PROCEDURE Grab*(): Window;
 BEGIN RETURN SYSTEM.VAL(Window, CGrab())
 END Grab;
+
+(* Whether any window has the grab, the program's or FLTK's
+   (doc/fltk-issues.md, 171). *)
+PROCEDURE HasGrab*(): BOOLEAN;
+BEGIN RETURN CAny(3) # 0
+END HasGrab;
 
 (* Gives w, shown, every event, wherever it happens, until SetGrab(NIL)
    or w is deleted. *)

@@ -983,6 +983,10 @@ held only in C++ memory**.
   level is set; Wayland's GL swap interval is one value for all
   windows; `fl_shortcut_label` names keys by keysym on X11 and by
   character on Wayland. The comments say so; nothing to work around.
+- **Widgets FLTK made** (`doc/fltk-issues.md`, 171): `Fl.Focus`,
+  `BelowMouse`, `Pushed` and `Grab` give NIL for one, such as a pop-up
+  menu's window or a value input's field; `HasFocus` and the rest say
+  whether there is one at all.
 - **Command-line options** (`doc/fltk-issues.md`, 57): FLTK keeps
   pointers into `argv`, and poc's `Args.argv` is C's own, which lasts
   the program's life. `Fl::args` returns 0 for an unknown option only
@@ -1197,7 +1201,9 @@ None at present.
   skipped), 2466 (1 skipped) and 2444 (8 skipped) here; the BSDs and the
   FLTK variants not run. After the PDF file fix (2026-11-13), 2763 (1
   skipped), 2740 (9 skipped), 2468 (1 skipped) and 2446 (8 skipped) here;
-  the BSDs and the FLTK variants not run.
+  the BSDs and the FLTK variants not run. After `HasGrab` and the rest
+  (2026-11-13), 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped)
+  and 2447 (8 skipped) here; the BSDs and the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

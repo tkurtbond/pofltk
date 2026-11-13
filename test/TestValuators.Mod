@@ -231,6 +231,7 @@ BEGIN
   (* typing into a value input: its field is a widget FLTK made *)
   vin.SetBounds(0.0D0, 100.0D0); vin.action := Count; calls := 0;
   Check.Check(vin.TakeFocus() & (Fl.Focus() = NIL), "a value input passes the focus to its field");
+  Check.Check(Fl.HasFocus(), "HasFocus: a widget FLTK made has it");
   Type("42");
   Check.Check((vin.Value() = 42.0D0) & (calls > 0), "typing into it sets its value, with Callbacks");
 

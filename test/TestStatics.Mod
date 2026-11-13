@@ -262,13 +262,13 @@ END TestWindows;
 PROCEDURE TestGrab;
   VAR a, b: Shown; ok: BOOLEAN; i: INTEGER;
 BEGIN
-  Check.Check(Fl.Grab() = NIL, "no grab");
+  Check.Check((Fl.Grab() = NIL) & ~Fl.HasGrab(), "no grab");
   Fl.SetGrab(NIL);
   NEW(a); Fl.OpenWindow(a, 50, 50, "grabbed"); a.End;
   NEW(b); Fl.OpenWindow(b, 50, 50, "other"); b.End;
   ShowIt(a); ShowIt(b);
   Fl.SetGrab(a);
-  Check.Check(Fl.Grab() = a, "SetGrab");
+  Check.Check((Fl.Grab() = a) & Fl.HasGrab(), "SetGrab");
   Fl.SetGrab(NIL);
   Check.Check(Fl.Grab() = NIL, "SetGrab of NIL");
   Fl.SetGrab(a);

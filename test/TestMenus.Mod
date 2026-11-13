@@ -21,7 +21,7 @@ VAR
   file, open, save, quit, edit, copy, grid, small, large, danger, i: INTEGER;
   key: INTEGER; state: SET;
   s: ARRAY 64 OF CHAR;
-  ok, grabbed: BOOLEAN;
+  ok, grabbed, menuGrab: BOOLEAN;
   gx, gy, gw, gh: INTEGER;
   action: FlMenus.Action;
 
@@ -45,6 +45,7 @@ PROCEDURE (a: Answer) Fire*;
   VAR ok: BOOLEAN;
 BEGIN
   grabbed := Probe.Grab(gx, gy, gw, gh);
+  menuGrab := Fl.HasGrab() & (Fl.Grab() = NIL);
   IF a.enter THEN
     ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
   ELSIF a.pick THEN
@@ -249,6 +250,8 @@ BEGIN
     i := button.PopupAt(40, 50, "", -1);
     Check.Check((i = 0) & (opened = 4) & (button.Value() = 0), "PopupAt returns the item picked, after its action");
     Check.Check(grabbed & (gx = win.X() + 40) & (gy = win.Y() + 50), "at the place given, in the window's coordinates");
+    Check.Check(menuGrab & ~Fl.HasGrab(),
+      "HasGrab while it is up, though Grab is NIL: the window is FLTK's (doc/fltk-issues.md, 171)");
     NEW(answer); answer.pick := TRUE; Fl.AddTimeout(answer, 0.2D0);
     i := button.PopupAt(40, 50, "Title", -1);
     Check.Check((i = 0) & (opened = 5), "with a title");

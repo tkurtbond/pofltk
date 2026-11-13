@@ -73,12 +73,12 @@ BEGIN
   Check.Check((pad.button = Fl.LeftMouse) & (pad.state * Fl.Buttons = Fl.Button1)
     & (pad.clicks = 0), "EventButton, EventState and EventClicks of a single click");
   Check.Check(pad.inside & ~pad.insideRect, "Widget.EventInside and Fl.EventInside");
-  Check.Check(Fl.Pushed() = pad, "Pushed is the widget that took the EvPush");
+  Check.Check((Fl.Pushed() = pad) & Fl.HasPushed(), "Pushed is the widget that took the EvPush");
   used := Probe.Mouse(win, Fl.EvDrag, 200, 70, Fl.LeftMouse, Fl.Button1, 0);
   Check.Check(used & (pad.last = Fl.EvDrag) & (pad.x = 200) & ~pad.inside,
     "EvDrag goes to the pushed widget, even outside it");
   used := Probe.Mouse(win, Fl.EvRelease, 200, 70, Fl.LeftMouse, {}, 0);
-  Check.Check(used & (pad.last = Fl.EvRelease) & (Fl.Pushed() = NIL),
+  Check.Check(used & (pad.last = Fl.EvRelease) & (Fl.Pushed() = NIL) & ~Fl.HasPushed(),
     "EvRelease goes to it too, and ends the push");
   used := Probe.Mouse(win, Fl.EvPush, 50, 60, Fl.RightMouse, Fl.Button3 + Fl.Shift, 1);
   Check.Check((pad.button = Fl.RightMouse) & (pad.clicks = 1)
@@ -88,7 +88,7 @@ BEGIN
 
   (* moving and the wheel *)
   used := Probe.Mouse(win, Fl.EvMove, 60, 60, 0, {}, 0);
-  Check.Check(Fl.BelowMouse() = pad, "EvMove: the widget under the mouse is BelowMouse");
+  Check.Check((Fl.BelowMouse() = pad) & Fl.HasBelowMouse(), "EvMove: the widget under the mouse is BelowMouse");
   used := Probe.Wheel(win, 60, 60, 0, 3);
   Check.Check(used & (pad.last = Fl.EvMouseWheel) & (pad.dy = 3),
     "EvMouseWheel reaches it, with EventDy");
@@ -106,7 +106,7 @@ BEGIN
   Fl.SetFocus(other);
   Check.Check((Fl.Focus() = other) & (pad.last = Fl.EvUnfocus), "SetFocus moves it, unfocusing the pad");
   Fl.SetFocus(NIL);
-  Check.Check(Fl.Focus() = NIL, "SetFocus(NIL): no focus");
+  Check.Check((Fl.Focus() = NIL) & ~Fl.HasFocus(), "SetFocus(NIL): no focus");
   pad.SetVisibleFocus(FALSE);
   Check.Check(~pad.VisibleFocus() & ~pad.TakeFocus(), "a widget without visible focus doesn't take it");
 

@@ -1275,6 +1275,18 @@ intptr_t ofl_focus(void) { return ofl::object_of(Fl::focus()); }
 intptr_t ofl_belowmouse(void) { return ofl::object_of(Fl::belowmouse()); }
 intptr_t ofl_pushed(void) { return ofl::object_of(Fl::pushed()); }
 
+// Whether FLTK has one (0 focus, 1 belowmouse, 2 pushed, 3 grab), the
+// program's or not: a pop-up menu's window, or a value input's field, is
+// FLTK's own, for which the above give 0 (doc/fltk-issues.md, 171).
+int32_t ofl_any(int32_t which) {
+  switch (which) {
+    case 0: return Fl::focus() != 0;
+    case 1: return Fl::belowmouse() != 0;
+    case 2: return Fl::pushed() != 0;
+    default: return Fl::grab() != 0;
+  }
+}
+
 // w is 0 for none. The display is opened first, as for take_focus.
 void ofl_set_focus(intptr_t w) {
   fl_open_display();

@@ -3379,8 +3379,15 @@ one. FLTKAda added `Has_Grab`, `Has_Pushed`, `Has_Below_Mouse` and
 `Has_Focus`, which compare FLTK's pointer with null; pofltk could add
 the same.
 
+**Workaround** (2026-11-13): `Fl.HasFocus`, `HasBelowMouse`,
+`HasPushed` and `HasGrab` say whether FLTK has one at all, the
+program's or its own (`ofl_any`).
+
 **Confirmed:** FLTKAda's `test_foreign_widgets`, which on X11 opens a
-pop-up menu: `Has_Grab` is true and `Get_Grab` gives null.
+pop-up menu: `Has_Grab` is true and `Get_Grab` gives null. In pofltk,
+`TestMenus` on X11: while a pop-up is up, `HasGrab` and `Grab() = NIL`;
+and `TestValuators`: a value input's field has the focus, `HasFocus`
+with `Focus() = NIL`.
 
 ## 172. `Fl_Menu_Item::insert` overruns its stack buffer on a long part
 

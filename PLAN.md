@@ -3324,6 +3324,18 @@ back end (167); and `Table.SetTableBox`, whose filled box can cover
 cells a redraw leaves alone (169), seen in a copy of `examples/Table.Mod`
 under Xvfb. No test changes.
 
+**Whether FLTK has a grab, focus, push or widget below the mouse
+(2026-11-13).** FLTKAda found that while a pop-up menu is up the grab
+is FLTK's own window, so `Fl.Grab`, giving NIL for one FLTK made, can't
+tell an open menu from no grab (`doc/fltk-issues.md`, 171); the same
+holds for `Focus`, `BelowMouse` and `Pushed`. `Fl.HasFocus`,
+`HasBelowMouse`, `HasPushed` and `HasGrab` now say whether FLTK has one
+at all. `TestMenus` checks `HasGrab` with a pop-up up (X11), and
+`TestValuators` `HasFocus` with a value input's field focused;
+`TestEvents` and `TestStatics` check each with the program's widgets.
+Counts: 2765 (1 skipped), 2741 (9 skipped), 2470 (1 skipped) and
+2447 (8 skipped) here; the BSDs and the FLTK variants not run.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was
