@@ -164,8 +164,8 @@ BEGIN
   deleteBox := FALSE;
   Check.Check(box.IsOpen(), "a widget deleted in the dispatch is deleted later");
   ok := Probe.Mouse(win, Fl.EvRelease, 120, 20, Fl.LeftMouse, {}, 0);
-  ok := Fl.Check();
-  Check.Check(~box.IsOpen(), "at the next Check");
+  Fl.HandlePending;
+  Check.Check(~box.IsOpen(), "at the next Check (HandlePending)");
   Fl.SetEventDispatch(NIL);
   n := seen;
   ok := Probe.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);

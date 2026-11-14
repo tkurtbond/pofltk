@@ -27,6 +27,7 @@ VAR
   s: ARRAY 256 OF CHAR;
   old: BOOLEAN;
   ok: BOOLEAN;
+  str: FlDialogs.Name;
 
 PROCEDURE (c: Chooser) Callback*;
   VAR ok: BOOLEAN;
@@ -133,8 +134,11 @@ BEGIN
   Check.Check(c.Value(s) & Ends(s, "/test/TestFileChooser.Mod"), "SetValue");
   Check.Check(c.Count() = 1, "one chosen");
   Check.Check(c.ValueAt(1, s), "ValueAt");
+  str := c.Name(1);
+  Check.Check((str # NIL) & (str^ = s), "Name");
   c.SetValue("");
   Check.Check(~c.Value(s) & (s = "") & (c.Count() = 0), "SetValue of nothing");
+  Check.Check(c.Name(1) = NIL, "Name is NIL then");
 
   c.Close;
   Check.Check(~c.IsOpen() & (FlDialogs.openChoosers = 0), "closed");

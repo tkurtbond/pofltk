@@ -321,6 +321,17 @@ PROCEDURE (p: Preferences) TextLength*(name-: ARRAY OF CHAR): INTEGER;
 BEGIN RETURN CSize(Hd(p), p.path^, name)
 END TextLength;
 
+(* Entry name's text, of any length; default if it is missing. *)
+PROCEDURE (p: Preferences) Text*(name-, default-: ARRAY OF CHAR): Fl.String;
+  VAR n, d: LONGINT; s: Fl.String;
+BEGIN
+  n := p.TextLength(name);
+  d := 0; WHILE (d < LEN(default)) & (default[d] # 0X) DO INC(d) END;
+  IF d > n THEN n := d END;
+  NEW(s, n + 1); p.GetText(name, default, s^);
+  RETURN s
+END Text;
+
 (* A class or a plugin's name: FLTK takes a / as a path, and leaves groups
    nothing removes. *)
 PROCEDURE CheckName(name-: ARRAY OF CHAR);

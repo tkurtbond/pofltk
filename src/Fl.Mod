@@ -28,8 +28,8 @@ CONST
      release meant for others, the minor number for features, the patch
      number for fixes, as poc's. Version, ApiVersion and the rest below
      are FLTK's. *)
-  PofltkVersion* = "0.1.0";
-  PofltkApiVersion* = 100;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
+  PofltkVersion* = "0.2.0";
+  PofltkApiVersion* = 200;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
 
   (* ASSERT codes of programmer errors (PLAN.md, "Halt codes") *)
   NotOpen* = 70;        (* a method of a widget never opened, or deleted *)
@@ -429,6 +429,11 @@ CONST
   MaxFont* = 65535;  (* the last number SetFont takes: a limit of pofltk's *)
 
 TYPE
+  (* Text whose length isn't known before it is read: what Input.Text,
+     TextBuffer.Text and the other getters of text return, holding the
+     text and a 0X, and no more. *)
+  String* = POINTER TO ARRAY OF CHAR;
+
   Widget* = POINTER TO WidgetDesc;
   WidgetDesc* = RECORD
     h-: SYSTEM.ADDRESS;  (* the Fl_Widget *; 0 unless open *)
@@ -2565,6 +2570,13 @@ END Run;
 PROCEDURE Check*(): BOOLEAN;
 BEGIN RETURN CCheck() # 0
 END Check;
+
+(* Check, for a call that doesn't want to know whether a window is
+   shown. *)
+PROCEDURE HandlePending*;
+  VAR r: SYSTEM.INT32;
+BEGIN r := CCheck()
+END HandlePending;
 
 (* Waits up to seconds for events, and handles them. *)
 PROCEDURE Wait*(seconds: LONGREAL);

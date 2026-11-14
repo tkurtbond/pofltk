@@ -20,6 +20,7 @@
 #include <FL/Fl_Window.H>
 #include <string.h>
 
+#include <string>
 #include <vector>
 
 namespace {
@@ -193,6 +194,33 @@ void set_shortcut(Fl_Menu_ *m, int i, int key) {
   else m->shortcut(i, key);
 }
 
+// text with each '&' and '@' doubled, which FLTK draws as one, so that a
+// label shows the text as it is (fl_expand_text and fl_draw's symbols).
+std::string literal(const char *text) {
+  std::string t;
+  for (const char *p = text; *p; p++) {
+    if (*p == '&' || *p == '@') t += *p;
+    t += *p;
+  }
+  return t;
+}
+
+// A label no item of m has: a run of 01X, which nobody writes, one longer
+// than the longest such run. Fl_Menu_::insert replaces an item with the
+// label it is given, so an item added by it must have a label of its own.
+std::string unused_label(Fl_Menu_ *m) {
+  size_t longest = 0;
+  const Fl_Menu_Item *items = m->menu();
+  for (int i = 0; items && i < m->size(); i++) {
+    const char *t = items[i].text;
+    if (!t) continue;
+    size_t n = 0;
+    while (t[n] == '\001') n++;
+    if (n > longest) longest = n;
+  }
+  return std::string(longest + 1, '\001');
+}
+
 // Fl_Scheme_Choice's own callback, which pofltk's replaces: sets the
 // scheme chosen (SchemeChoice.Callback's default). It is protected.
 // With nothing chosen it would read the item before the first
@@ -242,6 +270,30 @@ int32_t ofl_menu_insert(intptr_t m, int32_t index, const char *label,
                      flags & ~FL_SUBMENU_POINTER);
 }
 
+// Inserts an item at the top level showing text as it is: no path, no
+// divider for a leading "_", no "\\" escapes, and "&" and "@" drawn as
+// themselves, as ofl_menu_insert but with no shortcut. The item is added
+// under a label of its own (unused_label), then given its text. The new
+// item's index, or -1 if out of memory.
+int32_t ofl_menu_insert_text(intptr_t m, int32_t index, const char *text,
+                             intptr_t action, int32_t flags) {
+  int i;
+  try {
+    std::string t = literal(text);
+    {
+      KeepValue keep(menu(m));
+      Names names(menu(m));
+      i = insert_item(menu(m), index, unused_label(menu(m)).c_str(), 0,
+                      reinterpret_cast<void *>(action),
+                      flags & ~FL_SUBMENU_POINTER);
+    }
+    replace_item(menu(m), i, t.c_str());
+  } catch (...) {
+    return -1;
+  }
+  return i;
+}
+
 void ofl_menu_remove(intptr_t m, int32_t i) {
   KeepValue keep(menu(m));
   plain(menu(m), i, after(menu(m), i));
@@ -282,6 +334,17 @@ void ofl_menu_set_label(intptr_t m, int32_t i, const char *s) {
   plain(menu(m), i, i + 1);
   replace_item(menu(m), i, s);
   ofl::drop_item_labels(menu(m));
+}
+
+// Item i shows text as it is, "&" and "@" doubled. 0 if out of memory.
+int32_t ofl_menu_set_text(intptr_t m, int32_t i, const char *text) {
+  try {
+    std::string t = literal(text);
+    ofl_menu_set_label(m, i, t.c_str());
+  } catch (...) {
+    return 0;
+  }
+  return 1;
 }
 
 // 1 if item i's path ("File/Open") fits in buf.

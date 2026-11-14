@@ -119,6 +119,10 @@ BEGIN
   Check.Check(b.Select(2, TRUE) & b.Selected(2) & (b.Value() = 2), "Select");
   Check.Check(~b.Select(2, TRUE), "Select returns FALSE when nothing changed");
   Check.Check(b.Deselect() & ~b.Selected(2) & ~b.Deselect(), "Deselect");
+  b.SetSelected(2, TRUE); b.SetSelected(2, TRUE);
+  Check.Check(b.Selected(2) & (b.Value() = 2), "SetSelected");
+  b.SetSelected(2, FALSE);
+  Check.Check(~b.Selected(2), "and off");
 
   b.HideLine(2);
   Check.Check(~b.LineVisible(2) & b.LineVisible(1) & (b.Count() = 4), "HideLine");

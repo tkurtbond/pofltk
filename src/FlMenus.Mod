@@ -112,6 +112,8 @@ PROCEDURE ["C", "ofl_menu_pick"] CPick(m: SYSTEM.ADDRESS; i: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_setonly"] CSetOnly(m: SYSTEM.ADDRESS; i: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_label"] CLabel(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_set_label"] CSetLabel(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; s: ARRAY OF CHAR);
+PROCEDURE ["C", "ofl_menu_insert_text"] CInsertText(m: SYSTEM.ADDRESS; index: SYSTEM.INT32; text: ARRAY OF CHAR; action: SYSTEM.ADDRESS; flags: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_menu_set_text"] CSetText(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_pathname"] CPathname(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_find_index"] CFindIndex(m: SYSTEM.ADDRESS; path: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_flags"] CFlags(m: SYSTEM.ADDRESS; i: SYSTEM.INT32): SYSTEM.INT32;
@@ -228,6 +230,28 @@ PROCEDURE (m: Menu) Add*(label-: ARRAY OF CHAR; key: INTEGER; state: SET; action
 BEGIN RETURN m.Insert(-1, label, key, state, action, flags)
 END Add;
 
+(* Inserts an item at the top level, before index or at the end if index
+   is -1, showing text as it is: not a path, a "/", "\", "&" or "@" in
+   it and a "_" before it being shown as they are. A new item even if
+   another has the same text, which Insert would replace. Its index is
+   index, or after one added at the end, Length() - 2 (Length() - 3 for
+   a submenu's title, with Submenu in flags). ItemLabel gives
+   the label FLTK has: text, each "&" and "@" doubled. action and flags
+   are Insert's; it has no shortcut. *)
+PROCEDURE (m: Menu) InsertText*(index: INTEGER; text-: ARRAY OF CHAR; action: Action; flags: SET);
+  VAR h: SYSTEM.ADDRESS; n: INTEGER;
+BEGIN
+  h := Fl.Live(m); n := CSize(h);
+  ASSERT((index = -1) OR (index >= 0) & ((index = 0) OR (index < n)), Fl.IndexOutOfRange);
+  n := CInsertText(h, index, text, SYSTEM.VAL(SYSTEM.ADDRESS, action), ORD(flags));
+  ASSERT(n >= 0)  (* out of memory *)
+END InsertText;
+
+(* InsertText at the end. *)
+PROCEDURE (m: Menu) AddText*(text-: ARRAY OF CHAR; action: Action; flags: SET);
+BEGIN m.InsertText(-1, text, action, flags)
+END AddText;
+
 (* Removes item i, and if it is a submenu's title, the submenu. *)
 PROCEDURE (m: Menu) Remove*(i: INTEGER);
 BEGIN CRemove(Item(m, i), i)
@@ -279,6 +303,11 @@ BEGIN
   IF i = -1 THEN h := Fl.Live(m) ELSE h := Item(m, i) END;
   RETURN CSetValue(h, i) # 0
 END SetValue;
+
+(* SetValue, for a call that doesn't want to know whether it changed. *)
+PROCEDURE (m: Menu) Choose*(i: INTEGER);
+BEGIN IF m.SetValue(i) THEN END
+END Choose;
 
 (* As if the user picked item i: a toggle item changes, a radio item is
    turned on, Value becomes i, and the Callback runs (if the menu's When
@@ -337,6 +366,11 @@ BEGIN CSetItemStyle(Item(m, i), i, 3, c)
 END SetItemLabelColor;
 
 (* Item i's path ("File/Open"); FALSE, with path "", if it doesn't fit. *)
+(* Item i shows text as it is, as InsertText's do. *)
+PROCEDURE (m: Menu) SetItemText*(i: INTEGER; text-: ARRAY OF CHAR);
+BEGIN ASSERT(CSetText(Item(m, i), i, text) # 0)  (* out of memory *)
+END SetItemText;
+
 PROCEDURE (m: Menu) ItemPath*(i: INTEGER; VAR path: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CPathname(Item(m, i), i, path, SHORT(LEN(path))) # 0
 END ItemPath;
@@ -351,6 +385,31 @@ END ItemFlags;
 PROCEDURE (m: Menu) SetItemFlags*(i: INTEGER; flags: SET);
 BEGIN CSetFlags(Item(m, i), i, ORD(flags))
 END SetItemFlags;
+
+(* Whether item i can be picked: MenuInactive, the other way round. *)
+PROCEDURE (m: Menu) ItemActive*(i: INTEGER): BOOLEAN;
+BEGIN RETURN MenuInactive * m.ItemFlags(i) = {}
+END ItemActive;
+
+PROCEDURE (m: Menu) SetItemActive*(i: INTEGER; on: BOOLEAN);
+BEGIN
+  IF on THEN m.SetItemFlags(i, m.ItemFlags(i) - MenuInactive)
+  ELSE m.SetItemFlags(i, m.ItemFlags(i) + MenuInactive)
+  END
+END SetItemActive;
+
+(* Whether toggle or radio item i is on: MenuValue. SetItemChecked
+   changes item i alone; SetOnly turns the rest of a radio group off. *)
+PROCEDURE (m: Menu) ItemChecked*(i: INTEGER): BOOLEAN;
+BEGIN RETURN MenuValue * m.ItemFlags(i) # {}
+END ItemChecked;
+
+PROCEDURE (m: Menu) SetItemChecked*(i: INTEGER; on: BOOLEAN);
+BEGIN
+  IF on THEN m.SetItemFlags(i, m.ItemFlags(i) + MenuValue)
+  ELSE m.SetItemFlags(i, m.ItemFlags(i) - MenuValue)
+  END
+END SetItemChecked;
 
 (* Turns radio item i on, and the other radio items next to it off: a
    group ends at a divider or an item that isn't a radio item. *)

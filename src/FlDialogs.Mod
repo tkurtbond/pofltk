@@ -121,8 +121,9 @@ TYPE
     extra: Fl.Widget     (* what SetExtra gave *)
   END;
 
-  (* A directory's names (ListDirectory) *)
-  Name* = POINTER TO ARRAY OF CHAR;
+  (* A directory's names (ListDirectory), and other text of unknown
+     length *)
+  Name* = Fl.String;
   Names* = POINTER TO ARRAY OF Name;
 
 VAR
@@ -132,6 +133,7 @@ VAR
 
 PROCEDURE ["C", "ofl_dialog_message"] CMessage(alert: SYSTEM.INT32; text: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_dialog_choice"] CChoice(text, b0, b1, b2: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_dialog_input_text"] CInputText(password: SYSTEM.INT32; label, value: ARRAY OF CHAR; max: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_dialog_input"] CInput(password: SYSTEM.INT32; label: ARRAY OF CHAR; VAR buf: ARRAY OF CHAR; n, max: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_dialog_title"] CTitle(dflt: SYSTEM.INT32; title: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_dialog_hotspot"] CHotspot(): SYSTEM.INT32;
@@ -154,6 +156,7 @@ PROCEDURE ["C", "ofl_file_chooser"] CFileChooser(dir: SYSTEM.INT32; title, patte
 PROCEDURE ["C", "ofl_fnfc_new"] CFnfcNew(kind: SYSTEM.INT32): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_fnfc_close"] CFnfcClose(c: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_fnfc_set_text"] CFnfcSetText(c: SYSTEM.ADDRESS; what: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_fnfc_add_filter"] CFnfcAddFilter(c: SYSTEM.ADDRESS; name, pattern: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_fnfc_set_int"] CFnfcSetInt(c: SYSTEM.ADDRESS; what, v: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_fnfc_get_int"] CFnfcGetInt(c: SYSTEM.ADDRESS; what: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_fnfc_show"] CFnfcShow(c: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -208,6 +211,26 @@ BEGIN
   s[i] := 0X
 END FromC;
 
+(* A copy of the C string at a; NIL for none. *)
+PROCEDURE Copy(a: SYSTEM.ADDRESS): Name;
+  VAR n: LONGINT; c: CHAR; s: Name;
+BEGIN
+  IF a = 0 THEN RETURN NIL END;
+  n := 0; SYSTEM.GET(a, c);
+  WHILE c # 0X DO INC(n); SYSTEM.GET(a + n, c) END;
+  NEW(s, n + 1); FromC(a, s^);
+  RETURN s
+END Copy;
+
+(* Whether s holds a tab or a line feed. *)
+PROCEDURE HasBreak(s-: ARRAY OF CHAR): BOOLEAN;
+  VAR i: LONGINT;
+BEGIN
+  i := 0;
+  WHILE (i < LEN(s)) & (s[i] # 0X) & (s[i] # 09X) & (s[i] # 0AX) DO INC(i) END;
+  RETURN (i < LEN(s)) & (s[i] # 0X)
+END HasBreak;
+
 PROCEDURE Int(b: BOOLEAN): SYSTEM.INT32;
 BEGIN IF b THEN RETURN 1 ELSE RETURN 0 END
 END Int;
@@ -258,6 +281,17 @@ PROCEDURE PasswordLimited*(label-: ARRAY OF CHAR; VAR value: ARRAY OF CHAR; max:
 BEGIN
   RETURN CInput(1, label, value, SHORT(LEN(value)), max) # 0
 END PasswordLimited;
+
+(* Asks for a line of text, starting with value: the text, of any
+   length, if the user pushed OK, NIL if Cancel. *)
+PROCEDURE InputText*(label-, value-: ARRAY OF CHAR): Fl.String;
+BEGIN RETURN Copy(CInputText(0, label, value, 0))
+END InputText;
+
+(* The same, the text hidden as it is typed. *)
+PROCEDURE PasswordText*(label-, value-: ARRAY OF CHAR): Fl.String;
+BEGIN RETURN Copy(CInputText(1, label, value, 0))
+END PasswordText;
 
 (* The window title of the next of these dialogs (Message to Password)
    only; SetDefaultTitle, of every one given none. "" is none. *)
@@ -518,8 +552,17 @@ PROCEDURE (c: NativeFileChooser) SetFilter*(filter-: ARRAY OF CHAR);
 BEGIN SetText(c, 1, filter)
 END SetFilter;
 
-(* The number of filters SetFilter gave; FilterValue, the one chosen,
-   from 0. *)
+(* Adds a filter to those SetFilter gave, or AddFilter added: files
+   matching pattern ("*.{yaml,yml}"), offered as name ("YAML"), or as the
+   pattern if name is "". Neither may hold a tab or a line feed. *)
+PROCEDURE (c: NativeFileChooser) AddFilter*(name-, pattern-: ARRAY OF CHAR);
+BEGIN
+  ASSERT(~HasBreak(name) & ~HasBreak(pattern), Fl.Unsupported);
+  ASSERT(CFnfcAddFilter(Hd(c), name, pattern) # 0)  (* out of memory *)
+END AddFilter;
+
+(* The number of filters SetFilter and AddFilter gave; FilterValue, the
+   one chosen, from 0. *)
 PROCEDURE (c: NativeFileChooser) Filters*(): INTEGER;
 BEGIN RETURN CFnfcGetInt(Hd(c), 3)
 END Filters;
@@ -564,6 +607,14 @@ BEGIN
   h := Hd(c); ASSERT((i >= 0) & (i < CFnfcGetInt(h, 4)), Fl.IndexOutOfRange);
   FromC(CFnfcFilename(h, i), name)
 END FileName;
+
+(* File i chosen, 0 to Count() - 1, as an absolute path, of any length. *)
+PROCEDURE (c: NativeFileChooser) Name*(i: INTEGER): Fl.String;
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := Hd(c); ASSERT((i >= 0) & (i < CFnfcGetInt(h, 4)), Fl.IndexOutOfRange);
+  RETURN Copy(CFnfcFilename(h, i))
+END Name;
 
 PROCEDURE (c: NativeFileChooser) ErrorMessage*(VAR msg: ARRAY OF CHAR);
 BEGIN FromC(CFnfcErrmsg(Hd(c)), msg)
@@ -670,6 +721,14 @@ BEGIN
   a := CFcText(FcH(c), 4, i); FromC(a, s);
   RETURN a # 0
 END ValueAt;
+
+(* File i chosen, from 1, as ValueAt gives it, of any length; NIL if
+   there is none. *)
+PROCEDURE (c: FileChooser) Name*(i: INTEGER): Fl.String;
+BEGIN
+  ASSERT(i >= 1, Fl.IndexOutOfRange);
+  RETURN Copy(CFcText(FcH(c), 4, i))
+END Name;
 
 (* The file chosen, the first if there are several. *)
 PROCEDURE (c: FileChooser) Value*(VAR s: ARRAY OF CHAR): BOOLEAN;

@@ -29,6 +29,8 @@ VAR
   i, r, g, b, font, size, c, calls, box, color, label, x0, y0: INTEGER;
   x, y, z: LONGREAL;
   ok: BOOLEAN;
+  str: Fl.String;
+  big: ARRAY 301 OF CHAR;
   win: Fl.Window;
   chooser: FlDialogs.ColorChooser;
 
@@ -133,6 +135,14 @@ BEGIN
   Check.Check(ok & (s = "abcxy"), "Input starts with the text, the cursor after it");
   Escape; ok := FlDialogs.Input("Name:", s);
   Check.Check(~ok & (s = "abcxy"), "cancelled, the text is unchanged");
+  FOR i := 0 TO 299 DO big[i] := CHR(ORD("a") + i MOD 26) END; big[300] := 0X;
+  Reply("xy", Fl.KeyEnter, 0DX); str := FlDialogs.InputText("Name:", big);
+  Check.Check((str # NIL) & (LEN(str^) = 303) & (str[299] = big[299]) & (str[300] = "x") & (str[301] = "y"),
+    "InputText, of any length");
+  Escape; str := FlDialogs.InputText("Name:", "abc");
+  Check.Check(str = NIL, "NIL if cancelled");
+  Reply("pass", Fl.KeyEnter, 0DX); str := FlDialogs.PasswordText("Password:", "");
+  Check.Check((str # NIL) & (str^ = "pass"), "PasswordText");
   s := "";
   Reply("secret", Fl.KeyEnter, 0DX); ok := FlDialogs.Password("Password:", s);
   Check.Check(ok & (s = "secret"), "Password");
@@ -197,6 +207,12 @@ BEGIN
   fc.SetFilter(s);
   fc.SetFilterValue(1);
   Check.Check((fc.Filters() = 2) & (fc.FilterValue() = 1), "SetFilter, SetFilterValue");
+  fc.AddFilter("YAML", "*.{yaml,yml}"); fc.AddFilter("", "*.c");
+  fc.SetFilterValue(3);
+  Check.Check((fc.Filters() = 4) & (fc.FilterValue() = 3), "AddFilter");
+  fc.SetFilter(""); fc.AddFilter("Oberon", "*.Mod");
+  Check.Check(fc.Filters() = 1, "after SetFilter, AddFilter adds to its filters");
+  fc.SetFilter(s);
   fc.SetFilterValue(0);
   fc.SetOptions({}); fc.SetOptions(FlDialogs.SaveAsConfirm);
   Check.Check(fc.Options() = FlDialogs.SaveAsConfirm, "SetOptions");
@@ -207,6 +223,8 @@ BEGIN
   Check.Check(i = FlDialogs.Chosen, "Show: Chosen");
   IF fc.Count() = 1 THEN fc.FileName(0, s) ELSE s := "" END;
   Check.Check((s[0] = "/") & Ends(s, "/test/TestDialogs.Mod"), "FileName: the file chosen, absolute");
+  IF fc.Count() = 1 THEN str := fc.Name(0) ELSE str := NIL END;
+  Check.Check((str # NIL) & (str^ = s), "Name");
   Escape; i := fc.Show();
   Check.Check((i = FlDialogs.Cancelled) & (fc.Count() = 0), "Show: Cancelled");
   fc.SetKind(FlDialogs.BrowseSaveFile); fc.SetPresetFile("New.txt");

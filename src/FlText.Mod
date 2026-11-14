@@ -277,6 +277,14 @@ PROCEDURE (b: TextBuffer) GetText*(VAR s: ARRAY OF CHAR);
 BEGIN CText(H(b), s, SHORT(LEN(s)))
 END GetText;
 
+(* The text, of any length. *)
+PROCEDURE (b: TextBuffer) Text*(): Fl.String;
+  VAR s: Fl.String;
+BEGIN
+  NEW(s, b.Length() + 1); b.GetText(s^);
+  RETURN s
+END Text;
+
 (* The text from start up to end, truncated to fit s. *)
 PROCEDURE (b: TextBuffer) TextRange*(start, end: INTEGER; VAR s: ARRAY OF CHAR);
 BEGIN CTextRange(H(b), start, end, s, SHORT(LEN(s)))

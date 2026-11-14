@@ -419,6 +419,11 @@ PROCEDURE (b: Browser) Select*(line: INTEGER; on: BOOLEAN): BOOLEAN;
 BEGIN RETURN CSelect(L(b, line, 1, 0), line, Int(on)) # 0
 END Select;
 
+(* Select, for a call that doesn't want to know whether it changed. *)
+PROCEDURE (b: Browser) SetSelected*(line: INTEGER; on: BOOLEAN);
+BEGIN IF b.Select(line, on) THEN END
+END SetSelected;
+
 PROCEDURE (b: Browser) Selected*(line: INTEGER): BOOLEAN;
 BEGIN RETURN CSelected(L(b, line, 1, 0), line) # 0
 END Selected;

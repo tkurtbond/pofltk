@@ -12,6 +12,7 @@
 #include <FL/Fl_Multiline_Output.H>
 #include <FL/Fl_Output.H>
 #include <FL/Fl_Secret_Input.H>
+#include <string.h>
 
 #include <string>
 
@@ -225,6 +226,13 @@ int32_t ofl_input_choice_selected(intptr_t i) {
 
 void ofl_input_choice_value(intptr_t i, char *buf, int32_t n) {
   ofl::copy_out(chooser(i)->value(), buf, n);
+}
+
+// The length of the text, in bytes, to its first 0X, as
+// ofl_input_choice_value copies it.
+int32_t ofl_input_choice_text_length(intptr_t i) {
+  const char *s = chooser(i)->value();
+  return s ? static_cast<int32_t>(strlen(s)) : 0;
 }
 
 void ofl_input_choice_set_value(intptr_t i, const char *s) {

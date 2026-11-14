@@ -23,7 +23,7 @@ are proposals, ranked by how much they would help.
 
 ## Proposed API changes
 
-### 1. Calls whose result nobody wants
+### 1. Calls whose result nobody wants `[done]`
 
 Since poc 0.11.0 a function can't be called as a statement, so both
 programs write `IF x THEN END`, about 40 times between them:
@@ -42,7 +42,7 @@ Proposal: proper procedures for the common case, such as
 `Menu.AddItem(label)` (most calls pass `0, {}, NIL, {}`), `Menu.Choose(i)`
 and `Browser.SelectLine(line)`.
 
-### 2. No way to add a menu label literally
+### 2. No way to add a menu label literally `[done]`
 
 `Add` reads `/` as a submenu path and `&` as a shortcut's mark. besm2
 adds a placeholder `"-"` and relabels it with `SetItemLabel`
@@ -51,7 +51,7 @@ adds a placeholder `"-"` and relabels it with `SetItemLabel`
 
 Proposal: `Menu.AddText(label, flags)`, taking the label as it is.
 
-### 3. Text of unknown length
+### 3. Text of unknown length `[done]`
 
 Getting text needs `Length` and then `Value`, or a buffer of 4096 bytes
 that silently cuts longer text:
@@ -90,7 +90,7 @@ child's callback. At least, document it, and add `Fl.Later(proc)`, a
 one-shot idle call, so a zero timeout isn't the idiom. Needs care, and
 valgrind, given issue 72.
 
-### 5. The file chooser's filter needs a tab
+### 5. The file chooser's filter needs a tab `[done]`
 
 `SetFilter` (`FlDialogs.Mod:517`) takes FLTK's `name<TAB>pattern`, so
 the programs poke a tab in: `OvaWindow.Mod:220`, `:233` (`filter :=
@@ -100,7 +100,7 @@ the programs poke a tab in: `OvaWindow.Mod:220`, `:233` (`filter :=
 Proposal: `AddFilter(name, pattern)`, adding the tab, and the newline
 between filters.
 
-### 6. Menu item state by set arithmetic
+### 6. Menu item state by set arithmetic `[done]`
 
 `ItemFlags` and `SetItemFlags` (`FlMenus.Mod:347`, `:351`) are the only
 per-item state calls, so both programs write `f := bar.ItemFlags(i); f
@@ -190,6 +190,11 @@ For the README:
   ova named one `Display`, `Show` being taken.
 
 ## Suggested order
+
+Done 2026-11-14, in pofltk 0.2.0: 1, 2, 3, 5 and 6 (PLAN.md, "What two
+applications asked for"), with `Menu.Choose`, `Browser.SetSelected`,
+`Fl.HandlePending` and `Menu.AddText` for 1, not `AddItem` and
+`SelectLine`.
 
 1, 2, 3, 5 and 6 first: small, only additions, and they remove the most
 repeated workarounds. Then 9 and the README's testing section, then 4,

@@ -79,9 +79,9 @@ A library records the poc that built it, and another poc refuses it:
 run `make install` again after upgrading poc.
 
 A program can ask which pofltk it was built with: `Fl.PofltkVersion` is
-the version as text, such as `"0.1.0"`, and `Fl.PofltkApiVersion` the
-same as a number to compare, major * 10000 + minor * 100 + patch (100
-for 0.1.0), as FLTK's `FL_API_VERSION` is. `Fl.Version`, `Fl.ApiVersion`
+the version as text, such as `"0.2.0"`, and `Fl.PofltkApiVersion` the
+same as a number to compare, major * 10000 + minor * 100 + patch (200
+for 0.2.0), as FLTK's `FL_API_VERSION` is. `Fl.Version`, `Fl.ApiVersion`
 and the rest are FLTK's.
 
 `FlForms` needs FLTK's Forms library, so it is a library of its own,
@@ -292,7 +292,26 @@ without it). A widget using one keeps it, so closing a buffer a display
 shows, or an image a box, a browser line or a menu item shows, is safe.
 
 **Strings.** Labels and other text FLTK keeps are copied, so an Oberon
-string may die with its procedure.
+string may die with its procedure. Text of any length comes back as an
+`Fl.String`, a `POINTER TO ARRAY OF CHAR` just long enough:
+`Input.Text()`, `InputChoice.Text()`, `TextBuffer.Text()`,
+`Preferences.Text(name, default)`, `FlDialogs.InputText` and
+`PasswordText` (NIL if cancelled), and a file chooser's `Name(i)`. The
+procedures taking a `VAR` array cut the text to fit it.
+
+**Menu labels.** `Menu.Add` reads its label as FLTK does: `/` separates
+a submenu's path, `&` marks the Alt shortcut's letter, `@` starts a
+symbol, and a leading `_` draws a divider after the item. For text from
+the user or a file, use `AddText`, `InsertText` and `SetItemText`, which
+show the text as it is. An item's state has `ItemActive`,
+`SetItemActive`, `ItemChecked` and `SetItemChecked`, beside its flags.
+
+**Results.** poc refuses a function called as a statement, so where a
+result is seldom wanted there is a procedure too: `Menu.Choose(i)` for
+`SetValue`, `AddText` for `Add`, `Browser.SetSelected(line, on)` for
+`Select`, and `Fl.HandlePending` for `Fl.Check`. A native file
+chooser's filters can be added one by one, `AddFilter(name, pattern)`,
+with no tab or line feed to write.
 
 **Errors and halts.** Bad data from outside comes back as FALSE: an
 image that can't be decoded, a file that can't be read, a cancelled
@@ -309,7 +328,7 @@ prints `assertion failed (n)`:
 | 75 | `RepeatTimeout` outside its timer's `Fire`, `HandleDefault` outside the event dispatch (`Fl.NotFiring`) |
 | 76 | a widget that must be a group's child isn't (`Fl.NotAChild`) |
 | 77 | a surface's `Begin` and `End` out of order (`Fl.OutOfOrder`) |
-| 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file descriptor's conditions empty or unknown; a tree's root replaced; a line number format that isn't one number's; a GL texture pile under 1 (`Fl.Unsupported`) |
+| 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file chooser filter's name or pattern holding a tab or line feed; a file descriptor's conditions empty or unknown; a tree's root replaced; a line number format that isn't one number's; a GL texture pile under 1 (`Fl.Unsupported`) |
 
 ## FLTK's problems
 

@@ -48,6 +48,7 @@ const char *keep_title(const char *s) {
 struct Chooser {
   Fl_Native_File_Chooser chooser;
   char *title;
+  std::string filter;  // what was given, for ofl_fnfc_add_filter
   explicit Chooser(int kind) : chooser(kind), title(0) {}
   ~Chooser() { free(title); }
 };
@@ -193,6 +194,14 @@ void ofl_dialog_message(int32_t alert, const char *text) {
 int32_t ofl_dialog_choice(const char *text, const char *b0, const char *b1,
                           const char *b2) {
   return fl_choice_n("%s", button(b0), button(b1), button(b2), text);
+}
+
+// fl_input or fl_password's answer, valid until the next dialog; 0 if
+// cancelled.
+intptr_t ofl_dialog_input_text(int32_t password, const char *label,
+                               const char *value, int32_t max) {
+  return reinterpret_cast<intptr_t>(password ? fl_password(max, "%s", value, label)
+                                             : fl_input(max, "%s", value, label));
 }
 
 // 1 and the text typed in buf, which also holds the text to start with; 0
@@ -387,10 +396,40 @@ int32_t ofl_fnfc_set_text(intptr_t c, int32_t what, const char *s) {
       chooser(c)->title = t;
       break;
     }
-    case 1: f.filter(s); break;
+    case 1:
+      try {
+        chooser(c)->filter = s;
+      } catch (...) {
+        return 0;
+      }
+      f.filter(s);
+      break;
     case 2: f.directory(s); break;
     default: f.preset_file(s);
   }
+  return 1;
+}
+
+// Adds a filter to what ofl_fnfc_set_text gave: name, a tab and pattern,
+// or pattern alone if name is "", after a newline if there were filters.
+// The text is kept here, not read back, since a driver's filter() isn't
+// the text it was given (Kdialog's is what it last parsed). 0 if out of
+// memory.
+int32_t ofl_fnfc_add_filter(intptr_t c, const char *name, const char *pattern) {
+  Chooser *ch = chooser(c);
+  try {
+    std::string t = ch->filter;
+    if (!t.empty()) t += '\n';
+    if (*name) {
+      t += name;
+      t += '\t';
+    }
+    t += pattern;
+    ch->filter.swap(t);
+  } catch (...) {
+    return 0;
+  }
+  ch->chooser.filter(ch->filter.c_str());
   return 1;
 }
 

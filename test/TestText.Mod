@@ -29,6 +29,7 @@ VAR
   i, j, pos, x, y: INTEGER;
   c: CHAR;
   ok: BOOLEAN;
+  str: Fl.String;
   answer: Answer;
 
 (* Whether the last capture has anything but its background, the color at
@@ -137,6 +138,8 @@ BEGIN
   b.SetText("one two"); b.Append(" three"); b.Insert(0, "zero ");
   b.GetText(s);
   Check.Check((s = "zero one two three") & (b.Length() = 18), "SetText, Append, Insert");
+  str := b.Text();
+  Check.Check((LEN(str^) = 19) & (str^ = "zero one two three"), "Text, all of it");
   b.TextRange(5, 8, s);
   Check.Check(s = "one", "TextRange");
   b.Remove(0, 5); b.Replace(0, 3, "1");

@@ -92,6 +92,49 @@ BEGIN
   m.Delete
 END LongLabels;
 
+(* Items whose text is shown as it is (AddText, InsertText, SetItemText),
+   and the procedures for an item's state. *)
+PROCEDURE Literal;
+  VAR w: Fl.Window; m: FlMenus.MenuBar; i, n: INTEGER;
+BEGIN
+  NEW(w); Fl.OpenWindow(w, 300, 100, "Literal");
+  NEW(m); FlMenus.OpenMenuBar(m, 0, 0, 300, 25, "");
+  w.End;
+  m.AddText("a/b", Open, {});
+  Check.Check((m.Length() = 2) & Is(m, 0, "a/b"), "AddText takes a slash as it is");
+  m.AddText("a/b", NIL, {});
+  Check.Check((m.Length() = 3) & Is(m, 1, "a/b"), "and adds an item with the same text");
+  m.AddText("_R&D @ 50%\n", NIL, {});
+  Check.Check((m.Length() = 4) & Is(m, 2, "_R&&D @@ 50%\n")
+    & (FlMenus.MenuDivider * m.ItemFlags(2) = {}),
+    "and & @ \ and a leading _, doubling & and @ for FLTK");
+  m.InsertText(0, "&Go", Open, {});
+  Check.Check((m.Length() = 5) & Is(m, 0, "&&Go") & Is(m, 1, "a/b"), "InsertText");
+  i := m.Add("Run", 0, {}, Open, {});
+  m.AddText("Sub", NIL, FlMenus.Submenu);
+  n := m.Length() - 3;
+  Check.Check(Is(m, n, "Sub") & (FlMenus.Submenu * m.ItemFlags(n) # {}) & (m.Length() = 8),
+    "a submenu's title is at Length() - 3");
+  m.SetItemText(0, "x/y&z");
+  Check.Check(Is(m, 0, "x/y&&z") & (m.Length() = 8), "SetItemText");
+  i := opened; m.Choose(1);
+  Check.Check((m.Value() = 1) & (opened = i), "Choose, without calling back");
+  m.Choose(1);
+  Check.Check(m.Value() = 1, "even if chosen");
+  Check.Check(m.ItemActive(1) & ~m.ItemChecked(1), "an item starts active and unchecked");
+  m.SetItemActive(1, FALSE);
+  Check.Check(~m.ItemActive(1) & (m.ItemFlags(1) = FlMenus.MenuInactive), "SetItemActive FALSE");
+  m.SetItemActive(1, TRUE);
+  Check.Check(m.ItemActive(1) & (m.ItemFlags(1) = {}), "and TRUE");
+  m.SetItemChecked(1, TRUE);
+  Check.Check(m.ItemChecked(1) & (m.ItemFlags(1) = FlMenus.MenuValue), "SetItemChecked TRUE");
+  m.SetItemChecked(1, FALSE);
+  Check.Check(~m.ItemChecked(1) & (m.ItemFlags(1) = {}), "and FALSE");
+  m.SetItemActive(n, FALSE);
+  Check.Check(~m.ItemActive(n) & (FlMenus.Submenu * m.ItemFlags(n) # {}), "keeping Submenu");
+  w.Delete
+END Literal;
+
 BEGIN
   NEW(win); Fl.OpenWindow(win, 300, 200, "TestMenus");
   NEW(bar); FlMenus.OpenMenuBar(bar, 0, 0, 300, 25, "");
@@ -316,6 +359,7 @@ BEGIN
   sysBar.Delete;
 
   LongLabels;
+  Literal;
 
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");

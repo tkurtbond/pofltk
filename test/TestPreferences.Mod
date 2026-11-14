@@ -1,6 +1,6 @@
 MODULE TestPreferences; (* FlPreferences: entries, groups, deletion, and a file read back *)
 
-IMPORT FlPreferences, Check;
+IMPORT Fl, FlPreferences, Check;
 
 CONST dir = "../build/prefs";
 
@@ -10,6 +10,8 @@ VAR
   short: ARRAY 4 OF CHAR;
   odd: ARRAY 32 OF CHAR;  (* text FLTK escapes in its file: a newline, a backslash, quotes *)
   n: INTEGER;
+  str: Fl.String;
+  long: ARRAY 301 OF CHAR;
 
 BEGIN
   odd := 'one?two \ "three"'; odd[3] := 0AX;
@@ -30,6 +32,14 @@ BEGIN
   Check.Check((s = "dflt") & (p.TextLength("missing") = 0), "text too");
   p.GetText("s", "", short);
   Check.Check(short = "hel", "text truncated to fit");
+  str := p.Text("s", "");
+  Check.Check(str^ = "hello", "Text");
+  str := p.Text("missing", "a default");
+  Check.Check(str^ = "a default", "Text of a missing entry gives the default");
+  FOR n := 0 TO 299 DO long[n] := CHR(ORD("a") + n MOD 26) END; long[300] := 0X;
+  p.SetText("long", long); str := p.Text("long", "");
+  Check.Check((str^ = long) & (LEN(str^) = 301), "Text however long");
+  Check.Check(p.DeleteEntry("long"), "DeleteEntry");
   p.SetInt("n", 3);
   Check.Check((p.Int("n", 0) = 3) & (p.Entries() = 3), "SetInt replaces");
   p.EntryName(0, s);
@@ -91,6 +101,8 @@ BEGIN
   p.GetText("odd", "", s);
   Check.Check((p.Int("n", 0) = 12) & (p.Real("x", 0.0D0) = 0.25D0) & (s = odd), "read back from the file");
   Check.Check(p.TextLength("odd") >= 17, "TextLength holds the text");
+  str := p.Text("odd", "");
+  Check.Check(str^ = odd, "and Text gives it as it was, though escaped in the file");
   NEW(a); p.Group(a, "a/b"); a.GetText("t", "", s);
   Check.Check(s = "deep", "a group read back");
   p.Clear; p.Close;

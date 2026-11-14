@@ -3401,6 +3401,44 @@ commit no program could check against.
   `v<version>`, with the message "pofltk <version>". The user signs it,
   gpg asking for the passphrase.
 
+### What two applications asked for `[done]`
+
+`doc/api-review.md` read two programs written with pofltk 0.1.0 (ova and
+besm2) for where the binding made them harder to write than need be.
+Its proposals 1, 2, 3, 5 and 6 were made on 2026-11-14, all additions,
+so the version is 0.2.0 (`PofltkApiVersion` 200):
+- **1, results nobody wants**: `Menu.Choose`, `Browser.SetSelected` and
+  `Fl.HandlePending`, procedures beside `SetValue`, `Select` and
+  `Check`. `Menu.AddText` (2) is a procedure too. The review's
+  `AddItem(label)` wasn't made: `AddText` covers what besm2 and ova add,
+  and `Add`'s five arguments are its shortcut and action.
+- **2, literal menu labels**: `Menu.AddText`, `InsertText` and
+  `SetItemText`. FLTK's `insert` parses `/`, `\`, a leading `_`, and
+  replaces an item of the same label, so the shim inserts an item with
+  a label no item starts with (a run of `01X`, one longer than any), and
+  then `replace`s its text with the text, `&` and `@` doubled, which
+  FLTK's drawing shows as one (`fl_draw_shortcut`, `@@`). `ItemLabel`
+  gives the doubled text, FLTK's.
+- **3, text of any length**: `Fl.String`, a `POINTER TO ARRAY OF CHAR`
+  (`FlDialogs.Name` is now it), from `Input.Text`, `InputChoice.Text`,
+  `TextBuffer.Text`, `Preferences.Text`, `FlDialogs.InputText` and
+  `PasswordText` (NIL on Cancel), and `NativeFileChooser.Name` and
+  `FileChooser.Name`. `Preferences.Text` allocates `TextLength`, the
+  escaped size, which is at least the text's.
+- **5, filters**: `NativeFileChooser.AddFilter(name, pattern)`, halting
+  78 on a tab or line feed in either. The shim keeps the filter text
+  itself, since `Fl_Native_File_Chooser::filter()` differs by driver
+  (Kdialog's is what it last parsed). `FileChooser`, whose
+  `SetFilter` separates patterns with tabs too, got none: neither
+  program uses it.
+- **6, item state**: `Menu.ItemActive`, `SetItemActive`, `ItemChecked`
+  and `SetItemChecked`, on `MenuInactive` and `MenuValue` alone.
+  `SetItemChecked` changes that item only; `SetOnly` is for radio
+  groups.
+- Checked by `TestMenus` (`Literal`), `TestBrowsers`, `TestInputs`,
+  `TestText`, `TestPreferences`, `TestDialogs`, `TestFileChooser`,
+  `TestLoop` and `HaltFilterTab`.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

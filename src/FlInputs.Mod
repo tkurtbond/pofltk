@@ -109,6 +109,7 @@ PROCEDURE ["C", "ofl_input_choice_length"] CChoiceLength(i: SYSTEM.ADDRESS): SYS
 PROCEDURE ["C", "ofl_input_choice_item"] CChoiceItem(i: SYSTEM.ADDRESS; n: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; size: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_choice_selected"] CChoiceSelected(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_choice_value"] CChoiceValue(i: SYSTEM.ADDRESS; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_input_choice_text_length"] CChoiceTextLength(i: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_input_choice_set_value"] CChoiceSetValue(i: SYSTEM.ADDRESS; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_input_choice_set_index"] CChoiceSetIndex(i: SYSTEM.ADDRESS; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_input_choice_update_menu"] CChoiceUpdateMenu(i: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -213,6 +214,14 @@ END SetRealValue;
 PROCEDURE (i: Input) Length*(): INTEGER;
 BEGIN RETURN CSize(Fl.Live(i))
 END Length;
+
+(* The text, of any length, to its first 0X, if it has one. *)
+PROCEDURE (i: Input) Text*(): Fl.String;
+  VAR s: Fl.String;
+BEGIN
+  NEW(s, i.Length() + 1); i.Value(s^);
+  RETURN s
+END Text;
 
 (* The most bytes the user may type in; 32767 to start with. *)
 PROCEDURE (i: Input) MaximumSize*(): INTEGER;
@@ -418,6 +427,14 @@ END Selected;
 PROCEDURE (i: InputChoice) Value*(VAR s: ARRAY OF CHAR);
 BEGIN CChoiceValue(Fl.Live(i), s, SHORT(LEN(s)))
 END Value;
+
+(* The text, of any length. *)
+PROCEDURE (i: InputChoice) Text*(): Fl.String;
+  VAR s: Fl.String;
+BEGIN
+  NEW(s, CChoiceTextLength(Fl.Live(i)) + 1); i.Value(s^);
+  RETURN s
+END Text;
 
 (* Sets the text, which need not be an item, and leaves Selected alone. *)
 PROCEDURE (i: InputChoice) SetValue*(s-: ARRAY OF CHAR);

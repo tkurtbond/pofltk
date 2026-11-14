@@ -20,6 +20,8 @@ VAR
   small: ARRAY 4 OF CHAR;
   calls: INTEGER;
   ok: BOOLEAN;
+  str: Fl.String;
+  k: INTEGER;
 
 PROCEDURE Count(w: Fl.Widget);
 BEGIN INC(calls)
@@ -78,6 +80,12 @@ BEGIN
     "SetValue sets the text, with the cursor at its end");
   in.Value(small);
   Check.Check(small = "hel", "Value truncates to fit its argument");
+  str := in.Text();
+  Check.Check((LEN(str^) = 13) & (str^ = "hello, world"), "Text, all of it");
+  NEW(str, 301); FOR k := 0 TO 299 DO str[k] := CHR(ORD("a") + k MOD 26) END; str[300] := 0X;
+  in.SetValue(str^); str := in.Text();
+  Check.Check((LEN(str^) = 301) & (str[299] = CHR(ORD("a") + 299 MOD 26)) & (str[300] = 0X), "however long");
+  in.SetValue("hello, world");
   in.SetValue("aé");
   Check.Check((in.Index(0) = 97) & (in.Index(1) = 0E9H) & (in.Index(3) = 0),
     "Index is the character at a byte, 0 at the end");
@@ -211,6 +219,8 @@ BEGIN
   chooser.SetValue("four");
   chooser.Value(s);
   Check.Check((s = "four") & (chooser.Selected() = 1), "SetValue leaves the menu alone");
+  str := chooser.Text();
+  Check.Check((LEN(str^) = 5) & (str^ = "four"), "an input choice's Text");
   Check.Check(~chooser.UpdateMenu() & (chooser.Selected() = 1), "UpdateMenu finds no such item");
   chooser.SetValue("three");
   Check.Check(chooser.UpdateMenu() & (chooser.Selected() = 2), "UpdateMenu finds the text's item");
