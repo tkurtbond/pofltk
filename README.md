@@ -236,7 +236,7 @@ the system's colours; `Show` does neither.
 | `FlPrint` | `Printer`, and files: `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile`; what `FlDraw` draws goes to the one begun |
 | `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |
 | `FlGl` | `GlWindow`, FLTK's text and rectangles in GL, and the part of GL its programs use; in its own library, `pofltk-gl` |
-| `FlGlut` | FLTK's GLUT and its fonts, with numbers checked and strings copied; `Window`, a GLUT window as a widget among others; in `pofltk-gl` |
+| `FlGlut` | FLTK's GLUT, its fonts and shapes, with numbers checked and strings copied; `Window`, a GLUT window as a widget among others; `GetProcAddress`, to call GL functions `FlGl` doesn't bind; in `pofltk-gl` |
 | `FlGlu` | GLU's view matrices (`Perspective`, `LookAt`, `Ortho2D`, `PickMatrix`) and `Quadric`s: cylinders, spheres and disks; in its own library, `pofltk-glu` |
 | `FlCairo` | `CairoWindow`, a double window drawn with cairo on any FLTK, and the part of cairo FLTK's programs use; in its own library, `pofltk-cairo` |
 

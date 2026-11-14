@@ -3492,3 +3492,34 @@ gave `GL_INVALID_OPERATION` and lit no pixel (`glReadPixels`), where the
 same program on the compatibility context lit 150 to 1473 bytes per
 step; `gl_width("Hello")` was 34 and `glutBitmapWidth` of `A` 8 on both.
 No valgrind error on any step.
+
+## 175. `glutGetProcAddress` gives an address for any name
+
+**What happens:** on Linux, `glutGetProcAddress` returns an address for
+every name: a GL function, but also "xyzzy", "", a GL name that doesn't
+exist (`glNoSuchFunction`) and GLUT's own (`glutSolidCube`), with no
+display open or context current; for GLUT's it gives a stub, not the
+function. Calling a stub does nothing. freeglut's returns NULL for a
+name it doesn't know, and GLUT's own functions. FLTK doesn't document
+it.
+
+**Cause:** `glutGetProcAddress` (`src/glut_compatibility.cxx:457`) is
+`Fl_Gl_Window_Driver::GetProcAddress` (`src/Fl_Gl_Window.cxx:558`),
+which X11 and Wayland don't override: with `HAVE_GLXGETPROCADDRESSARB`,
+which CMake sets from `glx.h`, it is `glXGetProcAddressARB`, and GLVND's
+libGL makes a dispatch stub for any name it is asked, to be filled in if
+a vendor library later has the function. Without it, it falls back to
+`dlsym` of `"_"` and the name, which is how Mach-O names a symbol; an ELF
+symbol has no `_`, so there it always gives NULL.
+
+**Effect on pofltk:** `FlGlut.GetProcAddress` passes the answer on, and
+its comment says to check `FlGl.Version` or `ExtensionSupported` before
+calling a function it gives. No C++ part is needed to call one: poc
+calls an address converted with `SYSTEM.VAL` to a procedure type as C
+would (the module comment).
+
+**Confirmed:** a C++ program, 2026-11-13, on Xvfb, headless sway and
+with no display, printing the address of each name above, and calling
+two made-up ones, under valgrind with no error. `TestGlut` calls
+`glClearColor`, `glGetFloatv` and `glGetString` through the addresses it
+gives, on both back ends.

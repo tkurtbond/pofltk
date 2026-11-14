@@ -36,8 +36,22 @@ MODULE FlGlut; (* FLTK's GLUT emulation: windows, menus and callbacks in GLUT's 
    GLUT's shapes are procedures with solid, TRUE for glutSolid and FALSE for
    glutWire: Cube(TRUE, 1.0) is glutSolidCube(1.0). Their counts of slices,
    stacks, sides and rings are 1 to MaxCount, so the tables GLUT makes
-   from them stay small. glutGetProcAddress isn't bound, as FlGl binds only
-   a part of GL: draw with FlGl, or from a C++ part.
+   from them stay small.
+
+   FlGl binds only a part of GL. For the rest, GetProcAddress gives a GL
+   function's address, which SYSTEM.VAL turns into a procedure variable of
+   a procedure type with the C function's parameters: SYSTEM.INT32 for a
+   GLint, GLenum, GLuint, GLsizei or GLbitfield, REAL for a GLfloat,
+   LONGREAL for a GLdouble, SYSTEM.ADDRESS for a pointer, and so on:
+
+     TYPE ClearColorProc = PROCEDURE (r, g, b, a: REAL);
+     VAR clearColor: ClearColorProc;
+     clearColor := SYSTEM.VAL(ClearColorProc,
+       FlGlut.GetProcAddress("glClearColor"));
+     clearColor(0.0, 0.0, 1.0, 1.0)
+
+   poc calls it as C would, so no C++ part is needed; but a wrong type is
+   called all the same, as in C.
 
    The C++ part is FlGlut.cpp. *)
 
@@ -261,6 +275,7 @@ PROCEDURE ["C", "ofl_glut_device_get"] CDeviceGet(type: SYSTEM.INT32): SYSTEM.IN
 PROCEDURE ["C", "ofl_glut_layer_get"] CLayerGet(type: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_get_modifiers"] CGetModifiers(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_extension_supported"] CExtensionSupported(name: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_glut_get_proc_address"] CGetProcAddress(name: ARRAY OF CHAR): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_glut_menu_room"] CMenuRoom(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_create_menu"] CCreateMenu(cb: MenuProc): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_glut_menu_exists"] CMenuExists(m: SYSTEM.INT32): SYSTEM.INT32;
@@ -490,6 +505,14 @@ END GetModifiers;
 PROCEDURE ExtensionSupported*(name-: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CExtensionSupported(name) # 0
 END ExtensionSupported;
+
+(* The address of the GL function name, 0 if there is none, to call through
+   a procedure variable of its type: see the module comment. Where libGL is
+   GLVND's, as on Linux, every name has one, so check FlGl.Version, or
+   ExtensionSupported, before calling it. *)
+PROCEDURE GetProcAddress*(name-: ARRAY OF CHAR): SYSTEM.ADDRESS;
+BEGIN RETURN CGetProcAddress(name)
+END GetProcAddress;
 
 (* Menus *)
 

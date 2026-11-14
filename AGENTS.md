@@ -584,6 +584,11 @@ unless it says otherwise.
   `extern void hook(int32_t) __asm__("Hk.DrawHook");`. This works with
   `-lto` too. The Reference Guide doesn't promise these names, so prefer
   passing procedure values to the C++ side from a module body.
+- **Oberon can call a C function by its address**: a procedure variable
+  set by `SYSTEM.VAL(ProcType, address)` calls it with the C ABI. Checked
+  with `REAL` (float), `LONGREAL`, `SYSTEM.INT32`, `INT16`, `CARD8` and
+  `ADDRESS`, and 18 arguments, some on the stack, at `-OC` and `-O2`
+  (2026-11-13, x86-64). `FlGlut.GetProcAddress` relies on it.
 - **Exported `["C"]` procedures can be called from other modules** in
   0.3.1. In 0.1.0 they couldn't (polibfyaml's "poc 0.1.0 problems").
 - **`poc -check` uses the right word size** in 0.3.1: `poc -OC -check`
@@ -885,6 +890,10 @@ held only in C++ memory**.
   shim always gives FLTK its own. The overlay takes a window hidden or never
   shown: it is `glDrawBuffer(GL_FRONT)` on the current context (145), and
   once made it is drawn at every flush, after a hide too.
+- **`glutGetProcAddress`** (`doc/fltk-issues.md`, 175): under GLVND it
+  gives an address for any name, with no display or context, and a stub
+  for GLUT's own; its `dlsym` fallback looks up `_name`, never found on
+  ELF. `FlGlut.GetProcAddress` passes it on.
 - **The vector font** (`doc/fltk-issues.md`, 146): a dot is column * 8 +
   row, so the top left one is a 0, ending its letter; `Fonts.Mod` stores
   each command plus 1, and its saved table leaves that dot out.
@@ -1238,7 +1247,9 @@ None at present.
   rebuilt, 2691, 5 skipped, with no `LD_LIBRARY_PATH`, and nogl 2488, 5
   skipped; 2765, 1 skipped, on NetBSD and FreeBSD and 2757, 2 skipped,
   on OpenBSD (11ecc5b); the other variants, which get no run path, not
-  run.
+  run. After `GetProcAddress` (2026-11-13), 2770 (1
+  skipped), 2746 (9 skipped), 2475 (1 skipped) and 2452 (8 skipped)
+  here; the BSDs and the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

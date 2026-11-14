@@ -380,6 +380,12 @@ int32_t ofl_glut_extension_supported(const char *name) {
   return glutExtensionSupported(name);
 }
 
+// glXGetProcAddressARB's answer (Fl_Gl_Window.cxx), which GLVND's libGL
+// gives for any name, a GL function or not (doc/fltk-issues.md, 175).
+intptr_t ofl_glut_get_proc_address(const char *name) {
+  return reinterpret_cast<intptr_t>(glutGetProcAddress(name));
+}
+
 // Menus
 
 int32_t ofl_glut_menu_room(void) {

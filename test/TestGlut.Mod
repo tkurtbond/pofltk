@@ -1,11 +1,19 @@
 MODULE TestGlut; (* FlGlut: FLTK's GLUT emulation *)
 
-IMPORT Fl, FlGl, FlGlut, Check, Probe;
+IMPORT SYSTEM, Fl, FlGl, FlGlut, Check, Probe;
 
 CONST
   Limit = 500;  (* of waits, so that valgrind has time *)
   FontW = 200;  (* the area FontDisplay draws in *)
   FontH = 100;
+  ColorClearValue = 0C22H;  (* GL's, for glGetFloatv *)
+  GlVersion = 1F02H;        (* GL's, for glGetString *)
+
+TYPE
+  (* GL functions, called through GetProcAddress *)
+  ClearColorProc = PROCEDURE (r, g, b, a: REAL);
+  GetFloatvProc = PROCEDURE (pname: SYSTEM.INT32; v: SYSTEM.ADDRESS);
+  GetStringProc = PROCEDURE (name: SYSTEM.INT32): SYSTEM.ADDRESS;
 
 VAR
   win: FlGlut.Window;       (* a window with an object, for Probe *)
@@ -18,7 +26,7 @@ VAR
   motions, passive, entries, entered, visible, invisible, idles, timer,
   picked, menuState, menuStatus, picks, hiding, rethinking, dying: INTEGER;
   answerPick: BOOLEAN;
-  fontDraws, overlays: INTEGER;
+  fontDraws, overlays, procDraws: INTEGER;
   pixels: ARRAY 3 * FontW * FontH OF CHAR;
 
 PROCEDURE Display;
@@ -532,6 +540,59 @@ BEGIN
   Waits
 END Fonts;
 
+(* GL called through GetProcAddress: floats, a pointer passed and a pointer
+   returned. Its checks need a context, so they are made here, once. *)
+PROCEDURE ProcDisplay;
+  VAR
+    clearColor: ClearColorProc; getFloatv: GetFloatvProc;
+    getString: GetStringProc;
+    v: ARRAY 4 OF REAL; p: ARRAY 4 OF CHAR;
+    version, mine: ARRAY 256 OF CHAR;
+    a: SYSTEM.ADDRESS; i: INTEGER; c: CHAR;
+BEGIN
+  IF procDraws > 0 THEN RETURN END;
+  INC(procDraws);
+  clearColor := SYSTEM.VAL(ClearColorProc, FlGlut.GetProcAddress("glClearColor"));
+  getFloatv := SYSTEM.VAL(GetFloatvProc, FlGlut.GetProcAddress("glGetFloatv"));
+  getString := SYSTEM.VAL(GetStringProc, FlGlut.GetProcAddress("glGetString"));
+  clearColor(0.25, 0.5, 0.75, 1.0);
+  getFloatv(ColorClearValue, SYSTEM.ADR(v));
+  Check.Check((v[0] = 0.25) & (v[1] = 0.5) & (v[2] = 0.75) & (v[3] = 1.0),
+    "glClearColor and glGetFloatv, called by their addresses");
+  FlGl.Clear(FlGl.ColorBufferBit);
+  FlGl.Flush;
+  FlGl.ReadPixels(1, 1, 1, 1, p);
+  Check.Check((ABS(ORD(p[0]) - 64) <= 1) & (ABS(ORD(p[1]) - 128) <= 1)
+    & (ABS(ORD(p[2]) - 191) <= 1), "and the colour they set");
+  a := getString(GlVersion);
+  i := 0;
+  IF a # 0 THEN
+    REPEAT SYSTEM.GET(a + i, c); mine[i] := c; INC(i)
+    UNTIL (c = 0X) OR (i = LEN(mine))
+  END;
+  mine[LEN(mine) - 1] := 0X;
+  FlGl.Version(version);
+  Check.Check((version # "") & (mine = version), "glGetString, by its address")
+END ProcDisplay;
+
+PROCEDURE Procs;
+  VAR w, i: INTEGER;
+BEGIN
+  Check.Check(FlGlut.GetProcAddress("glClearColor") # 0,
+    "a GL function's address, with no context");
+  FlGlut.InitDisplayMode(FlGlut.Rgb + FlGlut.Single);
+  FlGlut.InitWindowSize(FontW, FontH);
+  w := FlGlut.CreateWindow("procs");
+  FlGlut.DisplayFunc(ProcDisplay);
+  procDraws := 0;
+  FlGlut.PostRedisplay;
+  i := 0;
+  WHILE (procDraws = 0) & (i < Limit) DO Waits; INC(i) END;
+  Check.Check(procDraws > 0, "GL was called by address");
+  FlGlut.DestroyWindow(w);
+  Waits
+END Procs;
+
 PROCEDURE Timers;
   VAR i: INTEGER;
 BEGIN
@@ -554,6 +615,7 @@ BEGIN
   Menus;
   Timers;
   Fonts;
+  Procs;
   win.Delete;
   Fl.Wait(0.0D0);
   Check.Summary

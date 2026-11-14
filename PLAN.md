@@ -3407,9 +3407,20 @@ Still open, to look into, from binding GLUT's fonts (2026-10-31):
   (`Fl_Gl_Window::context`, which pofltk doesn't bind) the fonts and
   `gl_draw` draw nothing, with `GL_INVALID_OPERATION`, and don't crash
   (`doc/fltk-issues.md`, 174).
-- **GLUT's shapes and `glutGetProcAddress`.** Unbound, as FlGl binds only
+- ~~**GLUT's shapes and `glutGetProcAddress`.** Unbound, as FlGl binds only
   a part of GL (`FlGlut`'s module comment); a program draws with FlGl or
-  from a C++ part. Whether they are worth binding is undecided.
+  from a C++ part. Whether they are worth binding is undecided.~~ Decided
+  2026-11-13: the shapes were already bound, in Phase 30, so the question
+  was stale. `FlGlut.GetProcAddress` is bound, with no C++ part to call
+  what it gives: poc calls a C address converted with `SYSTEM.VAL` to a
+  procedure type as C would (`REAL`, `LONGREAL`, `SYSTEM.INT32`, `INT16`,
+  `CARD8` and `ADDRESS`, 18 arguments, at `-OC` and `-O2`, valgrind clean),
+  so a program reaches any GL function FlGl doesn't bind. Under GLVND every
+  name has an address (`doc/fltk-issues.md`, 175). `TestGlut` calls
+  `glClearColor`, `glGetFloatv` and `glGetString` that way. Tested: `make test-headless`, `test-sway`,
+  `valgrind-headless` and `valgrind-sway` pass, 2770 (1 skipped), 2746 (9
+  skipped), 2475 (1 skipped) and 2452 (8 skipped) `ok` lines, every
+  valgrind error summary 0; the BSDs and the FLTK variants not run.
 - **An example of GLUT's fonts.** There is none, none having been asked
   for, and FLTK's own tests and examples use none of these fonts.
 
