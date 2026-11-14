@@ -2129,8 +2129,13 @@ Done 2026-10-31. Found, and decided:
 - **OpenGL 3**: the two ports call GL's 3.0 functions, loaded by GLEW.
   Their shader code stays in a C++ part, `examples/GlThree.cpp`, in
   `EXAMPLECXX`, with `FlGl` for the window. They need `HAVE_GLEW`,
-  which Fedora, cymoril, yishana and artos all have. Whether GL 3.0
-  runs under the BSDs' Xvfb is not yet tried.
+  which Fedora, cymoril, yishana and artos all have. ~~Whether GL 3.0
+  runs under the BSDs' Xvfb is not yet tried.~~ It does (2026-11-13):
+  `OpenGL3GlutTest` on each BSD's Xvfb found GL 4.5 (OpenBSD, NetBSD) or
+  4.6 (FreeBSD), compatibility profile, from Mesa's software renderer,
+  with GLEW 2.3.1, compiled its shaders and was still drawing after 6
+  seconds. `make test` can't tell: below GL 3 the port puts up an alert
+  and waits, so it is still running when checked.
   Keep FLTK's exception for `GLEW_ERROR_NO_GLX_DISPLAY` under Wayland.
 - `TestGl` draws in a window on both back ends, and reads pixels with
   `glReadPixels`. It deletes a window with a context, and tests `Valid`
