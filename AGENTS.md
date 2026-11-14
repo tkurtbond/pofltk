@@ -1256,7 +1256,15 @@ None at present.
   on OpenBSD (11ecc5b); the other variants, which get no run path, not
   run. After `GetProcAddress` (2026-11-13), 2770 (1
   skipped), 2746 (9 skipped), 2475 (1 skipped) and 2452 (8 skipped)
-  here; the BSDs and the FLTK variants not run.
+  here; the BSDs and the FLTK variants not run. After `GlutFonts`
+  (2026-11-13), 2771 (1 skipped), 2747 (9 skipped), 2475 (1 skipped) and
+  2452 (8 skipped) here, the example's one `ok` line in each run of the
+  examples; 2771, 1 skipped, on NetBSD and FreeBSD and 2763, 2 skipped,
+  on OpenBSD; 2759, 5 skipped, with neither Cairo nor Pango; 2394, 20
+  skipped, with no SVG, printing or GL; 2697, 5 skipped, with no Forms;
+  2488, 5 skipped, with no GL; 2769 with no GLEW; 2727 with no cairo;
+  2749 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
+  2771 on Xvfb and 2747 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

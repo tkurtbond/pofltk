@@ -2533,6 +2533,14 @@ left out but for its shapes and `glutGetProcAddress`:
   apart than `BitmapString`'s (`doc/fltk-issues.md`, 135).
 - **Decided:** no new example, none being asked for, and FLTK's own tests
   and examples use none of these fonts. GLUT's shapes stay unbound.
+  On 2026-11-13 the user asked for one: `examples/GlutFonts.Mod` draws a
+  line of each font, underlined to the length `BitmapLength` or
+  `StrokeLength` gives, the rows `BitmapHeight` and `StrokeHeight` apart,
+  in a GLUT window inside an FLTK one, as `GlutCube` is, so that "q" can
+  end it by hiding the FLTK window. It has no FLTK original to compare
+  with; a screenshot under Xvfb showed each underline the length of its
+  text. Tested on the four local runs, the six BSDs and the FLTK
+  variants; the counts are in AGENTS.md.
 - **Tested:** `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` and the FLTK with neither Cairo nor Pango, after the last
   change; the six BSDs and the other FLTK variants before it, the removal
@@ -3431,8 +3439,10 @@ Still open, to look into, from binding GLUT's fonts (2026-10-31):
   skipped, with no SVG, printing or GL; 2696 with no Forms; 2488 with no
   GL; 2768 with no GLEW; 2726 with no cairo; 2748 with no GLU; and on a
   Wayland FLTK without `FLTK_HAVE_CAIRO`, 2770 on Xvfb and 2746 on sway.
-- **An example of GLUT's fonts.** There is none, none having been asked
-  for, and FLTK's own tests and examples use none of these fonts.
+- ~~**An example of GLUT's fonts.** There is none, none having been asked
+  for, and FLTK's own tests and examples use none of these fonts.~~
+  Decided 2026-11-13, at the user's request: `examples/GlutFonts.Mod`
+  (GLUT's fonts, above).
 
 Decided 2026-11-11, with the user, after FLTKAda decided the other way:
 

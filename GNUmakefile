@@ -183,7 +183,7 @@ endif
 # FlGl and FlGlut need libfltk_gl and GL, likewise (PLAN.md, Phase 21).
 GLTESTS := TestGl TestGlConstants TestGlut TestGlutConstants
 GLHALTS := HaltGlutBitmapFont:74 HaltGlutStrokeFont:74 HaltGlutBitmapText:77 HaltGlutStrokeText:77 HaltGlMakeCurrent:77 HaltGlFont:77 HaltGlStart:77 HaltGlSetMode:77 HaltGlutWindow:74 HaltGlutWindows:78 HaltGlutMenu:74 HaltGlutSubMenu:77 HaltGlutEmptyMenu:77 HaltGlutMenuNil:72 HaltGlTexturePile:78 HaltGlSelectBuffer:77 HaltGlutShape:74 HaltGlDrawBegin:77
-GLEXAMPLES := Cube GlOverlay GlutTest GlutCube Shape Fullscreen CubeView
+GLEXAMPLES := Cube GlOverlay GlutTest GlutCube Shape Fullscreen CubeView GlutFonts
 GLSRC := src/gl/FlGl.Mod src/gl/FlGl.cpp src/gl/FlGlut.Mod src/gl/FlGlut.cpp
 # fltk-config says which GL libraries, on some systems. A static FLTK with
 # Wayland needs EGL's too.
