@@ -161,6 +161,7 @@ PROCEDURE ["C", "ofl_browser_type"] CType(b: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_browser_set_type"] CSetType(b: SYSTEM.ADDRESS; t: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_browser_clear"] CClear(b: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_browser_load"] CLoad(b: SYSTEM.ADDRESS; name: ARRAY OF CHAR): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_browser_find"] CFind(b: SYSTEM.ADDRESS; from: SYSTEM.INT32; text: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_browser_text"] CText(b: SYSTEM.ADDRESS; line: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_browser_set_text"] CSetText(b: SYSTEM.ADDRESS; line: SYSTEM.INT32; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_browser_select"] CSelect(b: SYSTEM.ADDRESS; line, on: SYSTEM.INT32): SYSTEM.INT32;
@@ -408,6 +409,15 @@ END Load;
 PROCEDURE (b: Browser) GetText*(line: INTEGER; VAR text: ARRAY OF CHAR);
 BEGIN CText(L(b, line, 1, 0), line, text, SHORT(LEN(text)))
 END GetText;
+
+(* The first line, from line from on, whose text is text, format
+   characters and all; 0 if none is. from is 1 for the whole browser, and
+   may be past the last line. Halts Fl.IndexOutOfRange if from < 1. *)
+PROCEDURE (b: Browser) Find*(text-: ARRAY OF CHAR; from: INTEGER): INTEGER;
+BEGIN
+  ASSERT(from >= 1, Fl.IndexOutOfRange);
+  RETURN CFind(Fl.Live(b), from, text)
+END Find;
 
 PROCEDURE (b: Browser) SetText*(line: INTEGER; text-: ARRAY OF CHAR);
 BEGIN CSetText(L(b, line, 1, 0), line, text)

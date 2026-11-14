@@ -13,6 +13,7 @@
 #include <FL/Fl_Tree.H>
 #include <stdio.h>
 #include <stdlib.h>
+#include <cstring>
 #include <string.h>
 
 #include <unordered_map>
@@ -333,6 +334,16 @@ int32_t ofl_browser_load(intptr_t b, const char *name) {
 
 void ofl_browser_text(intptr_t b, int32_t line, char *buf, int32_t n) {
   ofl::copy_out(browser(b)->text(line), buf, n);
+}
+
+// The first line from from on whose text is text, or 0.
+int32_t ofl_browser_find(intptr_t b, int32_t from, const char *text) {
+  Fl_Browser *br = browser(b);
+  for (int i = from; i <= br->size(); i++) {
+    const char *t = br->text(i);
+    if (t && std::strcmp(t, text) == 0) return i;
+  }
+  return 0;
 }
 
 // Fl_Browser::text copies.

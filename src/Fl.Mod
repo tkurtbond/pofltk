@@ -28,8 +28,8 @@ CONST
      release meant for others, the minor number for features, the patch
      number for fixes, as poc's. Version, ApiVersion and the rest below
      are FLTK's. *)
-  PofltkVersion* = "0.3.0";
-  PofltkApiVersion* = 300;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
+  PofltkVersion* = "0.4.0";
+  PofltkApiVersion* = 400;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
 
   (* ASSERT codes of programmer errors (PLAN.md, "Halt codes") *)
   NotOpen* = 70;        (* a method of a widget never opened, or deleted *)
@@ -431,7 +431,9 @@ CONST
 TYPE
   (* Text whose length isn't known before it is read: what Input.Text,
      TextBuffer.Text and the other getters of text return, holding the
-     text and a 0X, and no more. *)
+     text and a 0X, and no more. A program may use it for its own text
+     too: Oberon-2 assigns no pointer of one such type to another, so a
+     second type of the same shape would need a copy at every call. *)
   String* = POINTER TO ARRAY OF CHAR;
 
   Widget* = POINTER TO WidgetDesc;
@@ -799,6 +801,7 @@ PROCEDURE ["C", "ofl_normal_size"] CNormalSize(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_normal_size"] CSetNormalSize(s: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_box_d"] CBoxD(b, what: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_has"] CHas(feature: SYSTEM.INT32): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_can_open_display"] CCanOpenDisplay(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_scheme"] CSetScheme(name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_set_system_scheme"] CSetSystemScheme(): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_scheme"] CScheme(): SYSTEM.ADDRESS;
@@ -1769,6 +1772,18 @@ END Equal;
 PROCEDURE Has*(feature: INTEGER): BOOLEAN;
 BEGIN RETURN CHas(feature) # 0
 END Has;
+
+(* TRUE if FLTK has a display open, or could open one: what it would
+   choose, by FLTK_BACKEND, XDG_RUNTIME_DIR, WAYLAND_DISPLAY and DISPLAY,
+   answers, with a connection made and closed again. FLTK, opening a
+   display it can't, ends the program, so a program that may run with
+   none asks this first. With WAYLAND_DISPLAY unset FLTK still tries the
+   socket wayland-0, as libwayland does, so this is TRUE with neither
+   variable set where that socket exists: a program refusing to start
+   with neither checks them itself. *)
+PROCEDURE CanOpenDisplay*(): BOOLEAN;
+BEGIN RETURN CCanOpenDisplay() # 0
+END CanOpenDisplay;
 
 (* FLTK's look: "none" (or "base"), "plastic", "gtk+", "gleam" or "oxy".
    TRUE if the look is now a scheme. FALSE for "none", "base" or "", and

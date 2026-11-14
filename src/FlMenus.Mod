@@ -111,6 +111,7 @@ PROCEDURE ["C", "ofl_menu_set_value"] CSetValue(m: SYSTEM.ADDRESS; i: SYSTEM.INT
 PROCEDURE ["C", "ofl_menu_pick"] CPick(m: SYSTEM.ADDRESS; i: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_setonly"] CSetOnly(m: SYSTEM.ADDRESS; i: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_menu_label"] CLabel(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_menu_text"] CText(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; VAR buf: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_set_label"] CSetLabel(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; s: ARRAY OF CHAR);
 PROCEDURE ["C", "ofl_menu_insert_text"] CInsertText(m: SYSTEM.ADDRESS; index: SYSTEM.INT32; text: ARRAY OF CHAR; action: SYSTEM.ADDRESS; flags: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_menu_set_text"] CSetText(m: SYSTEM.ADDRESS; i: SYSTEM.INT32; s: ARRAY OF CHAR): SYSTEM.INT32;
@@ -252,6 +253,11 @@ PROCEDURE (m: Menu) AddText*(text-: ARRAY OF CHAR; action: Action; flags: SET);
 BEGIN m.InsertText(-1, text, action, flags)
 END AddText;
 
+(* AddText with no action and no flags, as a choice's items have. *)
+PROCEDURE (m: Menu) AppendText*(text-: ARRAY OF CHAR);
+BEGIN m.InsertText(-1, text, NIL, {})
+END AppendText;
+
 (* Removes item i, and if it is a submenu's title, the submenu. *)
 PROCEDURE (m: Menu) Remove*(i: INTEGER);
 BEGIN CRemove(Item(m, i), i)
@@ -322,6 +328,14 @@ PROCEDURE (m: Menu) ItemLabel*(i: INTEGER; VAR label: ARRAY OF CHAR);
 BEGIN CLabel(Item(m, i), i, label, SHORT(LEN(label)))
 END ItemLabel;
 
+(* Item i's label with each "&&" and "@@" made "&" and "@": for an item
+   added by AddText, AppendText or InsertText, or given SetItemText, the
+   text it was given, where ItemLabel gives what FLTK holds. Truncated to
+   fit. *)
+PROCEDURE (m: Menu) ItemText*(i: INTEGER; VAR text: ARRAY OF CHAR);
+BEGIN ASSERT(CText(Item(m, i), i, text, SHORT(LEN(text))) # 0)  (* out of memory *)
+END ItemText;
+
 (* Copies label, which is not a path: a "/" in it is a slash. The item
    shows it, not an image or a multi-label. *)
 PROCEDURE (m: Menu) SetItemLabel*(i: INTEGER; label-: ARRAY OF CHAR);
@@ -365,11 +379,12 @@ PROCEDURE (m: Menu) SetItemLabelColor*(i, c: INTEGER);
 BEGIN CSetItemStyle(Item(m, i), i, 3, c)
 END SetItemLabelColor;
 
-(* Item i's path ("File/Open"); FALSE, with path "", if it doesn't fit. *)
 (* Item i shows text as it is, as InsertText's do. *)
 PROCEDURE (m: Menu) SetItemText*(i: INTEGER; text-: ARRAY OF CHAR);
 BEGIN ASSERT(CSetText(Item(m, i), i, text) # 0)  (* out of memory *)
 END SetItemText;
+
+(* Item i's path ("File/Open"); FALSE, with path "", if it doesn't fit. *)
 
 PROCEDURE (m: Menu) ItemPath*(i: INTEGER; VAR path: ARRAY OF CHAR): BOOLEAN;
 BEGIN RETURN CPathname(Item(m, i), i, path, SHORT(LEN(path))) # 0

@@ -108,6 +108,12 @@ BEGIN
   Check.Check(Is(b, 1, "one") & Is(b, 4, "two"), "Swap");
   b.SetText(2, "THREE");
   Check.Check(Is(b, 2, "THREE"), "SetText");
+  b.Add("one");
+  Check.Check((b.Find("one", 1) = 1) & (b.Find("one", 2) = 5) & (b.Find("two", 1) = 4),
+    "Find: the first line from a line on with the text");
+  Check.Check((b.Find("on", 1) = 0) & (b.Find("one", 6) = 0) & (b.Find("one", 99) = 0),
+    "the whole text, and 0 if none from there has it");
+  b.Remove(5);
   b.Sort(FlBrowsers.SortAscending);
   Check.Check(Is(b, 1, "THREE") & Is(b, 2, "four") & Is(b, 4, "two"), "Sort, by bytes");
   b.Sort(FlBrowsers.SortAscending + FlBrowsers.SortCaseInsensitive);

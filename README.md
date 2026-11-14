@@ -297,14 +297,21 @@ string may die with its procedure. Text of any length comes back as an
 `Fl.String`, a `POINTER TO ARRAY OF CHAR` just long enough:
 `Input.Text()`, `InputChoice.Text()`, `TextBuffer.Text()`,
 `Preferences.Text(name, default)`, `FlDialogs.InputText` and
-`PasswordText` (NIL if cancelled), and a file chooser's `Name(i)`. The
-procedures taking a `VAR` array cut the text to fit it.
+`PasswordText` (NIL if cancelled), and a file chooser's `Name(i)` and
+`NativeFileChooser.Choose()`, which shows it and gives the first name,
+or NIL. The procedures taking a `VAR` array cut the text to fit it. Use
+`Fl.String` for a program's own text of this kind too: Oberon-2 won't
+assign one pointer type to another of the same shape, so a second type
+would need copies.
 
 **Menu labels.** `Menu.Add` reads its label as FLTK does: `/` separates
 a submenu's path, `&` marks the Alt shortcut's letter, `@` starts a
 symbol, and a leading `_` draws a divider after the item. For text from
 the user or a file, use `AddText`, `InsertText` and `SetItemText`, which
-show the text as it is. An item's state has `ItemActive`,
+show the text as it is; `AppendText(text)` adds an item with no
+action or flags, as a choice's items are, and `ItemText(i, text)` gives
+the text back as it was put in, where `ItemLabel` gives FLTK's, `&` and
+`@` doubled. An item's state has `ItemActive`,
 `SetItemActive`, `ItemChecked` and `SetItemChecked`, beside its flags.
 
 **Results.** poc refuses a function called as a statement, so where a
@@ -313,6 +320,16 @@ result is seldom wanted there is a procedure too: `Menu.Choose(i)` for
 `Select`, and `Fl.HandlePending` for `Fl.Check`. A native file
 chooser's filters can be added one by one, `AddFilter(name, pattern)`,
 with no tab or line feed to write.
+
+**Small helpers.** `Spinner.IntValue()` is the value rounded to an
+`INTEGER`; `Browser.Find(text, from)` is the first line from `from`
+whose text is `text`, or 0; `TextBuffer.SetTextQuietly` sets the text
+without calling the buffer's `Modified`, as when filling it from a
+file; and `Fl.CanOpenDisplay()` says whether FLTK could open a display,
+since FLTK ends the program when it can't, so a program that can run
+without one asks first. With `WAYLAND_DISPLAY` unset FLTK still tries
+the socket `wayland-0`, so a program that wants to refuse to start when
+neither `DISPLAY` nor `WAYLAND_DISPLAY` is set checks them itself.
 
 **Errors and halts.** Bad data from outside comes back as FALSE: an
 image that can't be decoded, a file that can't be read, a cancelled

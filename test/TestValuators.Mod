@@ -239,11 +239,14 @@ BEGIN
   Check.Check((spinner.Value() = 1.0D0) & (spinner.Minimum() = 1.0D0) & (spinner.Maximum() = 100.0D0)
     & (spinner.Step() = 1.0D0) & spinner.Wrap() & (spinner.Kind() = FlValuators.IntSpinner),
     "a spinner starts at 1, from 1 to 100 in steps of 1, wrapping, whole");
+  spinner.SetValue(7.0D0);
+  Check.Check(spinner.IntValue() = 7, "IntValue");
   spinner.SetKind(FlValuators.FloatSpinner); spinner.SetBounds(0.0D0, 1.0D0);
   spinner.SetStep(0.1D0); spinner.SetValue(0.5D0); spinner.SetWrap(FALSE);
   Check.Check((spinner.Kind() = FlValuators.FloatSpinner) & (spinner.Value() = 0.5D0)
     & (spinner.Maximum() = 1.0D0) & (spinner.Step() = 0.1D0) & ~spinner.Wrap(),
     "its settings read back");
+  Check.Check(spinner.IntValue() = 1, "IntValue rounds a half up");
   spinner.SetColor(Fl.Yellow); spinner.SetSelectionColor(Fl.Green); spinner.SetTextSize(18);
   Check.Check((spinner.Color() = Fl.Yellow) & (spinner.SelectionColor() = Fl.Green)
     & (spinner.TextSize() = 18), "its colors and text size, its field's");

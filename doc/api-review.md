@@ -125,7 +125,11 @@ Proposal: a width of -1 in `SetColumnWidths` (`FlBrowsers.Mod:497`)
 meaning the rest of the width, kept by the shim on resize; and a way to
 add a line literally, or a setting for it, made prominent in the README.
 
-### 8. Small helpers
+### 8. Small helpers `[done in part]`
+
+Done in 0.4.0: `IntValue`, `Find`, `CanOpenDisplay` and `SetTextQuietly`
+(PLAN.md, "Small helpers and the rewrite's findings, 0.4.0"). The
+others weren't made.
 
 - `Spinner.IntValue`: `Value` (`FlValuators.Mod:579`) is a `LONGREAL`,
   and besm2 writes `ENTIER(x + 0.5)` 5 times.
@@ -171,6 +175,9 @@ program"), with the helpers named `Type`, `Fill`, `Choose`, `Click`,
 the README's "Testing your program".
 
 ## What the rewrite to 0.2.0 showed
+
+All four done in 0.4.0: `AppendText`, `ItemText`, `Fl.String`
+documented, and `NativeFileChooser.Choose`.
 
 On 2026-11-14 both programs were rewritten to use 1, 2, 3, 5 and 6
 (uncommitted in their repositories then). Four things in the new calls

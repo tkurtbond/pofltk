@@ -194,6 +194,11 @@ BEGIN
   Check.Check((str # NIL) & (str^ = s), "Name");
   FlTest.Escape; i := fc.Show();
   Check.Check((i = FlDialogs.Cancelled) & (fc.Count() = 0), "Show: Cancelled");
+  fc.SetPresetFile("TestDialogs.Mod");
+  FlTest.Enter; str := fc.Choose();
+  Check.Check((str # NIL) & (str^ = s), "Choose: the file chosen");
+  FlTest.Escape; str := fc.Choose();
+  Check.Check(str = NIL, "Choose: NIL when cancelled");
   fc.SetKind(FlDialogs.BrowseSaveFile); fc.SetPresetFile("New.txt");
   Check.Check(fc.Kind() = FlDialogs.BrowseSaveFile, "SetKind");
   FlTest.Enter; i := fc.Show();

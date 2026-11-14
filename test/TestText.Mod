@@ -247,6 +247,11 @@ BEGIN
   Check.Check((w.calls = 1) & (w.pos = 1) & (w.inserted = 2) & (w.deleted = 0), "Modified after each change");
   w.Remove(0, 4);
   Check.Check((w.calls = 2) & (w.pos = 0) & (w.inserted = 0) & (w.deleted = 4), "a removal");
+  w.SetTextQuietly("quiet");
+  w.GetText(s);
+  Check.Check((w.calls = 2) & (s = "quiet"), "SetTextQuietly: no Modified");
+  w.SetText("loud");
+  Check.Check(w.calls = 3, "and SetText calls it again");
 
   (* closing and collecting *)
   w.Close; w.Close;

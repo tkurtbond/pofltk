@@ -17,8 +17,8 @@ MODULE FlText; (* Text: buffers of text, and the widgets that show and edit them
    shown. A display's methods that work on its text halt without a buffer
    (Fl.ClosedResource).
 
-   A buffer's Modified runs after every change; an extension may override
-   it.
+   A buffer's Modified runs after every change, except one made by
+   SetTextQuietly; an extension may override it.
 
    An editor's keys are bound to FLTK's own functions (Kf constants) or to
    the program's (KeyProc), each to a key and a state of Shift, Ctrl, Alt
@@ -102,7 +102,8 @@ TYPE
 
   TextBuffer* = POINTER TO TextBufferDesc;
   TextBufferDesc* = RECORD
-    h: SYSTEM.ADDRESS  (* the C++ buffer, 0 once closed *)
+    h: SYSTEM.ADDRESS;  (* the C++ buffer, 0 once closed *)
+    quiet: BOOLEAN      (* in SetTextQuietly: Modified isn't called *)
   END;
 
   SelectionDesc* = RECORD
@@ -271,6 +272,15 @@ END Length;
 PROCEDURE (b: TextBuffer) SetText*(s-: ARRAY OF CHAR);
 BEGIN CSetText(H(b), s)
 END SetText;
+
+(* SetText without calling Modified, as when a program fills a buffer
+   with text that isn't the user's change. Displays showing b are still
+   told, and redrawn. *)
+PROCEDURE (b: TextBuffer) SetTextQuietly*(s-: ARRAY OF CHAR);
+  VAR h: SYSTEM.ADDRESS;
+BEGIN
+  h := H(b); b.quiet := TRUE; CSetText(h, s); b.quiet := FALSE
+END SetTextQuietly;
 
 (* The text, truncated to fit s. *)
 PROCEDURE (b: TextBuffer) GetText*(VAR s: ARRAY OF CHAR);
@@ -1025,7 +1035,9 @@ END GlobalBoundKey;
 (* The dispatcher the C++ part calls. *)
 PROCEDURE ModifiedD(self: SYSTEM.ADDRESS; pos, inserted, deleted, restyled: SYSTEM.INT32);
   VAR b: TextBuffer;
-BEGIN b := SYSTEM.VAL(TextBuffer, self); b.Modified(pos, inserted, deleted, restyled)
+BEGIN
+  b := SYSTEM.VAL(TextBuffer, self);
+  IF ~b.quiet THEN b.Modified(pos, inserted, deleted, restyled) END
 END ModifiedD;
 
 (* The key dispatcher the C++ part calls: which is 0 for e's bindings, 1

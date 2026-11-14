@@ -140,7 +140,7 @@ POCID  := $(BUILD)/poc-version
 POC_ID := $(shell $(POC) -version | sed -n 1p)
 
 # Test programs (test/<name>.Mod, each a main module).
-TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestDrawMore TestStatics TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint TestPlugins TestUtf8 TestKeys TestFlTest
+TESTS := TestLiveness TestDelete TestTimer TestConstants TestWidget TestDraw TestDrawMore TestStatics TestEvents TestButtons TestInputs TestValuators TestLayout TestMenus TestDialogs TestText TestBrowsers TestTree TestImages TestClipboard TestPreferences TestTable TestArgs TestLoop TestTreeItems TestChart TestAnimGIF TestFeatures TestRect TestTracker TestTooltips TestOverlay TestImageFiles TestShared TestFileIcons TestFileChooser TestHelp TestImageHandlers TestTerminal TestPrint TestPlugins TestUtf8 TestKeys TestFlTest TestDisplay
 # TestArgs's command line: options of its own and FLTK's, and words that
 # aren't options.
 TESTARGS := -o hello --help -g 120x80 -ti Title -s plastic -nokbd rest more

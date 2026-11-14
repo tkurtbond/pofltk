@@ -13,6 +13,7 @@
 #include <FL/Fl_Window.H>
 #include <FL/fl_draw.H>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -155,6 +156,16 @@ void ofltest_clipboard_notice(int32_t source) {
 
 void ofltest_setenv(const char *name, const char *value) {
   setenv(name, value, 1);
+}
+
+void ofltest_unsetenv(const char *name) { unsetenv(name); }
+
+// 1, with value, n bytes, set to name's value cut to fit, if it is set.
+int32_t ofltest_getenv(const char *name, char *value, int32_t n) {
+  const char *v = getenv(name);
+  if (!v) return 0;
+  snprintf(value, n, "%s", v);
+  return 1;
 }
 
 // The width of the image FLTK's own Fl_Shared_Image::get makes of file

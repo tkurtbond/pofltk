@@ -580,6 +580,12 @@ PROCEDURE (s: Spinner) Value*(): LONGREAL;
 BEGIN RETURN CSpValue(Fl.Live(s))
 END Value;
 
+(* Value rounded to the nearest whole number, a half up: an IntSpinner's
+   value as an INTEGER. *)
+PROCEDURE (s: Spinner) IntValue*(): INTEGER;
+BEGIN RETURN SHORT(ENTIER(s.Value() + 0.5D0))
+END IntValue;
+
 (* Sets the value, without running the Callback. A value that isn't
    whole needs Kind FloatSpinner. *)
 PROCEDURE (s: Spinner) SetValue*(v: LONGREAL);

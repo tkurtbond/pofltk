@@ -23,6 +23,8 @@ PROCEDURE ["C", "ofltest_forced_position"] CForcedPosition(w: SYSTEM.ADDRESS): S
 PROCEDURE ["C", "ofltest_shared_width"] CSharedWidth(name: ARRAY OF CHAR): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_configured"] CConfigured(feature: SYSTEM.INT32): SYSTEM.INT32;
 PROCEDURE ["C", "ofltest_setenv"] CSetEnv(name, value: ARRAY OF CHAR);
+PROCEDURE ["C", "ofltest_unsetenv"] CUnsetEnv(name: ARRAY OF CHAR);
+PROCEDURE ["C", "ofltest_getenv"] CGetEnv(name: ARRAY OF CHAR; VAR value: ARRAY OF CHAR; n: SYSTEM.INT32): SYSTEM.INT32;
 
 (* How many resources w keeps beside its label images: a browser's
    line icons. *)
@@ -107,5 +109,14 @@ END ClipboardNotice;
 PROCEDURE SetEnv*(name-, value-: ARRAY OF CHAR);
 BEGIN CSetEnv(name, value)
 END SetEnv;
+
+PROCEDURE UnsetEnv*(name-: ARRAY OF CHAR);
+BEGIN CUnsetEnv(name)
+END UnsetEnv;
+
+(* TRUE, with value set, cut to fit, if name is set. *)
+PROCEDURE GetEnv*(name-: ARRAY OF CHAR; VAR value: ARRAY OF CHAR): BOOLEAN;
+BEGIN RETURN CGetEnv(name, value, SHORT(LEN(value))) # 0
+END GetEnv;
 
 END Probe.

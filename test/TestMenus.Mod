@@ -95,7 +95,7 @@ END LongLabels;
 (* Items whose text is shown as it is (AddText, InsertText, SetItemText),
    and the procedures for an item's state. *)
 PROCEDURE Literal;
-  VAR w: Fl.Window; m: FlMenus.MenuBar; i, n: INTEGER;
+  VAR w: Fl.Window; m: FlMenus.MenuBar; i, n: INTEGER; got: ARRAY 64 OF CHAR; short: ARRAY 5 OF CHAR;
 BEGIN
   NEW(w); Fl.OpenWindow(w, 300, 100, "Literal");
   NEW(m); FlMenus.OpenMenuBar(m, 0, 0, 300, 25, "");
@@ -117,6 +117,14 @@ BEGIN
     "a submenu's title is at Length() - 3");
   m.SetItemText(0, "x/y&z");
   Check.Check(Is(m, 0, "x/y&&z") & (m.Length() = 8), "SetItemText");
+  m.ItemText(0, got);
+  Check.Check(got = "x/y&z", "ItemText: the text given, & single");
+  m.ItemText(3, got);
+  Check.Check(got = "_R&D @ 50%\n", "and @");
+  m.ItemText(4, got);
+  Check.Check(got = "Run", "an item added by Add: its label");
+  m.ItemText(3, short);
+  Check.Check(short = "_R&D", "truncated to fit");
   i := opened; m.Choose(1);
   Check.Check((m.Value() = 1) & (opened = i), "Choose, without calling back");
   m.Choose(1);
@@ -242,6 +250,8 @@ BEGIN
   Check.Check(choice.Value() = 2, "so does removing");
   choice.Remove(2);
   Check.Check(choice.Value() = -1, "removing it leaves none");
+  choice.AppendText("D/E&F");
+  Check.Check(Is(choice, 2, "D/E&&F") & (choice.ItemFlags(2) = {}), "AppendText: no action, no flags");
   Check.Check(choice.SetValue(1) & choice.SetValue(-1) & (choice.Value() = -1), "SetValue(-1)");
   choice.SetTextSize(20); choice.SetTextColor(Fl.Red); choice.SetDownBox(Fl.FlatBox);
   Check.Check((choice.TextSize() = 20) & (choice.TextColor() = Fl.Red) & (choice.DownBox() = Fl.FlatBox),

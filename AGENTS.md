@@ -193,6 +193,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   - one main module per concern, `Test*.Mod`, using `Check.Mod`;
   - halt tests, `Halt*.Mod`, one per code;
   - `poc-gc.supp`, `display.supp` and `vg-check.sh` (Valgrind, below);
+  - `TestDisplay.Mod`, `Fl.CanOpenDisplay` before and after a display
+    is open: it changes `DISPLAY`, `WAYLAND_DISPLAY` and `FLTK_BACKEND`,
+    and must open no display before its first checks;
   - `TestConstants.Mod`, `CConstants.Mod` and `CConstants.cpp`, written
     by `tools/gen-constants.py`. `CConstants` is a test module with a C++
     part. `TestFormsConstants.Mod` and `CFormsConstants` are the same
@@ -208,7 +211,8 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     (`Grab`), a pop-up menu's window; a window's icon, forced position
     and configure count; pipes (`Pipe`, `Write`, `Read`, `Close`), for
     `TestLoop`'s fd watches; `SetKey`, `Fatal`, `ClipboardNotice` and
-    `SetEnv`. Its events moved to `FlTest` (2026-11-14);
+    `SetEnv`, `UnsetEnv` and `GetEnv`. Its events moved to `FlTest`
+    (2026-11-14);
   - `images/`: one 4x2 image, red left and blue right, in each format
     `TestImages` reads; `anim.gif`, three frames of it, for
     `TestAnimGIF`; and for `TestImageFiles` and `TestFileIcons`, `rb.xbm`,
@@ -667,6 +671,13 @@ held only in C++ memory**.
   display, FLTK prints "Can't open display" and exits 1.
 - **FLTK prefers Wayland whenever `WAYLAND_DISPLAY` is set**, even when
   `DISPLAY` names an Xvfb server. With it unset, FLTK uses X11 by itself.
+- **With `WAYLAND_DISPLAY` unset, FLTK still tries the socket
+  `wayland-0`** in `XDG_RUNTIME_DIR`, as libwayland does, so with both
+  variables unset `Fl.CanOpenDisplay` is TRUE where that socket exists
+  (2026-11-14: a listening socket in a scratch `XDG_RUNTIME_DIR` gave
+  TRUE, none FALSE; this desktop's is `wayland-1`). A program refusing
+  to start with no display checks the variables itself first, and asks
+  `CanOpenDisplay` for one that names a display gone.
 - **`Fl_Image_Surface` draws a widget that was never shown**, and its
   pixels read back exactly (`FL_RED` is 255,0,0), on both back ends.
   `Fl_Widget_Surface::draw(w, 0, 0)` puts a child widget's top left at
@@ -1304,7 +1315,16 @@ None at present.
   nor Pango; 2479, 20 skipped, with no SVG, printing or GL; 2782, 5
   skipped, with no Forms; 2573, 5 skipped, with no GL; 2854 with no
   GLEW; 2812 with no cairo; 2834 with no GLU; and on a Wayland FLTK
-  without `FLTK_HAVE_CAIRO`, 2856 on Xvfb and 2832 on sway.
+  without `FLTK_HAVE_CAIRO`, 2856 on Xvfb and 2832 on sway. After the
+  small helpers, version 0.4.0 (2026-11-14), 2874 (1 skipped), 2850 (9
+  skipped), 2576 (1 skipped) and 2553 (8 skipped) here; 2874, 1
+  skipped, on NetBSD and FreeBSD and 2866, 2 skipped, on OpenBSD,
+  `CanOpenDisplay`'s `dlsym` finding Xlib in the static FLTKs too; 2862,
+  5 skipped, with neither Cairo nor Pango; 2497, 20 skipped, with no
+  SVG, printing or GL; 2800, 5 skipped, with no Forms; 2591, 5 skipped,
+  with no GL; 2872 with no GLEW; 2830 with no cairo; 2852 with no GLU;
+  and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2874 on Xvfb and 2850
+  on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

@@ -616,6 +616,14 @@ BEGIN
   RETURN Copy(CFnfcFilename(h, i))
 END Name;
 
+(* Shows c, and gives the first file chosen, as Name(0) does; NIL if the
+   user cancelled, or Show failed (ErrorMessage says why), or nothing was
+   chosen. *)
+PROCEDURE (c: NativeFileChooser) Choose*(): Fl.String;
+BEGIN
+  IF (c.Show() = Chosen) & (c.Count() > 0) THEN RETURN c.Name(0) ELSE RETURN NIL END
+END Choose;
+
 PROCEDURE (c: NativeFileChooser) ErrorMessage*(VAR msg: ARRAY OF CHAR);
 BEGIN FromC(CFnfcErrmsg(Hd(c)), msg)
 END ErrorMessage;

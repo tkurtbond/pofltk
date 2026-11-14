@@ -329,6 +329,23 @@ void ofl_menu_label(intptr_t m, int32_t i, char *buf, int32_t n) {
   ofl::copy_out(ofl::item_name(menu(m), item(m, i)), buf, n);
 }
 
+// Item i's label with each doubled '&' and '@' made single: the text
+// literal() was given.
+int32_t ofl_menu_text(intptr_t m, int32_t i, char *buf, int32_t n) {
+  try {
+    std::string t;
+    const char *p = ofl::item_name(menu(m), item(m, i));
+    for (; p && *p; p++) {
+      if ((*p == '&' || *p == '@') && p[1] == *p) p++;
+      t += *p;
+    }
+    ofl::copy_out(t.c_str(), buf, n);
+  } catch (...) {
+    return 0;
+  }
+  return 1;
+}
+
 // Fl_Menu_::replace copies the text of a menu made by add().
 void ofl_menu_set_label(intptr_t m, int32_t i, const char *s) {
   plain(menu(m), i, i + 1);

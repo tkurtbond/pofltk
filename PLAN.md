@@ -3505,6 +3505,47 @@ Done 2026-11-14, an addition, so the version is 0.3.0
   SET"), so a test's UTF-8 text is built by setting bytes of an array.
 - The README has a section, "Testing your program".
 
+### Small helpers and the rewrite's findings, 0.4.0 `[done]`
+
+`doc/api-review.md`, 8, and what rewriting ova and besm2 to 0.2.0
+showed. Done 2026-11-14, all additions, so the version is 0.4.0
+(`PofltkApiVersion` 400):
+- **`Spinner.IntValue`**: `Value` rounded, a half up
+  (`ENTIER(x + 0.5)`, besm2's five times).
+- **`Browser.Find(text, from)`**: the first line from `from` whose
+  text is exactly `text`, or 0; halts 74 for `from` below 1. The shim
+  compares, so a long line isn't copied to Oberon. Not `FlTest.LineWith`,
+  which finds text within a line, for tests.
+- **`TextBuffer.SetTextQuietly`**: `SetText` with the buffer's
+  `Modified` not called (ova's `filling` flag). The displays are still
+  told, through FLTK's own modify callbacks, and redrawn.
+- **`Fl.CanOpenDisplay`**: FLTK calls `exit(1)` or `Fl::fatal` when it
+  can't open a display, so a program can't find out by trying. The
+  shim asks as FLTK would (`Fl::system_driver`'s `attempt_wayland` in
+  1.4.5): an open display is TRUE; otherwise `fl_disable_wayland`,
+  `FLTK_BACKEND` (`x11`, `wayland`, anything else being an exit) and
+  `XDG_RUNTIME_DIR` decide which to try, and it connects and
+  disconnects, finding `wl_display_connect` and `XOpenDisplay` by
+  `dlsym`, so a build of either kind links. `TestDisplay` checks it
+  before any display is open, TRUE, then FALSE with `DISPLAY` and
+  `WAYLAND_DISPLAY` naming nothing, and TRUE again once one is open,
+  whatever the environment then says.
+- **`Menu.AppendText(text)`**: `InsertText(-1, text, NIL, {})`, since 15
+  of the programs' 17 `AddText` calls end in `NIL, {}`.
+- **`Menu.ItemText(i, text)`**: the item's label with `&&` and `@@`
+  undoubled, so an item `AddText` added gives back what was put in.
+  An item `Add`ed with `&&` in its label gives `&` too: the doubling is
+  how FLTK shows one either way.
+- **`NativeFileChooser.Choose()`**: `Show`, then the first name, or NIL
+  on cancel, failure or no name.
+- **`Fl.String`** is documented as the type for a program's own text.
+- Not made: a label box (`OpenBox` and `SetAlign` are two calls, and
+  where the label goes is the program's), an image scaled to its box, a
+  Scroll's child filling its width (each needs more thought than a
+  helper).
+- Checked by `TestValuators`, `TestBrowsers`, `TestText`, `TestDisplay`,
+  `TestMenus` (`Literal`, and the choice) and `TestDialogs`.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was
