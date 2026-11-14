@@ -165,6 +165,36 @@ besm2 exports test-only hooks where `DoCallback` (`Fl.Mod:977`) and
 Proposal: an installed `FlTest`, with `Probe`'s events and its answering
 of dialogs, and these helpers.
 
+## What the rewrite to 0.2.0 showed
+
+On 2026-11-14 both programs were rewritten to use 1, 2, 3, 5 and 6
+(uncommitted in their repositories then). Four things in the new calls
+were awkward:
+
+- **`AddText` and `InsertText` always take an action and flags**
+  (`FlMenus.Mod:251`, `:241`). 15 of the two programs' 17 `AddText`
+  calls end in `NIL, {}`, since a choice's items have neither. A
+  one-argument form, or `AddText(text)` with `AddTextWith` for the rest,
+  would shorten them.
+- **`ItemLabel` gives back what FLTK holds** (`FlMenus.Mod:321`): for an
+  item added by `AddText`, `SetItemText` or `InsertText`, the text with
+  `&` and `@` doubled (PLAN.md, "What two applications asked for"). So
+  a test of an item's label compares with the doubled text, as ova's
+  name check with "Imp & Co @2/3" does. An `ItemText` undoing the
+  doubling for such items would give back what was put in.
+- **`Fl.String` is a type of its own** (`Fl.Mod:435`). Both programs
+  already had a `String = POINTER TO ARRAY OF CHAR` (`Besm2Text.Mod:25`,
+  `OvaText.Mod:22`), and Oberon-2 doesn't let two such pointer types be
+  assigned to each other, so each program either uses `Fl.String` where
+  the text comes from pofltk or copies it. Documenting `Fl.String` as
+  the type for a program to use too would avoid the second type.
+- **Every native chooser is shown, then asked `Name(0)`, then NIL is
+  checked** (`FlDialogs.Mod:590`, `:612`): 4 times in ova, and in besm2
+  once in `Besm2Preview.Mod:58` and once in `Chosen`
+  (`Besm2Window.Mod:182`), a helper its window's choosers share. A `NativeFileChooser.Choose(): Fl.String`,
+  showing it and giving the first name or NIL on cancel or failure,
+  would replace the three steps.
+
 ## Documentation
 
 For the README:
