@@ -588,7 +588,8 @@ unless it says otherwise.
   set by `SYSTEM.VAL(ProcType, address)` calls it with the C ABI. Checked
   with `REAL` (float), `LONGREAL`, `SYSTEM.INT32`, `INT16`, `CARD8` and
   `ADDRESS`, and 18 arguments, some on the stack, at `-OC` and `-O2`
-  (2026-11-13, x86-64). `FlGlut.GetProcAddress` relies on it.
+  (2026-11-13, x86-64), and through `TestGlut` on i386 (cymoril,
+  yishana). `FlGlut.GetProcAddress` relies on it.
 - **Exported `["C"]` procedures can be called from other modules** in
   0.3.1. In 0.1.0 they couldn't (polibfyaml's "poc 0.1.0 problems").
 - **`poc -check` uses the right word size** in 0.3.1: `poc -OC -check`
@@ -1223,7 +1224,13 @@ None at present.
   skipped), 2449 (1 skipped) and 2427 (8 skipped) here; the BSDs and the
   FLTK variants not run. After the `SchemeChoice` fix (2026-11-12), 2745
   (1 skipped), 2722 (9 skipped), 2450 (1 skipped) and 2428 (8 skipped)
-  here; the BSDs and the FLTK variants not run. After the image size fix
+  here; 2770, 1 skipped, on NetBSD and FreeBSD and 2762, 2 skipped, on
+  OpenBSD (f772303; rackhir passed on a second run, its Xvfb having
+  refused 4 programs on the first); 2758, 5 skipped, with neither Cairo
+  nor Pango; 2394, 20 skipped, with no SVG, printing or GL; 2696, 5
+  skipped, with no Forms; 2488, 5 skipped, with no GL; 2768 with no
+  GLEW; 2726 with no cairo; 2748 with no GLU; and on a Wayland FLTK
+  without `FLTK_HAVE_CAIRO`, 2770 on Xvfb and 2746 on sway. After the image size fix
   (2026-11-13), 2753 (1 skipped), 2730 (9 skipped), 2458 (1 skipped) and
   2436 (8 skipped) here; the BSDs and the FLTK variants not run. After
   the long menu label fix (2026-11-13), 2761 (1 skipped), 2738 (9

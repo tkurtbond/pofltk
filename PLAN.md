@@ -3420,7 +3420,12 @@ Still open, to look into, from binding GLUT's fonts (2026-10-31):
   `glClearColor`, `glGetFloatv` and `glGetString` that way. Tested: `make test-headless`, `test-sway`,
   `valgrind-headless` and `valgrind-sway` pass, 2770 (1 skipped), 2746 (9
   skipped), 2475 (1 skipped) and 2452 (8 skipped) `ok` lines, every
-  valgrind error summary 0; the BSDs and the FLTK variants not run.
+  valgrind error summary 0; 2770, 1 skipped, on NetBSD and FreeBSD and
+  2762, 2 skipped, on OpenBSD, so the calls work on i386 too (cymoril,
+  yishana); 2758, 5 skipped, with neither Cairo nor Pango; 2394, 20
+  skipped, with no SVG, printing or GL; 2696 with no Forms; 2488 with no
+  GL; 2768 with no GLEW; 2726 with no cairo; 2748 with no GLU; and on a
+  Wayland FLTK without `FLTK_HAVE_CAIRO`, 2770 on Xvfb and 2746 on sway.
 - **An example of GLUT's fonts.** There is none, none having been asked
   for, and FLTK's own tests and examples use none of these fonts.
 
