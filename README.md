@@ -78,6 +78,12 @@ poc -OC -library-path ~/.local/lib/poc -o Hello Hello.Mod
 A library records the poc that built it, and another poc refuses it:
 run `make install` again after upgrading poc.
 
+A program can ask which pofltk it was built with: `Fl.PofltkVersion` is
+the version as text, such as `"0.1.0"`, and `Fl.PofltkApiVersion` the
+same as a number to compare, major * 10000 + minor * 100 + patch (100
+for 0.1.0), as FLTK's `FL_API_VERSION` is. `Fl.Version`, `Fl.ApiVersion`
+and the rest are FLTK's.
+
 `FlForms` needs FLTK's Forms library, so it is a library of its own,
 `pofltk-forms`, beside `pofltk`. `make install` writes it if this FLTK
 has Forms (`make test` says if it doesn't). The same library path finds

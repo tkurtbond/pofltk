@@ -24,6 +24,13 @@ MODULE Fl; (* pofltk's core: widgets, groups, windows, boxes, timers, the event 
 IMPORT SYSTEM, Args;
 
 CONST
+  (* pofltk's own version, kept here and nowhere else: 0.x.y until a
+     release meant for others, the minor number for features, the patch
+     number for fixes, as poc's. Version, ApiVersion and the rest below
+     are FLTK's. *)
+  PofltkVersion* = "0.1.0";
+  PofltkApiVersion* = 100;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
+
   (* ASSERT codes of programmer errors (PLAN.md, "Halt codes") *)
   NotOpen* = 70;        (* a method of a widget never opened, or deleted *)
   OpenedTwice* = 71;    (* an Open of a widget opened before *)

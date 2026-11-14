@@ -3385,6 +3385,22 @@ skipped, with no `LD_LIBRARY_PATH`, `ldd` finding its own FLTK; and
 where the makefile adds no run path (pkgsrc's `fltk-config` gives one;
 the others' FLTKs are static).
 
+### pofltk's version `[done]`
+
+Decided 2026-11-13, with the user, after a first tag, `0.1.0`, was made
+and deleted the same day: it had no `v`, wasn't signed, and named a
+commit no program could check against.
+- `Fl.PofltkVersion` (`"0.1.0"`) and `Fl.PofltkApiVersion` (100), kept in
+  `src/Fl.Mod` alone, as poc keeps its number in `Version.Mod`: the text
+  to show, and a number to compare, major * 10000 + minor * 100 + patch,
+  as FLTK's `FL_API_VERSION`. Named `Pofltk`, since `Fl.Version` and
+  `Fl.ApiVersion` are FLTK's. 0.x.y until a release meant for others,
+  the minor number for features, the patch number for fixes, as poc's.
+- `TestStatics` checks that the two agree.
+- A release is tagged as Peaseblossom's are: on `main`, signed,
+  `v<version>`, with the message "pofltk <version>". The user signs it,
+  gpg asking for the passphrase.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

@@ -70,6 +70,11 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
 - `src/Fl.Mod`, `src/Fl.cpp`: the core module. Its "For pofltk's modules
   only" procedures (`BeginOpen`, `EndOpen`) are how another module
   opens a widget of its own class. Keep application code off them.
+- **pofltk's version** is `Fl.PofltkVersion` and `Fl.PofltkApiVersion`,
+  kept in `src/Fl.Mod` alone, and checked against each other by
+  `TestStatics` (2026-11-13). A release changes both, and is tagged on
+  `main`, signed, as `v<version>` with the message "pofltk <version>", as
+  Peaseblossom's are (its `doc/developer/DEVELOPER.md`): the user signs.
 - `src/FlDraw.Mod`, `src/FlDraw.cpp`: `fl_draw.H`, for `Draw` methods.
 - `Fl.Has` says what this FLTK has (`Svg`, `Wayland`, `X11`), decided by `#if` in the C++ parts, since poc has no conditional
   compilation. A test of something missing calls `Check.Skip`.

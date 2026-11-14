@@ -379,6 +379,28 @@ BEGIN
   Check.Check(Fl.AbiCheck(), "AbiCheck")
 END TestScreens;
 
+(* PofltkVersion's "x.y.z" as x * 10000 + y * 100 + z, -1 if it isn't one. *)
+PROCEDURE VersionNumber(s-: ARRAY OF CHAR): INTEGER;
+  VAR i, part, parts, n: INTEGER;
+BEGIN
+  i := 0; part := 0; parts := 0; n := 0;
+  WHILE (i < LEN(s)) & (s[i] # 0X) DO
+    IF (s[i] >= "0") & (s[i] <= "9") THEN part := part * 10 + ORD(s[i]) - ORD("0")
+    ELSIF (s[i] = ".") & (parts < 2) THEN n := n * 100 + part; part := 0; INC(parts)
+    ELSE RETURN -1
+    END;
+    INC(i)
+  END;
+  IF parts # 2 THEN RETURN -1 END;
+  RETURN n * 100 + part
+END VersionNumber;
+
+PROCEDURE TestPofltkVersion;
+BEGIN
+  Check.Check(VersionNumber(Fl.PofltkVersion) = Fl.PofltkApiVersion, "PofltkVersion and PofltkApiVersion agree");
+  Check.Check(VersionNumber("1.2.3") = 10203, "VersionNumber reads x.y.z")
+END TestPofltkVersion;
+
 BEGIN
   TestLoop;
   TestTime;
@@ -389,6 +411,7 @@ BEGIN
   TestSelection;
   TestEvents;
   TestScreens;
+  TestPofltkVersion;
   TestFonts;
   Check.Summary
 END TestStatics.
