@@ -1,0 +1,197 @@
+# What two applications showed about pofltk's API
+
+On 2026-11-14 two programs written with pofltk 0.1.0 were read to see where
+the binding made them harder to write than they need be:
+
+- `~/Repos/RPG/Tools/ova_cg_po` (ova), its GUI in `OvaWindow`,
+  `OvaWidgets`, `OvaLinkedDialog`, `OvaAttackDialog`, `OvaBackground`,
+  `OvaTraitPanel`, `OvaInline`, `OvaMarkdownTab` and `OvaSettings`;
+- `~/Repos/RPG/Tools/besm2_cg_po` (besm2), its GUI in `Besm2Window`,
+  `Besm2Widgets`, `Besm2ItemPanel`, `Besm2MechaPanel`,
+  `Besm2WeaponDialog`, `Besm2Background`, `Besm2Preview` and
+  `Besm2Creation`.
+
+They were read, not changed, built or run. Line numbers are of their
+`src/` and `test/` then, and of pofltk's `src/` at 51558b7. The pofltk
+claims below were checked against its source.
+
+Neither program needs `SYSTEM` or C for its GUI (`SYSTEM` appears only in
+modules that don't touch FLTK), and both extend widgets and override
+their methods, as the README intends. The trouble is in how some calls
+are shaped, and in conveniences missing. Nothing here is decided: these
+are proposals, ranked by how much they would help.
+
+## Proposed API changes
+
+### 1. Calls whose result nobody wants
+
+Since poc 0.11.0 a function can't be called as a statement, so both
+programs write `IF x THEN END`, about 40 times between them:
+
+- `Menu.Add` and `Insert` return an `INTEGER` (`FlMenus.Mod:227`, `:218`);
+- `Menu.SetValue` returns a `BOOLEAN` (`FlMenus.Mod:276`);
+- `Browser.Select` returns a `BOOLEAN` (`FlBrowsers.Mod:418`);
+- `Fl.Check` returns a `BOOLEAN` (`Fl.Mod:2565`), mostly in their tests.
+
+For example ova's `OvaWidgets.Mod:222` `IF p.choice.SetValue(n) THEN
+END`, `:235` `IF p.choice.Add(label, 0, {}, NIL, flags) >= 0 THEN END`,
+`:260` `IF p.browser.Select(line, TRUE) THEN END`, and
+`OvaWindow.Mod:1100`, `:1104`, `:847`.
+
+Proposal: proper procedures for the common case, such as
+`Menu.AddItem(label)` (most calls pass `0, {}, NIL, {}`), `Menu.Choose(i)`
+and `Browser.SelectLine(line)`.
+
+### 2. No way to add a menu label literally
+
+`Add` reads `/` as a submenu path and `&` as a shortcut's mark. besm2
+adds a placeholder `"-"` and relabels it with `SetItemLabel`
+(`FlMenus.Mod:298`), and doubles each `&` itself (`Besm2Text.MenuText`).
+`Besm2Widgets.Mod:281` `FillChoice` still has a latent bug with `/`.
+
+Proposal: `Menu.AddText(label, flags)`, taking the label as it is.
+
+### 3. Text of unknown length
+
+Getting text needs `Length` and then `Value`, or a buffer of 4096 bytes
+that silently cuts longer text:
+
+- `Input.Value(VAR s)` and `Input.Length` (`FlInputs.Mod:185`, `:213`):
+  besm2 has an `InputText` helper in 4 modules, ova the same at
+  `OvaWindow.Mod:161-166`;
+- `Preferences.TextLength` and `GetText` (`FlPreferences.Mod:320`,
+  `:314`): ova at `OvaWindow.Mod:267-272`;
+- `FlDialogs.Input(label, VAR value)` (`FlDialogs.Mod:241`) and
+  `NativeFileChooser.FileName(i, VAR name)` (`FlDialogs.Mod:561`) cut the
+  text with no way to learn its length: ova uses `ARRAY 4096 OF CHAR`
+  (`OvaWindow.Mod:180-249`).
+
+`FlDialogs.Name` (`FlDialogs.Mod:125`), a `POINTER TO ARRAY OF CHAR`,
+already exists, for `ListDirectory` only.
+
+Proposal: getters returning such a pointer: `Input.Text()`,
+`NativeFileChooser.Name(i)`, `Preferences.Text(name)`, and an `Input`
+dialog giving the text or NIL.
+
+### 4. Rebuilding a group from one of its own buttons
+
+A widget deleted in a callback stays a child of its group, and shown,
+until FLTK runs its queue (`pofltk.h:284-303`, `ofl::delete_widget`, by
+design: `doc/fltk-issues.md`, 72). `Group.Clear` (`Fl.Mod:1336`,
+`ofl_group_clear`, `Fl.cpp:1051-1064`) does the same. So ova's
+`RemoveAction` (`OvaWindow.Mod:635-646`) rebuilds its rows from a
+zero-length timer (`rebuild` and `fit`, `OvaWindow.Mod:118-119`; its
+PLAN.md:1082: "since FLTK can't delete the button whose callback is
+running").
+
+Proposal: in a dispatch, `Delete` and `Clear` remove and hide the widget
+first, and delete it later, so a group can be rebuilt from its own
+child's callback. At least, document it, and add `Fl.Later(proc)`, a
+one-shot idle call, so a zero timeout isn't the idiom. Needs care, and
+valgrind, given issue 72.
+
+### 5. The file chooser's filter needs a tab
+
+`SetFilter` (`FlDialogs.Mod:517`) takes FLTK's `name<TAB>pattern`, so
+the programs poke a tab in: `OvaWindow.Mod:220`, `:233` (`filter :=
+"YAML *.{yaml,yml}"; filter[4] := 9X`), `OvaBackground.Mod:180`,
+`OvaMarkdownTab.Mod:51`, and besm2 likewise.
+
+Proposal: `AddFilter(name, pattern)`, adding the tab, and the newline
+between filters.
+
+### 6. Menu item state by set arithmetic
+
+`ItemFlags` and `SetItemFlags` (`FlMenus.Mod:347`, `:351`) are the only
+per-item state calls, so both programs write `f := bar.ItemFlags(i); f
+:= f + FlMenus.MenuInactive; bar.SetItemFlags(i, f)` (ova
+`OvaWindow.Mod:794`, `:802-804`, `:831-833`; its tests' `Active(i)`,
+`TestWindow:298`).
+
+Proposal: `SetItemActive(i, on)`, `ItemActive(i)`, `SetItemChecked(i,
+on)` and `ItemChecked(i)`.
+
+### 7. Browsers: column widths and format characters
+
+Column widths are worked out from `browser.W()` and refitted after each
+resize (ova `OvaTraitPanel.Mod:73-85`, `OvaWidgets.Mod:316-317` `widths[0]
+:= w - 70`, from a `fit` timer started in `MainWindow.Resize`,
+`OvaWindow.Mod:717-723`; besm2 likewise).
+
+besm2 calls `SetFormatChar(0X)` (`FlBrowsers.Mod:482`) on every browser,
+7 times, so that a line's `@` is text.
+
+Proposal: a width of -1 in `SetColumnWidths` (`FlBrowsers.Mod:497`)
+meaning the rest of the width, kept by the shim on resize; and a way to
+add a line literally, or a setting for it, made prominent in the README.
+
+### 8. Small helpers
+
+- `Spinner.IntValue`: `Value` (`FlValuators.Mod:579`) is a `LONGREAL`,
+  and besm2 writes `ENTIER(x + 0.5)` 5 times.
+- `Browser.Find(text, from): INTEGER`: there is no search by a line's
+  text; both programs' tests have `LineWith` (ova `TestWindow:181`,
+  `TestLinked:55`).
+- `Fl.CanOpenDisplay()`: besm2 reads `DISPLAY` and `WAYLAND_DISPLAY`
+  itself (`Besm2Cg.Mod:97-120`).
+- A box's image scaled to the box: ova does `image.Scale(portrait.W() -
+  6, ...)` after each resize (`OvaBackground.Mod:149-152`).
+- Setting a text buffer without calling `Modified`, which runs on
+  `SetText` too (`FlText.Mod:263`, `:271`): ova keeps a `filling` flag.
+- A label box (`OpenBox` with `AlignLeft + AlignInside`), about 10 times
+  in besm2.
+- A recipe or option for a Scroll's child filling its width: a Scroll
+  doesn't size its child, so ova's `ShowRows` (`OvaWindow.Mod:667-707`)
+  sizes a Flex in one by hand.
+
+### 9. A test-support module for programs
+
+`test/Probe` isn't installed, so both programs make their dialogs
+replaceable procedure variables, and drive everything by `DoCallback`.
+Their tests repeat helpers:
+
+- set-then-`DoCallback`: `Type` (ova `TestWindow:161`, `TestLinked:94`),
+  `Pick` (`TestWindow:166`, `TestLinked:73`, `TestLimits:89`), `Click` or
+  `SelectLine` (`TestWindow:176`, `TestLinked:68`), `Turn` and `Spin`
+  (`TestLimits:79-87`);
+- `Settle`, `FOR i := 1 TO 5 DO Fl.Wait(0.01D0) END` (`TestWindow:72`,
+  `TestResize:48`), and `ShowIt`, `Show; WaitForExpose; IF Fl.Check()
+  THEN END`;
+- `LineWith` (8, above).
+
+besm2 exports test-only hooks where `DoCallback` (`Fl.Mod:977`) and
+`Menu.Pick` (`FlMenus.Mod:286`) would do.
+
+Proposal: an installed `FlTest`, with `Probe`'s events and its answering
+of dialogs, and these helpers.
+
+## Documentation
+
+For the README:
+
+- **A widget carrying its owner.** Both programs search a list for a
+  widget's owner in a callback (ova `PanelOf`, `OvaWidgets.Mod:265-273`,
+  and `RowOf`, `OvaWindow.Mod:617-623`; besm2 `PanelOf`), since an
+  `action` gets only the widget (`Fl.WidgetDesc`, `Fl.Mod:433-439`).
+  Show an extended button holding a pointer to its owner. (Or add a
+  `data` field to `Fl.Widget`.)
+- **Globals aren't needed to keep widgets.** besm2 keeps them in globals
+  and sets them to NIL, though pofltk's registry keeps them reachable
+  (README.md:276-286); `Hide` before `Delete` adds nothing
+  (`Fl.Mod:933`).
+- **An application's own modal dialog**: ova opens each by hand
+  (`SetModal`, `Show`, `Hide`, `Delete`: `OvaAttackDialog.Mod:273`,
+  `343-361`; `OvaLinkedDialog.Mod:434`, `560-562`; `OvaSettings.Mod:86`,
+  `161-163`). A recipe, including closing it from its own button (4).
+- **Testing your program**, with `DoCallback` and `Menu.Pick` (and
+  `FlTest`, 9).
+- **Pitfalls**: browser lines count from 1, menu and choice items from
+  0 (FLTK's); an extension's method can clash with a widget's own, so
+  ova named one `Display`, `Show` being taken.
+
+## Suggested order
+
+1, 2, 3, 5 and 6 first: small, only additions, and they remove the most
+repeated workarounds. Then 9 and the README's testing section, then 4,
+which needs tests of its own. All are additions, so `PofltkApiVersion`
+goes up without breaking either program.
