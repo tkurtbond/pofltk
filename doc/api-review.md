@@ -166,7 +166,7 @@ Proposal: an installed `FlTest`, with `Probe`'s events and its answering
 of dialogs, and these helpers.
 
 Done 2026-11-14, in pofltk 0.3.0 (PLAN.md, "FlTest: testing a
-program"), with the helpers named `Type`, `Choose`, `Click`,
+program"), with the helpers named `Type`, `Fill`, `Choose`, `Click`,
 `SelectLine`, `Turn`, `Change`, `Settle`, `Expose` and `LineWith`, and
 the README's "Testing your program".
 
@@ -199,6 +199,43 @@ were awkward:
   (`Besm2Window.Mod:182`), a helper its window's choosers share. A `NativeFileChooser.Choose(): Fl.String`,
   showing it and giving the first name or NIL on cancel or failure,
   would replace the three steps.
+
+## What moving the tests onto FlTest showed
+
+On 2026-11-14 both programs' GUI tests were moved onto `FlTest` (9;
+ova_cg_po 543686a, besm2_cg_po 2e7b5b7), dropping their own `ShowIt`,
+`Settle`, `Type`, `SelectLine`, `LineWith`, `PickAbility`, `Turn`,
+`Spin`, `SetStat` and `Select`. Every check passed as before, on
+`test-headless`, `test-sway` and `valgrind-headless`, with no check
+added or changed. ova's tests now call `Fill` 30 times, `Turn` 25,
+`LineWith` 9, `Change` 7, `Choose` 4 and `SelectLine`, `Settle` and
+`Expose` 5 each; besm2's `SelectLine` 24 times, `Fill` 16, `Change` 8
+and `Choose` once. What didn't fit:
+
+- **`LineWith` gives the first line holding the text** (`FlTest.Mod:299`);
+  ova's own gave the last. No test depended on which, but a browser
+  with the text on two lines would pick another.
+- **`Choose` wants the item's label, not the program's name for it**
+  (`FlTest.Mod:266`). Both programs label their choices from their
+  rules (`OvaRules.LabelOf`, `Besm2Rules.Label`: "Attack (p. 50)"), so
+  each test file keeps a three-line `Pick` (ova, four files) or
+  `ChooseItem` (besm2) that makes the label and halts if `Choose`
+  fails. That is the program's own mapping, and belongs in its tests.
+- **A choice picked by its index** still uses `Menu.Pick` (besm2's
+  `Pick(item)`, `entityChoice`): `FlTest` has no `Choose` by index, and
+  `Menu.Pick` already is one.
+- **Buttons and tabs are still driven by `DoCallback`** (78 calls left
+  in ova, 55 in besm2). `FlTest.Click` (`FlTest.Mod:177`) sends a push
+  through the window's routing, which can't reach a button on a tab not
+  shown, and on X11 with no window manager a click shows the window
+  (`doc/fltk-issues.md`, 176). So a tab is chosen with `SetValue` and
+  `DoCallback`, and its buttons pressed with `DoCallback`, as before.
+- **`Turn` and `Change` call back only on a change**, where the old
+  helpers always did. No test needed the callback for an unchanged value.
+- **The programs need pofltk 0.2.0, and only their tests 0.3.0**: each
+  AGENTS.md now says so.
+
+None of these asks for a change to `FlTest`.
 
 ## Documentation
 
