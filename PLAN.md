@@ -2807,7 +2807,10 @@ Done 2026-11-06. What was found and decided:
   returns a C function's address, which an Oberon program can't call;
   a program that needs a GL extension's function needs a C++ part, and
   that part can call `glutGetProcAddress` itself. `glutWarpPointer` and
-  `glutPushWindow` are left out too: they are empty in FLTK.
+  `glutPushWindow` are left out too: they are empty in FLTK. Since bound
+  (2026-11-13): poc calls a C function's address with the C ABI, through
+  `SYSTEM.VAL` of a procedure type, so `FlGlut.GetProcAddress` gives it
+  to the program (Open questions; `doc/fltk-issues.md`, 175).
 
 ### FLTKAda's Phases 15 and 16 `[done]`
 
