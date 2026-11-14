@@ -1,6 +1,6 @@
 MODULE TestStatics; (* Fl's statics: colors, box types, fonts, time, windows, the selection and the rest *)
 
-IMPORT SYSTEM, Fl, FlDraw, Strings, Check, Probe;
+IMPORT SYSTEM, Fl, FlDraw, Strings, FlTest, Check, Probe;
 
 TYPE
   Shown = POINTER TO RECORD (Fl.WindowDesc) closes: INTEGER END;
@@ -134,12 +134,12 @@ BEGIN
   NEW(box); Fl.OpenBox(box, 0, 0, 40, 40, "");
   box.SetBoxType(Fl.FreeBoxtype + 1);
   win.End;
-  Check.Check(Probe.Capture(box), "capture");
+  Check.Check(FlTest.Capture(box), "capture");
   Check.Check(drawn >= 1, "a box type of the program's draws");
   Check.Check(activeInBox, "DrawBoxActive");
-  Check.Check(Probe.Pixel(20, 20) = Fl.RGB(0, 255, 0), "the box draws by GetBoxtype's");
-  Check.Check(Probe.Pixel(20, 0) = Fl.RGB(255, 0, 0), "and draws what it likes");
-  Probe.Release;
+  Check.Check(FlTest.Pixel(20, 20) = Fl.RGB(0, 255, 0), "the box draws by GetBoxtype's");
+  Check.Check(FlTest.Pixel(20, 0) = Fl.RGB(255, 0, 0), "and draws what it likes");
+  FlTest.Release;
   win.Delete;
   c := Fl.BoxColor(Fl.Red);
   Check.Check(c = Fl.Red, "BoxColor of a color");
@@ -338,15 +338,15 @@ BEGIN
   NEW(win); Fl.OpenWindow(win, 40, 40, "");
   NEW(box); Fl.OpenBox(box, 0, 0, 40, 40, "");
   win.End;
-  ok := Probe.Mouse(win, Fl.EvMove, 5, 5, 0, Fl.Ctrl + Fl.Alt, 0);
+  ok := FlTest.Mouse(win, Fl.EvMove, 5, 5, 0, Fl.Ctrl + Fl.Alt, 0);
   Check.Check(Fl.EventCtrl() & Fl.EventAlt() & ~Fl.EventShift(), "EventCtrl, EventAlt, EventShift");
   Check.Check(Fl.EventCommand(), "EventCommand");
   Probe.SetKey(ORD("a"), "a");
   Check.Check(Fl.TestShortcut(ORD("a"), Fl.Ctrl + Fl.Alt), "TestShortcut");
   Check.Check(~Fl.TestShortcut(ORD("a"), Fl.Ctrl), "TestShortcut of other keys");
-  ok := Probe.Mouse(win, Fl.EvPush, 5, 5, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 5, 5, Fl.LeftMouse, Fl.Button1, 0);
   Check.Check(Fl.EventButtons() = Fl.Button1, "EventButtons");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Fl.CommandModifier() = Fl.Ctrl, "CommandModifier");
   Check.Check(Fl.ControlModifier() = Fl.Meta, "ControlModifier");
   Check.Check(Fl.CallbackReason() = Fl.ReasonUnknown, "no reason");

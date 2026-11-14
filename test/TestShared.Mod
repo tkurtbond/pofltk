@@ -1,6 +1,6 @@
 MODULE TestShared; (* FlImages: the pool of shared images *)
 
-IMPORT GC:=GarbageCollectedHeap, Files, Fl, FlBrowsers, FlDraw, FlImages, FlMenus, Check, Probe;
+IMPORT GC:=GarbageCollectedHeap, Files, Fl, FlBrowsers, FlDraw, FlImages, FlMenus, FlTest, Check;
 
 CONST
   Name = "images/rb.bmp";
@@ -32,8 +32,8 @@ END WriteFile;
 PROCEDURE ShowsRed(w: Fl.Widget; x, y: INTEGER): BOOLEAN;
   VAR ok: BOOLEAN;
 BEGIN
-  ok := Probe.Capture(w) & (Probe.Pixel(x, y) = red);
-  Probe.Release;
+  ok := FlTest.Capture(w) & (FlTest.Pixel(x, y) = red);
+  FlTest.Release;
   RETURN ok
 END ShowsRed;
 

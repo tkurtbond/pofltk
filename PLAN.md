@@ -3439,6 +3439,72 @@ so the version is 0.2.0 (`PofltkApiVersion` 200):
   `TestText`, `TestPreferences`, `TestDialogs`, `TestFileChooser`,
   `TestLoop` and `HaltFilterTab`.
 
+### FlTest: testing a program `[done]`
+
+`doc/api-review.md`, 9: ova's and besm2's tests can't use `test/Probe`,
+which isn't installed, so each repeats helpers and makes its dialogs
+procedure variables. Planned 2026-11-14:
+- **An installed module, `FlTest`** (`src/FlTest.Mod`, `src/FlTest.cpp`),
+  in the `pofltk` library, not an optional one: it needs only `libfltk`,
+  and a module a program doesn't import costs it nothing.
+- **What moves from `Probe`**, unchanged, since a program's test needs
+  them as pofltk's do: `Capture`, `Pixel`, `Release`, `ShownPixel`;
+  `Mouse`, `Wheel`, `Key`, `Shortcut`, `HandleKey`; `Modal`, `ModalKey`.
+  pofltk's tests use them from `FlTest`, so they test what is installed.
+  The C++ is `ofl_fltest_*`, and a widget is reached by `Fl.Live`, which
+  halts 70 on one deleted, where `Probe` read its handle.
+- **What stays in `Probe`**: what only pofltk's own tests ask about
+  (`Kept`, `IconWords`, `ForcedPosition`, `Configured`, `SharedWidth`,
+  `Grab`, `SetKey`, `Fatal`, `ClipboardNotice`) or have no other way to
+  do (the pipes, `SetEnv`).
+- **User actions**, as events where FLTK's own handling is what is
+  tested, and as a set value and `DoCallback` where an event can't be
+  sent simply (a browser line not yet drawn, a menu not shown):
+  - `Click(w)`: a push and release of the left button at `w`'s middle,
+    sent to its window; TRUE if the push was used;
+  - `Type(w, text)`: `w` given the focus, then a key down per
+    character, carrying it as its text; `Press(key, state)`: a key to
+    the focus with the text the window system gives it (`08X` for
+    BackSpace, `0DX` for Enter, and so on: the Wayland pitfall);
+  - `Fill(i, text)`: an input's text set and its callback run, as a
+    user's edit and leaving the field;
+  - `Choose(m, label)`: the first item with that label `Pick`ed; FALSE
+    if none. The label is as given to `Add` or `AddText`, or as
+    `ItemLabel` gives it (`&` and `@` doubled);
+  - `SelectLine(b, line)`, `LineWith(b, text)`: a browser line
+    selected and called back; the first line containing `text`;
+  - `Turn(b, on)`: a button set (a radio button by `SetOnly`) and
+    called back, if it changes; `Change(w, x)`: a valuator's or a
+    spinner's value set and called back.
+- **The loop**: `Settle`, five `Fl.Wait(0.01D0)`; `Expose(w)`, `Show`,
+  `WaitForExpose` and `HandlePending`.
+- **Dialogs**: `Answer(text, key)` arms a timer that waits for a modal
+  window, types `text` into it and sends `key`, as `TestDialogs`' did
+  (`doc/fltk-issues.md`, 32); `Enter` and `Escape`; `Answered(title)`,
+  whether the last was sent, and the dialog's title. So a program's
+  dialogs need not be procedure variables.
+- Checked by `TestFlTest`; `TestDialogs` answers by `FlTest.Answer`.
+
+Done 2026-11-14, an addition, so the version is 0.3.0
+(`PofltkApiVersion` 300). Found on the way:
+- **Giving the focus shows a window on X11 with no window manager**
+  (`doc/fltk-issues.md`, 176), so a `Click` on a button, which takes
+  the focus, shows its window under Xvfb and not on sway. `TestFlTest`
+  checks a click leaves the window unshown on a button with
+  `SetVisibleFocus(FALSE)`, before any widget takes the focus.
+- `Click` of a widget in no window halts 78 (`HaltClickNoWindow`), but
+  a top-level window is clicked as itself. A push's callback may delete
+  the window, so the release is sent only if it is still open.
+- `Type` sends one key per UTF-8 character, its bytes as the key's
+  text, as the window system would; a byte leading no whole sequence is
+  a character of its own.
+- `Choose` compares with the label as given and as FLTK holds it, with
+  `&&` and `@@` undoubled, so an item `AddText` added is found by its
+  text.
+- poc refuses `"h" + 0C3X` ("operands must both be numeric or both
+  SET"), so a test's UTF-8 text is built by setting bytes of an array.
+- The README has a section, "Testing your program".
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

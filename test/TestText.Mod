@@ -1,6 +1,6 @@
 MODULE TestText; (* FlText: buffers, their lifetime, displays, styles and editors *)
 
-IMPORT SYSTEM, GC := GarbageCollectedHeap, Fl, FlText, Check, Probe;
+IMPORT SYSTEM, GC := GarbageCollectedHeap, Fl, FlText, FlTest, Check;
 
 CONST file = "../build/TestText.txt";
 
@@ -37,10 +37,10 @@ VAR
 PROCEDURE Inked(x0, y0, x1, y1: INTEGER): BOOLEAN;
   VAR x, y, bg: INTEGER; found: BOOLEAN;
 BEGIN
-  bg := Probe.Pixel(x0, y1 - 1); found := FALSE; y := y0;
+  bg := FlTest.Pixel(x0, y1 - 1); found := FALSE; y := y0;
   WHILE ~found & (y < y1) DO
     x := x0;
-    WHILE ~found & (x < x1) DO found := Probe.Pixel(x, y) # bg; INC(x) END;
+    WHILE ~found & (x < x1) DO found := FlTest.Pixel(x, y) # bg; INC(x) END;
     INC(y)
   END;
   RETURN found
@@ -54,12 +54,12 @@ PROCEDURE (a: Answer) Fire*;
   VAR ok: BOOLEAN;
 BEGIN
   IF a.sent THEN (* only to wake the loop *)
-  ELSIF ~Probe.Modal(a.title) THEN
+  ELSIF ~FlTest.Modal(a.title) THEN
     INC(a.tries); IF a.tries < 400 THEN Fl.RepeatTimeout(a, 0.05D0) END
   ELSIF a.seen < 2 THEN  (* let it settle *)
     INC(a.seen); Fl.RepeatTimeout(a, 0.05D0)
   ELSE
-    ok := Probe.ModalKey(Fl.KeyEscape, {}, 1BX);
+    ok := FlTest.ModalKey(Fl.KeyEscape, {}, 1BX);
     a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
   END
 END Fire;
@@ -257,7 +257,7 @@ BEGIN
   NEW(d); FlText.OpenTextDisplay(d, 0, 0, 200, 100, "");
   NEW(d2); FlText.OpenTextDisplay(d2, 200, 0, 200, 100, "");
   NEW(e); FlText.OpenTextEditor(e, 0, 100, 400, 100, "");
-  Check.Check((d.Buffer() = NIL) & Probe.Capture(d), "a display without a buffer draws");
+  Check.Check((d.Buffer() = NIL) & FlTest.Capture(d), "a display without a buffer draws");
   Check.Check((d.LineNumberWidth() = 0) & (d.ScrollbarSize() = 0) & e.InsertMode() & ~e.TabNav(),
     "no line numbers, Fl's scrollbar size, inserting, Tab typed, to start with");
   Lines("hello", "world", "", s); b.SetText(s);
@@ -278,9 +278,9 @@ BEGIN
   Check.Check((i = 12) & (j = 13) & (d.LineStart(j) = 8) & (d.LineEnd(1) = 7), "moving the cursor, and lines");
   Check.Check(~d.MoveDown(), "FALSE at the last line");
   d.SetWrapMode(FlText.WrapAtColumn, 3);
-  Check.Check(Probe.Capture(d) & (d.CountLines(0, b.Length()) > 1), "wrapping");
+  Check.Check(FlTest.Capture(d) & (d.CountLines(0, b.Length()) > 1), "wrapping");
   (* "heXXllo" wraps two to a row in Courier, so "world" is the fifth row *)
-  d.SetTextFont(Fl.Courier); ok := Probe.Capture(d);
+  d.SetTextFont(Fl.Courier); ok := FlTest.Capture(d);
   Check.Check((d.WrappedRow(0) = 0) & (d.WrappedRow(3) = 0) & (d.WrappedRow(4) = 1)
     & (d.WrappedColumn(0, 1) = 1) & (d.WrappedColumn(1, 1) = 3) & (d.WrappedColumn(3, 1) = 7)
     & (d.WrappedColumn(4, 1) = 1), "WrappedRow and WrappedColumn: the buffer's line and column of a row's");
@@ -288,20 +288,20 @@ BEGIN
   FOR i := 0 TO 20 DO j := d.WrappedRow(i); j := d.WrappedColumn(i, 1) END;
   Check.Check((d.WrappedRow(99) = 99) & (d.WrappedColumn(-1, 2) = 2), "a row off the screen is itself");
   d.RedisplayRange(0, 3); d.RedisplayRange(-9, 999);
-  Check.Check(Probe.Capture(d), "RedisplayRange");
+  Check.Check(FlTest.Capture(d), "RedisplayRange");
   d.SetTextFont(Fl.Helvetica);
   d.SetWrapMode(FlText.WrapNone, 0);
-  Check.Check(Probe.Capture(d) & d.PositionToXY(0, x, y), "PositionToXY of text shown");
+  Check.Check(FlTest.Capture(d) & d.PositionToXY(0, x, y), "PositionToXY of text shown");
 
   (* a buffer closed while shown lives on until no display shows it *)
   NEW(other); FlText.OpenBuffer(other); other.SetText("still here");
   d.SetBuffer(other); d2.SetBuffer(other);
   other.Close;
   d.SetInsertPosition(5); d.Insert("!");
-  Check.Check((FlText.openBuffers = 1) & Probe.Capture(d) & (d.InsertPosition() = 6),
+  Check.Check((FlText.openBuffers = 1) & FlTest.Capture(d) & (d.InsertPosition() = 6),
     "a closed buffer shown still works in its displays");
   d.Delete;
-  Check.Check(Probe.Capture(d2) & (d2.InsertPosition() = 0), "after one is deleted, in the other");
+  Check.Check(FlTest.Capture(d2) & (d2.InsertPosition() = 0), "after one is deleted, in the other");
   d2.SetBuffer(b);
   Show(d2); Scrub; Churn;
   CheckShown(d2);
@@ -310,28 +310,28 @@ BEGIN
   NEW(styles); FlText.OpenBuffer(styles);
   b.SetText("XXXXXXXX"); styles.SetText("AAAABBBB");
   d2.SetBuffer(b); d2.SetStyleBuffer(styles);
-  Check.Check(Probe.Capture(d2), "a style buffer with no styles yet draws the plain text");
+  Check.Check(FlTest.Capture(d2), "a style buffer with no styles yet draws the plain text");
   c := d2.AddStyle(Fl.Black, Fl.Courier, 14, FlText.AttrBgcolor, Fl.Red);
   Check.Check((c = "A") & (d2.AddStyle(Fl.Black, Fl.Courier, 14, 0, Fl.White) = "B")
     & (d2.StyleBuffer() = styles), "AddStyle gives the styles' characters");
   styles.Close;
-  ok := Probe.Capture(d2) & d2.PositionToXY(1, x, y);
-  Check.Check(ok & (Probe.Pixel(x - d2.X() + 1, y - d2.Y() + 2) = Fl.RGB(255, 0, 0)), "style A's background is drawn");
+  ok := FlTest.Capture(d2) & d2.PositionToXY(1, x, y);
+  Check.Check(ok & (FlTest.Pixel(x - d2.X() + 1, y - d2.Y() + 2) = Fl.RGB(255, 0, 0)), "style A's background is drawn");
   d2.ClearStyles;
-  Check.Check(Probe.Capture(d2) & (Probe.Pixel(x - d2.X() + 1, y - d2.Y() + 2) # Fl.RGB(255, 0, 0)), "ClearStyles");
+  Check.Check(FlTest.Capture(d2) & (FlTest.Pixel(x - d2.X() + 1, y - d2.Y() + 2) # Fl.RGB(255, 0, 0)), "ClearStyles");
 
   (* an editor *)
   b.SetText("");
   e.SetBuffer(b);
   ok := e.TakeFocus();
-  ok := Probe.Key(Fl.EvKeyDown, ORD("a"), {}, "a");
-  ok := Probe.Key(Fl.EvKeyDown, ORD("b"), {}, "b");
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyBackSpace, {}, 08X);
-  ok := Probe.Key(Fl.EvKeyDown, ORD("c"), {}, "c");
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("a"), {}, "a");
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("b"), {}, "b");
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyBackSpace, {}, 08X);
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("c"), {}, "c");
   b.GetText(s);
   Check.Check((s = "ac") & (e.InsertPosition() = 2), "typing in an editor");
   e.SetInsertMode(FALSE); e.SetInsertPosition(0);
-  ok := Probe.Key(Fl.EvKeyDown, ORD("z"), {}, "z");
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("z"), {}, "z");
   b.GetText(s);
   Check.Check(s = "zc", "typing over");
 
@@ -343,13 +343,13 @@ BEGIN
   lwin.Show; lwin.WaitForExpose;
   ld.SetLineNumberWidth(40); ld.LineNumberFormat(s);
   Check.Check((s = "%d") & (ld.LineNumberAlign() = Fl.AlignRight), "line numbers are %d, on the right, to start with");
-  Check.Check(Probe.Capture(ld) & Inked(4, 4, 36, 30), "and drawn");
+  Check.Check(FlTest.Capture(ld) & Inked(4, 4, 36, 30), "and drawn");
   ld.SetLineNumberFormat("%-4d%%"); ld.LineNumberFormat(s);
   Check.Check(s = "%-4d%%", "a format with flags, a width and %%");
   ld.SetLineNumberFormat(""); ld.LineNumberFormat(s);
-  Check.Check((s = "") & Probe.Capture(ld) & ~Inked(4, 4, 36, 30), "one with no number shows none");
+  Check.Check((s = "") & FlTest.Capture(ld) & ~Inked(4, 4, 36, 30), "one with no number shows none");
   ld.SetLineNumberFormat("%03x"); ld.SetLineNumberAlign(Fl.AlignLeft);
-  Check.Check((ld.LineNumberAlign() = Fl.AlignLeft) & Probe.Capture(ld) & Inked(4, 4, 36, 30), "SetLineNumberAlign");
+  Check.Check((ld.LineNumberAlign() = Fl.AlignLeft) & FlTest.Capture(ld) & Inked(4, 4, 36, 30), "SetLineNumberAlign");
   lwin.Delete;
 
   b.Close;

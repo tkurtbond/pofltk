@@ -3,7 +3,7 @@ MODULE TestWidget; (* Widget, group and window properties; colors and schemes *)
 (* Each property set reads back as set, through FLTK. Drawing them is
    tested by pixels in Phase 2. *)
 
-IMPORT Out, Fl, FlDraw, Check, Probe;
+IMPORT Out, Fl, FlDraw, FlTest, Check, Probe;
 
 TYPE
   (* a box that takes pushes, and counts them *)
@@ -38,12 +38,12 @@ END Handle;
 PROCEDURE LeftInk(b: Fl.Box): INTEGER;
   VAR x, y: INTEGER; found: BOOLEAN;
 BEGIN
-  ASSERT(Probe.Capture(b));
+  ASSERT(FlTest.Capture(b));
   x := 0; found := FALSE;
   WHILE ~found & (x < b.W()) DO
     y := 0;
     WHILE ~found & (y < b.H()) DO
-      found := Probe.Pixel(x, y) # Fl.RGB(255, 255, 255); INC(y)
+      found := FlTest.Pixel(x, y) # Fl.RGB(255, 255, 255); INC(y)
     END;
     IF ~found THEN INC(x) END
   END;
@@ -96,8 +96,8 @@ END Visibility;
 PROCEDURE Click(x, y: INTEGER): BOOLEAN;
   VAR used: BOOLEAN;
 BEGIN
-  used := Probe.Mouse(win, Fl.EvPush, x, y, 1, {}, 1);
-  RETURN Probe.Mouse(win, Fl.EvRelease, x, y, 1, {}, 1) OR used
+  used := FlTest.Mouse(win, Fl.EvPush, x, y, 1, {}, 1);
+  RETURN FlTest.Mouse(win, Fl.EvRelease, x, y, 1, {}, 1) OR used
 END Click;
 
 BEGIN

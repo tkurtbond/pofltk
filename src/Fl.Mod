@@ -28,8 +28,8 @@ CONST
      release meant for others, the minor number for features, the patch
      number for fixes, as poc's. Version, ApiVersion and the rest below
      are FLTK's. *)
-  PofltkVersion* = "0.2.0";
-  PofltkApiVersion* = 200;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
+  PofltkVersion* = "0.3.0";
+  PofltkApiVersion* = 300;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
 
   (* ASSERT codes of programmer errors (PLAN.md, "Halt codes") *)
   NotOpen* = 70;        (* a method of a widget never opened, or deleted *)

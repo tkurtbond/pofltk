@@ -1,6 +1,6 @@
 MODULE TestGlut; (* FlGlut: FLTK's GLUT emulation *)
 
-IMPORT SYSTEM, Fl, FlGl, FlGlut, Check, Probe;
+IMPORT SYSTEM, Fl, FlGl, FlGlut, FlTest, Check;
 
 CONST
   Limit = 500;  (* of waits, so that valgrind has time *)
@@ -16,7 +16,7 @@ TYPE
   GetStringProc = PROCEDURE (name: SYSTEM.INT32): SYSTEM.ADDRESS;
 
 VAR
-  win: FlGlut.Window;       (* a window with an object, for Probe *)
+  win: FlGlut.Window;       (* a window with an object, for FlTest *)
   outer: Fl.Window;
   n, n2, sub, m, m2: INTEGER;
   title: ARRAY 16 OF CHAR;
@@ -124,10 +124,10 @@ PROCEDURE Answer(v: INTEGER);
   VAR ok: BOOLEAN;
 BEGIN
   IF answerPick THEN
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyDown, {}, "");
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyDown, {}, "");
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
   ELSE
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEscape, {}, 1BX)
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyEscape, {}, 1BX)
   END
 END Answer;
 
@@ -424,25 +424,25 @@ BEGIN
   Waits;
   Check.Check(win.Shown(), "hidden and shown again");
 
-  ok := Probe.Mouse(win, Fl.EvPush, 10, 11, 3, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvPush, 10, 11, 3, {}, 1);
   Check.Check(ok & (button = FlGlut.RightButton) & (state = FlGlut.Down), "mouse: a push");
-  ok := Probe.Mouse(win, Fl.EvDrag, 12, 11, 3, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvDrag, 12, 11, 3, {}, 1);
   Check.Check(motions = 1, "motion");
-  ok := Probe.Mouse(win, Fl.EvRelease, 12, 11, 3, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 12, 11, 3, {}, 1);
   Check.Check(state = FlGlut.Up, "mouse: a release");
-  ok := Probe.Mouse(win, Fl.EvMove, 13, 11, 0, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvMove, 13, 11, 0, {}, 0);
   Check.Check(passive = 1, "passive motion");
-  ok := Probe.Wheel(win, 13, 11, 0, 1);
+  ok := FlTest.Wheel(win, 13, 11, 0, 1);
   Check.Check(button = 4, "the wheel is a fifth button");
 
   Fl.SetFocus(win);
-  ok := Probe.Key(Fl.EvKeyDown, ORD("q"), {}, "q");
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("q"), {}, "q");
   Check.Check(ok & (key = ORD("q")), "keyboard");
-  ok := Probe.Key(Fl.EvKeyDown, 233, {}, 0E9X);
+  ok := FlTest.Key(Fl.EvKeyDown, 233, {}, 0E9X);
   Check.Check(ok & (key = 233), "keyboard: a key above 127");
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyF + 2, {}, "");
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyF + 2, {}, "");
   Check.Check(ok & (special = FlGlut.KeyF2), "special: F2");
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyLeft, {}, "");
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyLeft, {}, "");
   Check.Check(ok & (special = FlGlut.KeyLeft), "special: left");
 
   FlGlut.KeyboardFunc(NIL);
@@ -490,15 +490,15 @@ BEGIN
   IF ~Fl.Has(Fl.Wayland) THEN
     answerPick := TRUE;
     FlGlut.TimerFunc(200, Answer, 0);
-    ok := Probe.Mouse(win, Fl.EvPush, 10, 10, 1, {}, 1);
+    ok := FlTest.Mouse(win, Fl.EvPush, 10, 10, 1, {}, 1);
     Check.Check((picks = 1) & (picked = 4), "a menu pops up, and calls back");
     Check.Check(menuState = FlGlut.MenuNotInUse, "the menu state is heard");
-    ok := Probe.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1);
+    ok := FlTest.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1);
     answerPick := FALSE;
     FlGlut.TimerFunc(200, Answer, 0);
-    ok := Probe.Mouse(win, Fl.EvPush, 10, 10, 1, {}, 1);
+    ok := FlTest.Mouse(win, Fl.EvPush, 10, 10, 1, {}, 1);
     Check.Check(picks = 1, "or doesn't, closed");
-    ok := Probe.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1)
+    ok := FlTest.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1)
   ELSE
     Check.Skip("GLUT's pop-up menus: under Wayland the compositor closes them")
   END;
@@ -507,9 +507,9 @@ BEGIN
   FlGlut.DestroyMenu(sub);
   button := -1;
   FlGlut.MouseFunc(Mouse);
-  ok := Probe.Mouse(win, Fl.EvPush, 10, 10, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvPush, 10, 10, 1, {}, 1);
   Check.Check(button = FlGlut.LeftButton, "a window's button after its menu goes");
-  ok := Probe.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1)
+  ok := FlTest.Mouse(win, Fl.EvRelease, 10, 10, 1, {}, 1)
 END Menus;
 
 PROCEDURE Fonts;

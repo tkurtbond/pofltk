@@ -1,6 +1,6 @@
 MODULE TestOverlay; (* Fl.OverlayWindow: DrawOverlay, sent to Oberon, and redrawing *)
 
-IMPORT Fl, FlDraw, Check, Probe;
+IMPORT Fl, FlDraw, FlTest, Check;
 
 TYPE
   Overlay = POINTER TO RECORD (Fl.OverlayWindowDesc) draws: INTEGER END;
@@ -37,10 +37,10 @@ BEGIN
 
   (* FLTK draws a window's overlay with the window on a surface *)
   n := o.draws;
-  Check.Check(Probe.Capture(o), "a capture");
-  Check.Check((o.draws = n + 1) & (Probe.Pixel(15, 15) = Fl.RGB(255, 0, 0))
-    & (Probe.Pixel(50, 50) = Fl.RGB(255, 255, 255)), "draws the widgets, and over them the overlay");
-  Probe.Release;
+  Check.Check(FlTest.Capture(o), "a capture");
+  Check.Check((o.draws = n + 1) & (FlTest.Pixel(15, 15) = Fl.RGB(255, 0, 0))
+    & (FlTest.Pixel(50, 50) = Fl.RGB(255, 255, 255)), "draws the widgets, and over them the overlay");
+  FlTest.Release;
 
   n := o.draws; o.RedrawOverlay;
   Check.Check(Drawn(), "RedrawOverlay draws it");

@@ -3,7 +3,7 @@ MODULE TestAnimGIF; (* FlImages.AnimGIF: animated GIFs, their frames, canvases a
 (* images/anim.gif has three 4 by 2 frames, 0.1 s each: red left and blue
    right, then green, then blue. *)
 
-IMPORT GC := GarbageCollectedHeap, Files, Fl, FlImages, Check, Probe;
+IMPORT GC := GarbageCollectedHeap, Files, Fl, FlImages, FlTest, Check;
 
 VAR
   win: Fl.Window;
@@ -28,7 +28,7 @@ END Read;
 (* Pixel x, y of widget w as drawn. *)
 PROCEDURE Pixel(w: Fl.Widget; x, y: INTEGER): INTEGER;
   VAR p: INTEGER;
-BEGIN ok := Probe.Capture(w); p := Probe.Pixel(x, y); Probe.Release; RETURN p
+BEGIN ok := FlTest.Capture(w); p := FlTest.Pixel(x, y); FlTest.Release; RETURN p
 END Pixel;
 
 (* Waits until a's frame isn't f, up to a generous limit, for valgrind. *)

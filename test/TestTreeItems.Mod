@@ -1,6 +1,6 @@
 MODULE TestTreeItems; (* FlBrowsers.Tree: items the program makes, and widgets in items *)
 
-IMPORT GC := GarbageCollectedHeap, Fl, FlDraw, FlButtons, FlBrowsers, Check, Probe;
+IMPORT GC := GarbageCollectedHeap, Fl, FlDraw, FlButtons, FlBrowsers, FlTest, Check;
 
 TYPE
   (* An item that fills its label's place with red, and counts its draws. *)
@@ -48,8 +48,8 @@ END AddLost;
 PROCEDURE Click(x, y: INTEGER);
   VAR ok: BOOLEAN;
 BEGIN
-  ok := Probe.Mouse(win, Fl.EvPush, x, y, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, x, y, Fl.LeftMouse, {}, 0)
+  ok := FlTest.Mouse(win, Fl.EvPush, x, y, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, x, y, Fl.LeftMouse, {}, 0)
 END Click;
 
 PROCEDURE NewButton(): FlButtons.Button;
@@ -89,13 +89,13 @@ BEGIN
     & FlBrowsers.Same(r3.Next(), j), "Replace puts the item in the old one's place");
 
   r.draws := 0;
-  ok := Probe.Capture(t);
+  ok := FlTest.Capture(t);
   r.LabelXYWH(x, y, w, h);
-  Check.Check((r.draws > 0) & (w > 0) & (h > 0) & (Probe.Pixel(x + w DIV 2, y + h DIV 2) = Fl.RGB(255, 0, 0)),
+  Check.Check((r.draws > 0) & (w > 0) & (h > 0) & (FlTest.Pixel(x + w DIV 2, y + h DIV 2) = Fl.RGB(255, 0, 0)),
     "DrawContent draws the item, in its label's place");
   i := t.Find("m/three"); i.LabelXYWH(x, y, w, h);
-  Check.Check((w > 0) & (Probe.Pixel(x + w DIV 2, y + h DIV 2) # Fl.RGB(255, 0, 0)), "and FLTK's items as FLTK does");
-  Probe.Release;
+  Check.Check((w > 0) & (FlTest.Pixel(x + w DIV 2, y + h DIV 2) # Fl.RGB(255, 0, 0)), "and FLTK's items as FLTK does");
+  FlTest.Release;
   Check.Check((r.DrawFgColor() = t.ItemLabelColor()) & (r.DrawBgColor() = t.Color()),
     "DrawFgColor and DrawBgColor: the label's, and the tree's, unselected");
 
@@ -116,7 +116,7 @@ BEGIN
   i := t.Add("w/one");
   b := NewButton(); i.SetWidget(b);
   Check.Check((i.Widget() = b) & (b.Parent() = NIL) & (win.Find(b) = -1), "SetWidget: the tree's child, no group");
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   (* The label's place runs to the tree's right edge; the widget is in
      it, after the label's text and the margin. *)
   i.LabelXYWH(x, y, w, h);
@@ -133,13 +133,13 @@ BEGIN
   Check.Check((i.Widget() = NIL) & (j.Widget() = b), "a widget given to another item leaves the first");
   b.Delete;
   Check.Check(j.Widget() = NIL, "a widget deleted leaves its item");
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   b := NewButton(); j.SetWidget(b); win.Add(b);
   Check.Check((j.Widget() = NIL) & (b.Parent() = win), "and one added to another group");
   b.Delete;
 
   b := NewButton(); j.SetWidget(b); b2 := NewButton(); i.SetWidget(b2);
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   x := b.X(); y := b.Y();
   j.Remove;
   Check.Check(~b.IsOpen(), "a widget is deleted with its item");
@@ -149,7 +149,7 @@ BEGIN
 
   (* i, with b2, removed by b2's own action *)
   removeOwn := TRUE; pressed := 0;
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   Click(b2.X() + 5, b2.Y() + 5);
   Check.Check((pressed = 1) & ~i.IsLive() & b2.IsOpen(), "an item removed in its widget's callback");
   ok := Fl.Check();

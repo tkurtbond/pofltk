@@ -1,6 +1,6 @@
 MODULE TestTerminal; (* FlTerminal: output, escape sequences, the history, resizing and selecting *)
 
-IMPORT Strings, Fl, FlTerminal, Check, Probe;
+IMPORT Strings, Fl, FlTerminal, FlTest, Check;
 
 CONST
   Esc = 1BX;
@@ -388,8 +388,8 @@ PROCEDURE TestSizes;
 BEGIN
   Open(400, 300);
   t.SetTextFont(Fl.Courier);
-  ok := Probe.Capture(t);
-  Probe.Release;
+  ok := FlTest.Capture(t);
+  FlTest.Release;
   rows := t.DisplayRows(); cols := t.DisplayColumns();
   Check.Check((rows > 2) & (cols > 10), "rows and columns fit its size");
   t.SetDisplayColumns(cols + 50);
@@ -412,29 +412,29 @@ PROCEDURE TestDrawing;
 BEGIN
   Open(200, 100);
   t.SetTextFont(Fl.Courier);
-  ok := Probe.Capture(t);
+  ok := FlTest.Capture(t);
   Check.Check(ok, "drawn");
-  before := Probe.Pixel(10, 10);
-  Probe.Release;
+  before := FlTest.Pixel(10, 10);
+  FlTest.Release;
   Csi(t, "41m");
   t.Append("        ");
-  ok := Probe.Capture(t);
-  Check.Check(Probe.Pixel(10, 10) # before, "a background color shows");
-  Probe.Release;
+  ok := FlTest.Capture(t);
+  Check.Check(FlTest.Pixel(10, 10) # before, "a background color shows");
+  FlTest.Release;
   t.ResetTerminal;
   t.Append("xxxxxxxxxx");
-  ok := Probe.Capture(t);
+  ok := FlTest.Capture(t);
   differs := FALSE;
   y := 4;
   WHILE y < 20 DO
     x := 4;
     WHILE x < 60 DO
-      differs := differs OR (Probe.Pixel(x, y) # before);
+      differs := differs OR (FlTest.Pixel(x, y) # before);
       INC(x)
     END;
     INC(y)
   END;
-  Probe.Release;
+  FlTest.Release;
   Check.Check(differs, "text shows");
   Close
 END TestDrawing;
@@ -445,15 +445,15 @@ BEGIN
   Open(400, 300);
   t.SetTextFont(Fl.Courier);
   t.Append("selected");
-  ok := Probe.Capture(t);
-  Probe.Release;
+  ok := FlTest.Capture(t);
+  FlTest.Release;
   t.SelectionText(s);
   Check.Check((s = "") & (t.SelectionTextLength() = 0), "nothing selected");
   Check.Check(~t.GetSelection(sr, sc, er, ec), "GetSelection: none");
   Check.Check((sr = 0) & (sc = 0) & (er = 0) & (ec = 0), "and its corners are 0");
-  ok := Probe.Mouse(win, Fl.EvPush, 8, 12, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvDrag, 390, 12, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvRelease, 390, 12, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvPush, 8, 12, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvDrag, 390, 12, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 390, 12, 1, {}, 1);
   t.SelectionText(s);
   Check.Check(Strings.Pos("lec", s, 0) >= 0, "the mouse selects text");
   Check.Check(t.SelectionTextLength() > 0, "of some length");
@@ -461,9 +461,9 @@ BEGIN
   Check.Check((sr = er) & (sr = t.DisplayStart()) & (sc < ec), "in the ring's rows: the screen's first, start first");
   t.SelectionText(s);
   (* backwards: the corners come start first all the same *)
-  ok := Probe.Mouse(win, Fl.EvPush, 390, 12, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvDrag, 8, 12, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvRelease, 8, 12, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvPush, 390, 12, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvDrag, 8, 12, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 8, 12, 1, {}, 1);
   Check.Check(t.GetSelection(sr2, sc2, er2, ec2) & (sr2 = sr) & (er2 = er) & (sc2 < ec2),
     "a selection made backwards, start first");
   Close
@@ -518,12 +518,12 @@ BEGIN
     t.Append("line"); c[0] := LF; c[1] := 0X; t.Append(c); INC(i)
   UNTIL (i > 1000) OR (t.HistoryUse() >= 10) & (t.DisplayStart() = 0);
   Check.Check(t.DisplayStart() = 0, "the screen at the ring's start");
-  ok := Probe.Capture(t); Probe.Release;
-  ok := Probe.Wheel(win, 100, 100, 0, -3);
-  ok := Probe.Capture(t); Probe.Release;
-  ok := Probe.Mouse(win, Fl.EvPush, 8, 12, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvDrag, 30, 12, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvRelease, 30, 12, 1, {}, 1);
+  ok := FlTest.Capture(t); FlTest.Release;
+  ok := FlTest.Wheel(win, 100, 100, 0, -3);
+  ok := FlTest.Capture(t); FlTest.Release;
+  ok := FlTest.Mouse(win, Fl.EvPush, 8, 12, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvDrag, 30, 12, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 30, 12, 1, {}, 1);
   Check.Check(t.GetSelection(i, off, fg, bg) & (i < t.DisplayStart()) & (i = fg),
     "a row of the history comes before the screen's");
   Check.Check(i < 0, "and may be below 0");
@@ -536,11 +536,11 @@ BEGIN
   NEW(win); Fl.OpenWindow(win, 200, 100, "subclass");
   NEW(n); FlTerminal.OpenTerminal(n, 0, 0, 200, 100, "");
   win.End;
-  ok := Probe.Capture(n);
-  Probe.Release;
+  ok := FlTest.Capture(n);
+  FlTest.Release;
   Check.Check(n.draws = 1, "Draw is the program's");
-  ok := Probe.Mouse(win, Fl.EvPush, 50, 50, 1, Fl.Button1, 1);
-  ok := Probe.Mouse(win, Fl.EvRelease, 50, 50, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvPush, 50, 50, 1, Fl.Button1, 1);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 50, 50, 1, {}, 1);
   Check.Check(n.pushes = 1, "and Handle");
   n.Resize(0, 0, 150, 80);
   Check.Check(n.resizes = 1, "and Resize");
@@ -556,18 +556,18 @@ BEGIN
   t.SetRedrawStyle(FlTerminal.PerWrite);
   t.ClearDamage; t.Append("a");
   Check.Check(t.Damage() # {}, "PerWrite: a write redraws");
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   t.ClearDamage; t.Append("b");
   Check.Check(t.Damage() # {}, "and so does the next, once drawn");
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   t.ClearDamage; t.SetRedrawStyle(FlTerminal.RateLimited); t.Append("c");
   i := 0;
   WHILE (i < 500) & (t.Damage() = {}) DO Fl.Wait(0.01D0); INC(i) END;
   Check.Check(t.Damage() # {}, "RateLimited, after PerWrite");
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   t.ClearDamage; t.Append("d"); t.SetRedrawStyle(FlTerminal.PerWrite);
   Check.Check(t.Damage() # {}, "a write waiting for RateLimited's timer is drawn when the style changes");
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   t.ClearDamage; t.Append("e");
   Check.Check(t.Damage() # {}, "and PerWrite redraws after it");
   Close

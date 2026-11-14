@@ -1,6 +1,6 @@
 MODULE TestLoop; (* The event loop: idle callbacks, file descriptors' watches, the event dispatch, event handlers *)
 
-IMPORT GC := GarbageCollectedHeap, Fl, FlButtons, FlInputs, Check, Probe;
+IMPORT GC := GarbageCollectedHeap, Fl, FlButtons, FlInputs, FlTest, Check, Probe;
 
 TYPE
   (* Counts its runs, and removes itself after stopAt of them. *)
@@ -147,29 +147,29 @@ BEGIN
   win.End;
   Fl.SetEventDispatch(Dispatch);
   pass := TRUE;
-  ok := Probe.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 20, 20, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 20, 20, Fl.LeftMouse, {}, 0);
   Check.Check((seen = 2) & (windowSeen = win) & (pressed = 1), "the dispatch sees each event, with its window, and hands it on");
   pass := FALSE;
-  ok := Probe.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 20, 20, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 20, 20, Fl.LeftMouse, {}, 0);
   Check.Check((seen = 4) & (pressed = 1), "or keeps it from the widgets");
   pass := TRUE;
   Fl.SetFocus(input);
-  ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyKP + ORD("5"), {}, "");
+  ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyKP + ORD("5"), {}, "");
   input.Value(s);
   Check.Check(s = "5", "SetEventText and SetEventKey remap a key");
   deleteBox := TRUE;
-  ok := Probe.Mouse(win, Fl.EvPush, 120, 20, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 120, 20, Fl.LeftMouse, Fl.Button1, 0);
   deleteBox := FALSE;
   Check.Check(box.IsOpen(), "a widget deleted in the dispatch is deleted later");
-  ok := Probe.Mouse(win, Fl.EvRelease, 120, 20, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 120, 20, Fl.LeftMouse, {}, 0);
   Fl.HandlePending;
   Check.Check(~box.IsOpen(), "at the next Check (HandlePending)");
   Fl.SetEventDispatch(NIL);
   n := seen;
-  ok := Probe.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 20, 20, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 20, 20, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 20, 20, Fl.LeftMouse, {}, 0);
   Check.Check((seen = n) & (pressed = 2), "SetEventDispatch NIL: FLTK's own again");
   win.Delete;
 
@@ -179,18 +179,18 @@ BEGIN
   NEW(box); Fl.OpenBox(box, 10, 10, 80, 25, "box");
   win.End;
   Fl.AddHandler(TakeG); Fl.AddHandler(Count);
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
   Check.Check(ok & (counted = 1) & (taken = 1), "handlers see a shortcut no widget took, newest first");
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("h"), {}, "h");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("h"), {}, "h");
   Check.Check(~ok & (counted = 2) & (taken = 1), "and pass on what they don't use");
   Fl.AddHandler(Once);
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
   Check.Check(ok & (once = 1) & (counted = 2) & (taken = 2),
     "a handler may remove itself, and the next, which isn't called");
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
   Check.Check(ok & (once = 1) & (counted = 2) & (taken = 3), "RemoveHandler");
   Fl.RemoveHandler(TakeG); Fl.RemoveHandler(TakeG);
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), {}, "g");
   Check.Check(~ok & (taken = 3), "with none, FLTK's own");
   win.Delete;
 

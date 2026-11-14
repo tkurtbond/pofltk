@@ -3,7 +3,7 @@ MODULE TestFileIcons; (* FlImages: file icons *)
 (* Icons are never freed, and the list changes how a file browser draws, so
    this has a process of its own. *)
 
-IMPORT Fl, FlBrowsers, FlDraw, FlImages, Check, Probe;
+IMPORT Fl, FlBrowsers, FlDraw, FlImages, FlTest, Check;
 
 TYPE
   (* Draws its icon on white. *)
@@ -31,7 +31,7 @@ PROCEDURE Shade(): INTEGER;
 BEGIN
   sum := 0;
   FOR y := 0 TO 99 DO
-    FOR x := 0 TO 99 DO sum := (sum * 31 + Probe.Pixel(x, y)) MOD 1000003 END
+    FOR x := 0 TO 99 DO sum := (sum * 31 + FlTest.Pixel(x, y)) MOD 1000003 END
   END;
   RETURN sum
 END Shade;
@@ -46,8 +46,8 @@ END Draw;
 PROCEDURE Middle(w: Fl.Widget; c: INTEGER): BOOLEAN;
   VAR ok: BOOLEAN;
 BEGIN
-  ok := Probe.Capture(w) & (Probe.Pixel(20, 20) = c);
-  Probe.Release;
+  ok := FlTest.Capture(w) & (FlTest.Pixel(20, 20) = c);
+  FlTest.Release;
   RETURN ok
 END Middle;
 
@@ -123,8 +123,8 @@ BEGIN
   k.Clear;
   Check.Check(k.Size() = 0, "Clear");
   Check.Check(k.Load("images/rb.bmp") & (k.Size() = 68), "a BMP, each row two runs");
-  Check.Check(Probe.Capture(pic) & (Probe.Pixel(10, 10) = red) & (Probe.Pixel(30, 10) = blue), "its colors");
-  Probe.Release;
+  Check.Check(FlTest.Capture(pic) & (FlTest.Pixel(10, 10) = red) & (FlTest.Pixel(30, 10) = blue), "its colors");
+  FlTest.Release;
   k.Clear;
   Check.Check(k.Load("images/rb.gif") & (k.Size() = 68), "a GIF");
   k.Clear;
@@ -143,19 +143,19 @@ BEGIN
   win.End;
   br.Add("one"); br.Add("two");
   FlImages.SetFileIcon(br, 1, i); FlImages.SetFileIcon(br, 2, NIL);
-  ok := Probe.Capture(br); Probe.Release;
+  ok := FlTest.Capture(br); FlTest.Release;
   Check.Check(ok, "a file browser draws a line's icon");
 
   (* a line added with its icon *)
   br.Clear;
   FlImages.AddFile(br, "one", i); FlImages.AddFile(br, "two", NIL);
   Check.Check((br.Count() = 2) & Line(1, "one"), "AddFile adds a line");
-  ok := Probe.Capture(br); shade := Shade(); Probe.Release;
+  ok := FlTest.Capture(br); shade := Shade(); FlTest.Release;
   FlImages.SetFileIcon(br, 1, NIL);
-  ok := Probe.Capture(br) & (Shade() # shade); Probe.Release;
+  ok := FlTest.Capture(br) & (Shade() # shade); FlTest.Release;
   Check.Check(ok, "showing its icon");
   FlImages.SetFileIcon(br, 1, i);
-  ok := Probe.Capture(br) & (Shade() = shade); Probe.Release;
+  ok := FlTest.Capture(br) & (Shade() = shade); FlTest.Release;
   Check.Check(ok, "as SetFileIcon does");
 
   (* FLTK's own icons *)
@@ -168,7 +168,7 @@ BEGIN
   found := FlImages.FirstFileIcon();
   Check.Check((found = FlImages.FirstFileIcon()) & (found # NIL), "one object for an icon");
   Check.Check(br.LoadDirectory("images") & (br.Count() > 0), "a browser uses them, as it loads");
-  ok := Probe.Capture(br); Probe.Release;
+  ok := FlTest.Capture(br); FlTest.Release;
   Check.Check(ok, "and draws");
 
   win.Delete;

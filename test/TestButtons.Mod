@@ -1,9 +1,9 @@
 MODULE TestButtons; (* FlButtons: values, kinds, radio groups, shortcuts, repeating *)
 
-(* Clicks and keys are sent as from the window system (Probe), to a window
+(* Clicks and keys are sent as from the window system (FlTest), to a window
    never shown. *)
 
-IMPORT Fl, FlButtons, Check, Probe;
+IMPORT Fl, FlButtons, FlTest, Check;
 
 TYPE
   (* counts its Callback runs, and notes its value in the last one *)
@@ -47,11 +47,11 @@ BEGIN
 END WaitFor;
 
 PROCEDURE Press(w: Fl.Widget);
-BEGIN held := Probe.Mouse(win, Fl.EvPush, w.X() + 5, w.Y() + 5, Fl.LeftMouse, Fl.Button1, 0)
+BEGIN held := FlTest.Mouse(win, Fl.EvPush, w.X() + 5, w.Y() + 5, Fl.LeftMouse, Fl.Button1, 0)
 END Press;
 
 PROCEDURE Release(w: Fl.Widget);
-BEGIN held := Probe.Mouse(win, Fl.EvRelease, w.X() + 5, w.Y() + 5, Fl.LeftMouse, {}, 0)
+BEGIN held := FlTest.Mouse(win, Fl.EvRelease, w.X() + 5, w.Y() + 5, Fl.LeftMouse, {}, 0)
 END Release;
 
 PROCEDURE Click(w: Fl.Widget);
@@ -62,7 +62,7 @@ END Click;
 PROCEDURE Pixels(VAR p: ARRAY OF INTEGER; w, h: INTEGER);
   VAR x, y: INTEGER;
 BEGIN
-  FOR y := 0 TO h - 1 DO FOR x := 0 TO w - 1 DO p[y * w + x] := Probe.Pixel(x, y) END END
+  FOR y := 0 TO h - 1 DO FOR x := 0 TO w - 1 DO p[y * w + x] := FlTest.Pixel(x, y) END END
 END Pixels;
 
 (* Whether column x of plain and compact differ, in rows from to to. *)
@@ -90,10 +90,10 @@ BEGIN
   NEW(right); FlButtons.OpenButton(right, 10 + w, 10, w, h, "");
   keys.End; pad.End;
   Check.Check(~right.Compact(), "a button isn't compact to start with");
-  Check.Check(Probe.Capture(right), "a plain key draws"); Pixels(plain, w, h);
+  Check.Check(FlTest.Capture(right), "a plain key draws"); Pixels(plain, w, h);
   left.SetCompact(TRUE); right.SetCompact(TRUE);
   Check.Check(right.Compact(), "SetCompact reads back");
-  Check.Check(Probe.Capture(right), "a compact key draws"); Pixels(compact, w, h);
+  Check.Check(FlTest.Capture(right), "a compact key draws"); Pixels(compact, w, h);
   Check.Check(~Differ(plain, compact, w, w - 1, 0, h - 1),
     "a compact key's edge on its group's edge is drawn as before");
   Check.Check(Differ(plain, compact, w, 0, 0, h - 1),
@@ -106,7 +106,7 @@ END CompactKeys;
 (* A key with the text the window system would give it. *)
 PROCEDURE Key(key: INTEGER; keys: SET; text: ARRAY OF CHAR);
   VAR used: BOOLEAN;
-BEGIN used := Probe.Key(Fl.EvKeyDown, key, keys, text)
+BEGIN used := FlTest.Key(Fl.EvKeyDown, key, keys, text)
 END Key;
 
 PROCEDURE CheckShortcutButton;
@@ -201,12 +201,12 @@ BEGIN
   push.Shortcut(key, state);
   Check.Check((key = ORD("x")) & (state = Fl.Ctrl), "a shortcut reads back as key and state");
   before := push.calls;
-  Check.Check(Probe.Shortcut(win, ORD("x"), Fl.Ctrl, "x") & (push.calls = before + 1),
+  Check.Check(FlTest.Shortcut(win, ORD("x"), Fl.Ctrl, "x") & (push.calls = before + 1),
     "typing the shortcut clicks the button");
-  Check.Check(~Probe.Shortcut(win, ORD("x"), {}, "x") & (push.calls = before + 1),
+  Check.Check(~FlTest.Shortcut(win, ORD("x"), {}, "x") & (push.calls = before + 1),
     "the key without Ctrl doesn't");
   ret.action := Count; calls := 0;
-  Check.Check(Probe.Shortcut(win, Fl.KeyEnter, {}, 0DX) & (calls = 1),
+  Check.Check(FlTest.Shortcut(win, Fl.KeyEnter, {}, 0DX) & (calls = 1),
     "Enter clicks a return button");
   push.SetShortcut(0, {});
 

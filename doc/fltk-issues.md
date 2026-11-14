@@ -3523,3 +3523,30 @@ with no display, printing the address of each name above, and calling
 two made-up ones, under valgrind with no error. `TestGlut` calls
 `glClearColor`, `glGetFloatv` and `glGetString` through the addresses it
 gives, on both back ends.
+
+## 176. Giving the focus shows the window, on X11 with no window manager
+
+**What happens:** `Fl::focus(w)` of a widget in a window never shown
+shows the window, on X11 when no window manager supporting EWMH is
+running (Xvfb, as the tests run). So does a push on a button, which
+takes the focus (`Fl::visible_focus()`), and so `FlTest.Click` and
+`Type`. With an EWMH window manager, and under Wayland, the window stays
+unshown. FLTK doesn't document it.
+
+**Cause:** `Fl::focus` (`src/Fl.cxx`) calls the window driver's
+`take_focus()`; `Fl_X11_Window_Driver::take_focus`
+(`src/drivers/X11/Fl_X11_Window_Driver.cxx:126`) calls
+`pWindow->show()` for "old WMs" whenever `ewmh_supported()` is 0, shown
+or not. Wayland's (`Fl_Wayland_Window_Driver::take_focus`) does nothing
+for a window with no surface.
+
+**Effect on pofltk:** none to work around: a used push never shows a
+window itself (`Fl::handle_` shows it only for a push no widget uses).
+FlTest's module comment says a click or typing may show the window, and
+`TestFlTest` checks a click leaves it unshown on a button with
+`SetVisibleFocus(FALSE)`.
+
+**Confirmed:** a program, 2026-11-14, pushing a button in a window never
+shown: shown after the push on Xvfb, with the backtrace `Fl_Window::show`
+from `Fl_X11_Window_Driver::take_focus` from `Fl::focus` from
+`Fl_Button::handle`; still unshown on headless sway.

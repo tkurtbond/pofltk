@@ -1,10 +1,10 @@
 MODULE TestLayout; (* FlLayout: where flex, grid, pack, scroll, tabs, wizard and tile put children *)
 
 (* Layouts are computed by their Layout methods, or by drawing them into
-   an image (Probe.Capture), as FLTK does before it shows them; the window
+   an image (FlTest.Capture), as FLTK does before it shows them; the window
    is never shown. *)
 
-IMPORT Fl, FlLayout, FlValuators, Check, Probe;
+IMPORT Fl, FlLayout, FlValuators, FlTest, Check;
 
 VAR
   win: Fl.Window;
@@ -29,8 +29,8 @@ END NewBox;
 PROCEDURE PixelAt(w: Fl.Widget; x, y: INTEGER): INTEGER;
   VAR p: INTEGER;
 BEGIN
-  p := -1; IF Probe.Capture(w) THEN p := Probe.Pixel(x, y) END;
-  Probe.Release; RETURN p
+  p := -1; IF FlTest.Capture(w) THEN p := FlTest.Pixel(x, y) END;
+  FlTest.Release; RETURN p
 END PixelAt;
 
 PROCEDURE Is(w: Fl.Widget; x, y, width, height: INTEGER): BOOLEAN;
@@ -63,7 +63,7 @@ BEGIN
   row.SetKind(FlLayout.Row);
   NewBox(d, 0, 0, 0, 0); NewBox(content, 0, 0, 0, 0);
   row.End;
-  Check.Check(Probe.Capture(row) & (row.Kind() = FlLayout.Row)
+  Check.Check(FlTest.Capture(row) & (row.Kind() = FlLayout.Row)
     & Is(d, 100, 0, 150, 50) & Is(content, 250, 0, 150, 50),
     "a flex row, laid out when drawn after End");
   row.Delete;
@@ -113,7 +113,7 @@ BEGIN
   pack.SetSpacing(5);
   (* Fl_Pack sets its own size as it draws, so the capture is the size
      the pack was, not the size it is. *)
-  IF Probe.Capture(pack) THEN END;
+  IF FlTest.Capture(pack) THEN END;
   Check.Check((pack.Kind() = FlLayout.PackVertical) & (pack.Spacing() = 5)
     & (p1.Y() = 300) & (p2.Y() = 325) & (p2.H() = 30) & (pack.H() = 55),
     "a pack stacks its children, spaced, when drawn, and fits itself to them");
@@ -144,7 +144,7 @@ BEGIN
     "AlignLeft + AlignTop draws them left and top");
   scroll.Clear;
   Check.Check((scroll.Children() = 2) & ~content.IsOpen(), "Clear deletes the content, not the scrollbars");
-  Check.Check(Probe.Capture(scroll), "and the scroll still draws");
+  Check.Check(FlTest.Capture(scroll), "and the scroll still draws");
 
   (* tabs *)
   NEW(tabs); FlLayout.OpenTabs(tabs, 300, 100, 200, 150, "");
@@ -186,10 +186,10 @@ BEGIN
   NEW(spinner); FlValuators.OpenSpinner(spinner, 450, 450, 100, 25, "");
   spinner.End;
   spinner.Clear;
-  Check.Check((spinner.Children() = 3) & Probe.Capture(spinner), "Clear leaves a spinner's own parts");
+  Check.Check((spinner.Children() = 3) & FlTest.Capture(spinner), "Clear leaves a spinner's own parts");
 
   win.End;
-  Probe.Release;
+  FlTest.Release;
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");
   Check.Summary

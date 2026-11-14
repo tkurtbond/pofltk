@@ -79,9 +79,9 @@ A library records the poc that built it, and another poc refuses it:
 run `make install` again after upgrading poc.
 
 A program can ask which pofltk it was built with: `Fl.PofltkVersion` is
-the version as text, such as `"0.2.0"`, and `Fl.PofltkApiVersion` the
-same as a number to compare, major * 10000 + minor * 100 + patch (200
-for 0.2.0), as FLTK's `FL_API_VERSION` is. `Fl.Version`, `Fl.ApiVersion`
+the version as text, such as `"0.3.0"`, and `Fl.PofltkApiVersion` the
+same as a number to compare, major * 10000 + minor * 100 + patch (300
+for 0.3.0), as FLTK's `FL_API_VERSION` is. `Fl.Version`, `Fl.ApiVersion`
 and the rest are FLTK's.
 
 `FlForms` needs FLTK's Forms library, so it is a library of its own,
@@ -239,6 +239,7 @@ the system's colours; `Show` does neither.
 | `FlHelp` | `HelpView` (HTML, with links and images the program may answer itself), `HelpDialog` |
 | `FlUtf8` | UTF-8 text in `ARRAY OF CHAR`: walking it, its characters, case, and conversions, in bytes |
 | `FlTerminal` | `Terminal`: a screen of text for a program's output, with a history and ANSI colors |
+| `FlTest` | for a program's tests: its widgets clicked, typed into, chosen from and set as by a user, its dialogs answered, events sent as the window system sends them, and what a widget draws read back as pixels |
 | `FlPrint` | `Printer`, and files: `PostScriptFile`, `PDFFile`, `EPSFile`, `SVGFile`; what `FlDraw` draws goes to the one begun |
 | `FlForms` | `Timer`, `Free` (a widget with one handler for all it does), `FormsBitmap`, `FormsPixmap`, `FormsText`; in its own library, `pofltk-forms` |
 | `FlGl` | `GlWindow`, FLTK's text and rectangles in GL, and the part of GL its programs use; in its own library, `pofltk-gl` |
@@ -329,6 +330,46 @@ prints `assertion failed (n)`:
 | 76 | a widget that must be a group's child isn't (`Fl.NotAChild`) |
 | 77 | a surface's `Begin` and `End` out of order (`Fl.OutOfOrder`) |
 | 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file chooser filter's name or pattern holding a tab or line feed; a file descriptor's conditions empty or unknown; a tree's root replaced; a line number format that isn't one number's; a GL texture pile under 1 (`Fl.Unsupported`) |
+
+## Testing your program
+
+`FlTest` drives a program's windows as a user would, with no person or
+input tool, in windows shown or not, so its tests run under `make` on
+Xvfb or a headless compositor as pofltk's own do:
+
+```oberon
+MODULE TestMain;
+IMPORT Fl, FlDialogs, FlTest, Main;
+VAR ok: BOOLEAN; s: ARRAY 64 OF CHAR;
+BEGIN
+  Main.Open;                                (* the program's window, not shown *)
+  ok := FlTest.Type(Main.name, "Ada");      (* the focus, then a key per character *)
+  ok := FlTest.Press(Fl.KeyEnter, {});
+  ok := FlTest.Click(Main.save);            (* a push and a release at its middle *)
+  ok := FlTest.Choose(Main.colour, "Red");  (* the item picked, its action run *)
+  FlTest.Enter;                             (* answers the next dialog *)
+  Main.Quit;                                (* which asks FlDialogs.Question *)
+  IF FlTest.Answered(s) THEN (* s is the dialog's title *) END;
+  Main.window.Delete
+END TestMain.
+```
+
+- `Click`, `Type` and `Press` send events, so FLTK's own handling is
+  what is tested. `Mouse`, `Wheel`, `Key`, `Shortcut` and `HandleKey`
+  send one event each.
+- `Fill`, `Choose`, `SelectLine`, `Turn` and `Change` set a value and
+  run the callback, where an event can't be sent simply: a menu not
+  popped up, a browser line not yet drawn.
+- `Answer(text, key)`, `Enter` and `Escape` answer the next dialog from
+  a timer, so a program's dialogs need not be replaced in its tests.
+- `Capture` and `Pixel` read what a widget draws, in a window never
+  shown; `Expose` and `ShownPixel` what a shown window shows. `Settle`
+  lets FLTK finish what an event started.
+
+Without a window manager, X11 shows a window when a widget in it takes
+the focus, as a clicked button does; a test that cares turns its
+`SetVisibleFocus` off. A test must delete its windows, or valgrind
+counts them as leaks. FlTest's module comment lists the pitfalls.
 
 ## FLTK's problems
 

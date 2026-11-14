@@ -1,6 +1,6 @@
 MODULE TestFileChooser; (* FlDialogs.FileChooser: FLTK's chooser, kept by the program *)
 
-IMPORT SYSTEM, GC := GarbageCollectedHeap, Fl, FlDialogs, FlButtons, Check, Probe;
+IMPORT SYSTEM, GC := GarbageCollectedHeap, Fl, FlDialogs, FlButtons, FlTest, Check;
 
 CONST tries = 400;  (* of 0.05 s, waiting for a window; generous, for valgrind *)
 
@@ -41,12 +41,12 @@ PROCEDURE (a: Answer) Fire*;
   VAR title: ARRAY 64 OF CHAR; ok: BOOLEAN;
 BEGIN
   IF a.sent THEN (* only to wake the loop *)
-  ELSIF ~Probe.Modal(title) THEN
+  ELSIF ~FlTest.Modal(title) THEN
     INC(a.tries); IF a.tries < tries THEN Fl.RepeatTimeout(a, 0.05D0) END
   ELSIF a.seen < 2 THEN
     INC(a.seen); Fl.RepeatTimeout(a, 0.05D0)
   ELSE
-    ok := Probe.ModalKey(Fl.KeyEnter, {}, 0DX);
+    ok := FlTest.ModalKey(Fl.KeyEnter, {}, 0DX);
     a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
   END
 END Fire;

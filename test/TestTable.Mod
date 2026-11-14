@@ -1,6 +1,6 @@
 MODULE TestTable; (* FlTable: cells drawn by DrawCell, clicks, selection, and widgets in cells *)
 
-IMPORT Fl, FlDraw, FlButtons, FlTable, Check, Probe;
+IMPORT Fl, FlDraw, FlButtons, FlTable, FlTest, Check;
 
 TYPE
   (* Fills cell 0, 0 red and 1, 1 blue, the rest white, and counts what
@@ -44,8 +44,8 @@ END Callback;
 
 PROCEDURE Click(x, y: INTEGER);
 BEGIN
-  ok := Probe.Mouse(win, Fl.EvPush, x, y, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, x, y, Fl.LeftMouse, {}, 0)
+  ok := FlTest.Mouse(win, Fl.EvPush, x, y, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, x, y, Fl.LeftMouse, {}, 0)
 END Click;
 
 BEGIN
@@ -86,7 +86,7 @@ BEGIN
   Check.Check((t.TableBox() = Fl.NoBox) & (t.ScrollbarSize() = 12) & ~t.IsInteractiveResize(), "SetTableBox, SetScrollbarSize");
 
   (* Drawing *)
-  ok := Probe.Capture(t);
+  ok := FlTest.Capture(t);
   Check.Check(ok & (t.cells > 0) & (t.headers > 0) & (t.pages = 2), "DrawCell: cells, headers, start and end");
   Check.Check(t.FindCell(FlTable.ContextCell, 0, 0, x, y, w, h)
     & (x = 41) & (y = 26) & (w = 50) & (h = 20), "FindCell: past the headers and the frame");
@@ -96,11 +96,11 @@ BEGIN
   Check.Check((ax = 41) & (ay = 26) & (aw = 258) & (ah = 173), "Area: the cells', beside the headers");
   t.Area(FlTable.AreaCellsInner, ax, ay, aw, ah);
   Check.Check((ax = 41) & (ay = 26) & (aw = 258) & (ah = 173), "Area: inside the cells' box, NoBox");
-  Check.Check((Probe.Pixel(x + 25, y + 10) = Fl.RGB(255, 0, 0))
-    & (Probe.Pixel(x + 75, y + 30) = Fl.RGB(0, 0, 255))
-    & (Probe.Pixel(x + 75, y + 10) = Fl.RGB(255, 255, 255)), "DrawCell draws each cell where it is");
-  Check.Check(Probe.Pixel(20, y + 10) = Fl.RGB(0, 255, 0), "and the headers");
-  Probe.Release;
+  Check.Check((FlTest.Pixel(x + 25, y + 10) = Fl.RGB(255, 0, 0))
+    & (FlTest.Pixel(x + 75, y + 30) = Fl.RGB(0, 0, 255))
+    & (FlTest.Pixel(x + 75, y + 10) = Fl.RGB(255, 255, 255)), "DrawCell draws each cell where it is");
+  Check.Check(FlTest.Pixel(20, y + 10) = Fl.RGB(0, 255, 0), "and the headers");
+  FlTest.Release;
   t.VisibleCells(r1, r2, c1, c2);
   Check.Check((r1 = 0) & (r2 = 4) & (c1 = 0) & (c2 = 3), "VisibleCells");
   t.SetTableBox(Fl.ThinDownFrame);
@@ -136,12 +136,12 @@ BEGIN
   (* Tab: the next widget, or with TabCellNav the next cell *)
   Check.Check(~t.TabCellNav(), "TabCellNav: off to start with");
   Fl.SetFocus(t); t.SetSelection(1, 1, 1, 1);
-  Check.Check(~Probe.Key(Fl.EvKeyDown, Fl.KeyTab, {}, 09X), "Tab: the table leaves it to FLTK");
+  Check.Check(~FlTest.Key(Fl.EvKeyDown, Fl.KeyTab, {}, 09X), "Tab: the table leaves it to FLTK");
   t.SetTabCellNav(TRUE);
-  Check.Check(t.TabCellNav() & Probe.Key(Fl.EvKeyDown, Fl.KeyTab, {}, 09X), "SetTabCellNav: the table takes Tab");
+  Check.Check(t.TabCellNav() & FlTest.Key(Fl.EvKeyDown, Fl.KeyTab, {}, 09X), "SetTabCellNav: the table takes Tab");
   t.GetSelection(r1, c1, r2, c2);
   Check.Check((r1 = 1) & (c1 = 2) & (r2 = 1) & (c2 = 2), "and moves to the next cell");
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyTab, Fl.Shift, 09X);
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyTab, Fl.Shift, 09X);
   t.GetSelection(r1, c1, r2, c2);
   Check.Check(ok & (r1 = 1) & (c1 = 1), "Shift-Tab: the cell before");
   t.SetTabCellNav(FALSE); Fl.SetFocus(NIL);

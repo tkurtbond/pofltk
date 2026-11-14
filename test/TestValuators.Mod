@@ -1,9 +1,9 @@
 MODULE TestValuators; (* FlValuators: values, bounds, steps, kinds, dragging *)
 
-(* Mouse events are sent as from the window system (Probe), to a window
+(* Mouse events are sent as from the window system (FlTest), to a window
    never shown. *)
 
-IMPORT Fl, FlValuators, Check, Probe;
+IMPORT Fl, FlValuators, FlTest, Check;
 
 VAR
   win: Fl.Window;
@@ -32,7 +32,7 @@ PROCEDURE Mouse(event, x, y: INTEGER);
   VAR state: SET;
 BEGIN
   IF event = Fl.EvRelease THEN state := {} ELSE state := Fl.Button1 END;
-  used := Probe.Mouse(win, event, x, y, Fl.LeftMouse, state, 0)
+  used := FlTest.Mouse(win, event, x, y, Fl.LeftMouse, state, 0)
 END Mouse;
 
 PROCEDURE Type(keys: ARRAY OF CHAR);
@@ -40,7 +40,7 @@ PROCEDURE Type(keys: ARRAY OF CHAR);
 BEGIN
   i := 0; t[1] := 0X;
   WHILE keys[i] # 0X DO
-    t[0] := keys[i]; used := Probe.Key(Fl.EvKeyDown, ORD(keys[i]), {}, t); INC(i)
+    t[0] := keys[i]; used := FlTest.Key(Fl.EvKeyDown, ORD(keys[i]), {}, t); INC(i)
   END
 END Type;
 
@@ -126,11 +126,11 @@ BEGIN
   Check.Check(~out.Shadow(), "SetShadow");
   (* a square face reaches the corners, a round one doesn't *)
   out.SetColor(Fl.White);
-  shown := Probe.Capture(out); square := Probe.Pixel(6, 6); Probe.Release;
+  shown := FlTest.Capture(out); square := FlTest.Pixel(6, 6); FlTest.Release;
   out.SetKind(FlValuators.RoundClock);
-  shown := Probe.Capture(out);
-  Check.Check(Probe.Pixel(6, 6) # square, "SetKind changes the face");
-  Probe.Release;
+  shown := FlTest.Capture(out);
+  Check.Check(FlTest.Pixel(6, 6) # square, "SetKind changes the face");
+  FlTest.Release;
 
   (* a shown clock's timer ticks; it must go with the clock, and valgrind
      would see it run on one deleted *)

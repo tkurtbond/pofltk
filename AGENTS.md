@@ -117,6 +117,15 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   bytes. Each C++ function works on a copy with zeros on both sides
   (`Text`), keeps results within the text, and `give`s what fits
   (`doc/fltk-issues.md`, 115 to 118).
+- `src/FlTest.Mod`, `src/FlTest.cpp`: for a program's tests, installed
+  in `pofltk` (2026-11-14): a widget's pixels, captured into an
+  `Fl_Image_Surface` (`Capture`, `Pixel`), and what a shown window shows
+  (`ShownPixel`); mouse, wheel and key events sent as the window system
+  would, and keys sent to the modal window (a dialog); a user's acts
+  (`Click`, `Type`, `Press`, `Fill`, `Choose`, `SelectLine`, `Turn`,
+  `Change`); and dialogs answered by a timer (`Answer`). Its C names
+  are `ofl_fltest_`, since `Fl.cpp` has an `ofl_test_shortcut`.
+  pofltk's tests use it, so they test what is installed.
 - `src/FlPreferences.Mod`, `src/FlPreferences.cpp`: `Fl_Preferences`. A
   group is its database and a path, not an `Fl_Preferences` kept.
 - `src/FlTable.Mod`, `src/FlTable.cpp`: `Fl_Table` and `Fl_Table_Row`.
@@ -193,14 +202,13 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
     part, which replaces Cairo's `cairo_pdf_surface_create_for_stream`
     in `TestPrint`, to make it fail, and finds the lowest free file
     descriptor;
-  - `Probe.Mod` and `Probe.cpp`, a test module with a C++ part: a
-    widget's pixels, captured into an `Fl_Image_Surface`; mouse, wheel
-    and key events sent as the window system would; the modal window (a
-    dialog) and keys sent to it; whether FLTK uses Wayland; and how
-    many things a widget keeps (`Kept`, `Ref::keep`); pipes
-    (`Pipe`, `Write`, `Read`, `Close`), for `TestLoop`'s fd watches;
-    what a shown window shows (`ShownPixel`), on either back end; and
-    where the grab is (`Grab`), a pop-up menu's window.
+  - `Probe.Mod` and `Probe.cpp`, a test module with a C++ part, for
+    what only pofltk's own tests ask, which `FlTest` doesn't give: how
+    many things a widget keeps (`Kept`, `Ref::keep`); where the grab is
+    (`Grab`), a pop-up menu's window; a window's icon, forced position
+    and configure count; pipes (`Pipe`, `Write`, `Read`, `Close`), for
+    `TestLoop`'s fd watches; `SetKey`, `Fatal`, `ClipboardNotice` and
+    `SetEnv`. Its events moved to `FlTest` (2026-11-14);
   - `images/`: one 4x2 image, red left and blue right, in each format
     `TestImages` reads; `anim.gif`, three frames of it, for
     `TestAnimGIF`; and for `TestImageFiles` and `TestFileIcons`, `rb.xbm`,
@@ -414,12 +422,12 @@ widgets never shown; `make test` stops with a message without one.
     (Wayland).
 - A test drives itself, with no input tool:
   - `DoCallback`;
-  - events from `test/Probe`, sent to a window never shown;
+  - events from `FlTest`, sent to a window never shown;
   - `Fl.AddTimeout`, or `Fl.Wait`/`Fl.Check` in a loop;
   - deleting its windows before it ends.
 
   `make test` runs each test under `timeout`.
-- **`Probe` drives FLTK's own routing, so mind what FLTK does**:
+- **`FlTest` drives FLTK's own routing, so mind what FLTK does**:
   - a mouse event goes through `Fl::handle`, to the widget under the
     mouse, then to `Fl::pushed()`;
   - a push no widget uses shows the window (FLTK raises it), so put
@@ -427,31 +435,31 @@ widgets never shown; `make test` stops with a message without one.
   - a key goes to the focus widget alone. Through `Fl::handle`, a key no
     widget uses crashes FLTK 1.4.5 when no window is shown and
     `BelowMouse` is set (`doc/fltk-issues.md`, 3);
-  - drag and drop events go through `Probe.Mouse`. A window passes
+  - drag and drop events go through `FlTest.Mouse`. A window passes
     `EvDndLeave` to every child, and with no window shown an `Fl_Input`
     crashes on it (`doc/fltk-issues.md`, 53): test in a window with
     no input;
   - a key must carry the text the window system would give it
     (BackSpace `08X`, Enter `0DX`): under Wayland, FLTK takes a key with
     no text as composed text;
-  - `Probe.Shortcut` offers a key to a window's widgets as a shortcut,
+  - `FlTest.Shortcut` offers a key to a window's widgets as a shortcut,
     for return buttons and shortcuts;
   - waits on timers allow for valgrind's slowness: loop until the
     condition holds, up to a generous limit;
-  - `Probe.HandleKey` sends a key through `Fl::handle`: to a pop-up
+  - `FlTest.HandleKey` sends a key through `Fl::handle`: to a pop-up
     menu's grab, or as a shortcut to a window's widgets and then the
     event handlers (a global menu);
-  - a dialog is answered by a timer that waits for `Probe.Modal`, then
-    sends keys with `Probe.ModalKey`, then fires once more: FLTK runs
-    timers and then waits for an event, and under Xvfb none comes to end
-    the dialog's loop (`doc/fltk-issues.md`, 32);
+  - a dialog is answered by a timer (`FlTest.Answer`) that waits for
+    `FlTest.Modal`, then sends keys with `FlTest.ModalKey`, then fires
+    once more: FLTK runs timers and then waits for an event, and under
+    Xvfb none comes to end the dialog's loop (`doc/fltk-issues.md`, 32);
   - under Wayland the compositor closes a pop-up menu of a window no
-    user clicked, so `Popup` is tested on X11 alone (`Probe.Wayland`).
+    user clicked, so `Popup` is tested on X11 alone (`Fl.Has(Fl.Wayland)`).
 - **`xdotool` is installed** (2026-10-06), for trying an example by hand
   under Xvfb: run it in `xvfb-run -a -s '-screen 0 640x480x24' sh -c
   '...'` with `WAYLAND_DISPLAY` unset, move and click with `xdotool`, and
   look with `import -window root shot.png` (ImageMagick). Tests use
-  `Probe`, not `xdotool`, so they need no window manager or timing.
+  `FlTest`, not `xdotool`, so they need no window manager or timing.
 
 ### Testing on OpenBSD i386 (cymoril)
 
@@ -669,6 +677,10 @@ held only in C++ memory**.
   drops the result.
 - **A push no widget uses makes the window `Fl::pushed()` and shows
   it** (`Fl::handle_`, "raise windows that are clicked on").
+- **Giving the focus shows the window on X11 with no window manager**
+  (Xvfb), and so does a push on a button, which takes the focus;
+  not under Wayland or an EWMH window manager (`doc/fltk-issues.md`,
+  176).
 - **Synthesized events work in a window never shown**: set `Fl::e_x`
   and the rest (public statics), then call `Fl::handle(event, window)`.
   Except keys no widget uses, and `FL_DND_LEAVE` to a window with an
@@ -748,7 +760,7 @@ held only in C++ memory**.
     pointers: the shim keeps copies;
   - a browser finds its top line only as it draws, so `topline()` and
     `displayed()` are stale until then, and a browser never drawn takes
-    no click: draw it first in a test (`Probe.Capture`);
+    no click: draw it first in a test (`FlTest.Capture`);
   - `Fl_Browser::textsize` and `Fl_File_Browser::textsize` hide
     `Fl_Browser_`'s;
   - `Fl_Browser::icon` keeps the image, and a line removed drops it
@@ -1055,7 +1067,7 @@ held only in C++ memory**.
   current for a widget with no tooltip, nor a group around it with one.
 - **`Fl_File_Input`'s bar** takes a click in a shown window alone under
   Wayland: `make_current` of one not shown is an alert, then a fatal
-  error (`doc/fltk-issues.md`, 77). `Probe` tests show the window first.
+  error (`doc/fltk-issues.md`, 77). `FlTest` tests show the window first.
 - **`Fl_Shortcut_Button`** takes keys until it loses the focus, and by
   default calls back only then (`FL_WHEN_RELEASE`). A nice slider has
   `FL_FLAT_BOX`. `Fl_Positioner` has `FL_DOWN_BOX`, against its header.
@@ -1284,7 +1296,10 @@ None at present.
   Pango; 2430, 20 skipped, with no SVG, printing or GL; 2733, 5
   skipped, with no Forms; 2524, 5 skipped, with no GL; 2805 with no
   GLEW; 2763 with no cairo; 2785 with no GLU; and on a Wayland FLTK
-  without `FLTK_HAVE_CAIRO`, 2807 on Xvfb and 2783 on sway.
+  without `FLTK_HAVE_CAIRO`, 2807 on Xvfb and 2783 on sway. After
+  FlTest, version 0.3.0 (2026-11-14), 2856 (1 skipped), 2832 (9
+  skipped), 2558 (1 skipped) and 2535 (8 skipped) here; the BSDs and
+  the FLTK variants not run.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

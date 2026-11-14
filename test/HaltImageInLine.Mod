@@ -1,5 +1,5 @@
 MODULE HaltImageInLine; (* An image drawn in a Line halts with Fl.OutOfOrder, 77 *)
-IMPORT Fl, FlDraw, Probe;
+IMPORT Fl, FlDraw, FlTest;
 TYPE
   Canvas = POINTER TO CanvasDesc;
   CanvasDesc = RECORD (Fl.BoxDesc) END;
@@ -22,5 +22,5 @@ BEGIN
   NEW(canvas); Fl.OpenBox(canvas, 0, 0, 20, 20, "");
   win.End;
   NEW(source);
-  ok := Probe.Capture(canvas)
+  ok := FlTest.Capture(canvas)
 END HaltImageInLine.

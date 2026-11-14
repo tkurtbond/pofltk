@@ -1,6 +1,6 @@
 MODULE TestChart; (* FlValuators.Chart: entries, their limit, bounds, kinds, drawing *)
 
-IMPORT Fl, FlValuators, Check, Probe;
+IMPORT Fl, FlValuators, FlTest, Check;
 
 CONST w = 200; h = 100;
 
@@ -17,27 +17,27 @@ VAR
 PROCEDURE Keep(k: FlValuators.Chart);
   VAR x, y: INTEGER;
 BEGIN
-  ok := Probe.Capture(k);
-  FOR y := 0 TO h - 1 DO FOR x := 0 TO w - 1 DO pixels[y * w + x] := Probe.Pixel(x, y) END END;
-  Probe.Release
+  ok := FlTest.Capture(k);
+  FOR y := 0 TO h - 1 DO FOR x := 0 TO w - 1 DO pixels[y * w + x] := FlTest.Pixel(x, y) END END;
+  FlTest.Release
 END Keep;
 
 (* Whether chart k's pixels are those kept. *)
 PROCEDURE Same(k: FlValuators.Chart): BOOLEAN;
   VAR x, y: INTEGER; same: BOOLEAN;
 BEGIN
-  ok := Probe.Capture(k); same := TRUE;
+  ok := FlTest.Capture(k); same := TRUE;
   FOR y := 0 TO h - 1 DO FOR x := 0 TO w - 1 DO
-    IF pixels[y * w + x] # Probe.Pixel(x, y) THEN same := FALSE END
+    IF pixels[y * w + x] # FlTest.Pixel(x, y) THEN same := FALSE END
   END END;
-  Probe.Release;
+  FlTest.Release;
   RETURN same
 END Same;
 
 (* Whether pixel x, y of chart k is red. *)
 PROCEDURE Red(k: FlValuators.Chart; x, y: INTEGER): BOOLEAN;
   VAR red: BOOLEAN;
-BEGIN ok := Probe.Capture(k); red := Probe.Pixel(x, y) = Fl.RGB(255, 0, 0); Probe.Release; RETURN red
+BEGIN ok := FlTest.Capture(k); red := FlTest.Pixel(x, y) = Fl.RGB(255, 0, 0); FlTest.Release; RETURN red
 END Red;
 
 BEGIN
@@ -71,11 +71,11 @@ BEGIN
   c.Add(3.0D0, "", Fl.Red); c.Add(5.0D0, "", Fl.Red);
   c.Bounds(min, max);
   Check.Check((c.Count() = 2) & (min = 0.0D0) & (max = 0.0D0), "Clear, and bounds 0 and 0");
-  ok := Probe.Capture(c); Probe.Release;
+  ok := FlTest.Capture(c); FlTest.Release;
   c.Bounds(min, max);
   Check.Check((min = 0.0D0) & (max = 5.0D0), "become 0 and the greatest value when drawn");
   c.Clear; c.Add(-2.0D0, "", Fl.Red); c.Add(5.0D0, "", Fl.Red);
-  ok := Probe.Capture(c); Probe.Release;
+  ok := FlTest.Capture(c); FlTest.Release;
   c.Bounds(min, max);
   Check.Check((min = -2.0D0) & (max = 5.0D0), "or the least, below 0");
   c.SetBounds(-10.0D0, 10.0D0); c.Bounds(min, max);

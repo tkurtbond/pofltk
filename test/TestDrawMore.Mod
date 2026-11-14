@@ -3,7 +3,7 @@ MODULE TestDrawMore; (* FlDraw beyond TestDraw, and what FlImages adds to it *)
 (* As in TestDraw, a box's Draw is captured and its pixels checked, except
    for what needs a window shown: Scroll, the overlay and CaptureWindow. *)
 
-IMPORT Fl, FlDraw, FlImages, Check, Probe;
+IMPORT Fl, FlDraw, FlImages, FlTest, Check;
 
 CONST Size = 60;
 
@@ -228,7 +228,7 @@ BEGIN
 END Bare;
 
 PROCEDURE Run(j: Job): BOOLEAN;
-BEGIN job := j; RETURN Probe.Capture(canvas)
+BEGIN job := j; RETURN FlTest.Capture(canvas)
 END Run;
 
 (* The pixels not white in the capture. *)
@@ -238,7 +238,7 @@ BEGIN
   n := 0;
   FOR y := 0 TO Size - 1 DO
     FOR x := 0 TO Size - 1 DO
-      IF Probe.Pixel(x, y) # white THEN INC(n) END
+      IF FlTest.Pixel(x, y) # white THEN INC(n) END
     END
   END;
   RETURN n
@@ -250,7 +250,7 @@ PROCEDURE Runs(y: INTEGER): INTEGER;
 BEGIN
   n := 0; before := FALSE;
   FOR x := 0 TO Size - 1 DO
-    IF Probe.Pixel(x, y) # white THEN
+    IF FlTest.Pixel(x, y) # white THEN
       IF ~before THEN INC(n) END;
       before := TRUE
     ELSE before := FALSE
@@ -288,8 +288,8 @@ END Dashes;
 
 PROCEDURE Four(a, b, c, d: INTEGER): BOOLEAN;
 BEGIN
-  RETURN (Probe.Pixel(5, 5) = a) & (Probe.Pixel(6, 5) = b)
-    & (Probe.Pixel(5, 6) = c) & (Probe.Pixel(6, 6) = d)
+  RETURN (FlTest.Pixel(5, 5) = a) & (FlTest.Pixel(6, 5) = b)
+    & (FlTest.Pixel(5, 6) = c) & (FlTest.Pixel(6, 6) = d)
 END Four;
 
 (* Four bytes into s, which Oberon has no way to write as a literal. *)
@@ -305,48 +305,48 @@ BEGIN
   Check.Check((x1 = 12.0D0) & (y1 = 26.0D0), "MultMatrix goes before what was there");
   Check.Check((x2 = 5.0D0) & (y2 = 6.0D0), "LoadMatrix replaces it");
   Check.Check(x3 = 0.0D0, "PopMatrix takes back LoadIdentity");
-  Check.Check((Probe.Pixel(15, 15) = black) & (Probe.Pixel(25, 25) = white),
+  Check.Check((FlTest.Pixel(15, 15) = black) & (FlTest.Pixel(25, 25) = white),
     "TransformedVertex goes round the matrix");
-  Probe.Release;
+  FlTest.Release;
 
   Check.Check(Run(Scales), "capture an override of the scale");
   Check.Check(scale > 0.0D0, "OverrideScale gives the scale");
-  Check.Check(Probe.Pixel(7, 7) = black, "and a rectangle is drawn under it");
-  Probe.Release;
+  Check.Check(FlTest.Pixel(7, 7) = black, "and a rectangle is drawn under it");
+  FlTest.Release;
 
   Check.Check(Run(Shapes), "capture rounded rectangles and circles");
-  Check.Check((Probe.Pixel(15, 15) = black) & (Probe.Pixel(5, 5) # black),
+  Check.Check((FlTest.Pixel(15, 15) = black) & (FlTest.Pixel(5, 5) # black),
     "RoundedRectF fills all but its corners");
-  Check.Check((Probe.Pixel(40, 5) = black) & (Probe.Pixel(40, 15) = white),
+  Check.Check((FlTest.Pixel(40, 5) = black) & (FlTest.Pixel(40, 15) = white),
     "RoundedRect is only its line");
-  Check.Check((Probe.Pixel(11, 36) = black) & (Probe.Pixel(5, 30) # black), "DrawCircle");
-  Check.Check((Probe.Pixel(36, 36) = black) & (Probe.Pixel(30, 30) # black), "DrawRadio");
-  Probe.Release;
+  Check.Check((FlTest.Pixel(11, 36) = black) & (FlTest.Pixel(5, 30) # black), "DrawCircle");
+  Check.Check((FlTest.Pixel(36, 36) = black) & (FlTest.Pixel(30, 30) # black), "DrawRadio");
+  FlTest.Release;
   Check.Check(Run(OddShapes), "capture shapes of no size or less");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Dashes), "capture dashed lines");
   Check.Check(Runs(10) = 5, "LineStyleDashes: its pattern");
   Check.Check(Runs(20) = 2, "a 0 ends it");
   Check.Check(Runs(30) = 1, "no lengths is a solid line");
   Check.Check(Runs(40) = 5, "dashes don't grow with the width");
   Check.Check(Runs(50) = 1, "the longest pattern, then LineStyle");
-  Probe.Release;
+  FlTest.Release;
 
   Check.Check(Run(Arrows), "capture arrows of every kind and direction");
   Check.Check(Ink() > 10, "they draw");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Checked), "capture a check mark");
   Check.Check(Ink() > 10, "it draws");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Focused), "capture a box with a focus box");
   Check.Check(Ink() > 10, "DrawBoxFocus draws its focus box");
-  Check.Check(Probe.Pixel(20, 20) = white, "and no box");
-  Probe.Release;
+  Check.Check(FlTest.Pixel(20, 20) = white, "and no box");
+  FlTest.Release;
   Check.Check(Run(Frames), "capture frames");
-  Check.Check((Probe.Pixel(5, 10) = black) & (Probe.Pixel(6, 10) = white), "Frame's lines, out to in");
-  Check.Check(Probe.Pixel(30, 10) = white, "Frame2's first line is the bottom, in order");
-  Check.Check(Probe.Pixel(40, 24) = black, "Frame2's bottom");
-  Probe.Release
+  Check.Check((FlTest.Pixel(5, 10) = black) & (FlTest.Pixel(6, 10) = white), "Frame's lines, out to in");
+  Check.Check(FlTest.Pixel(30, 10) = white, "Frame2's first line is the bottom, in order");
+  Check.Check(FlTest.Pixel(40, 24) = black, "Frame2's bottom");
+  FlTest.Release
 END TestShapes;
 
 PROCEDURE TestSymbols;
@@ -354,9 +354,9 @@ PROCEDURE TestSymbols;
 BEGIN
   Check.Check(FlDraw.AddSymbol("tdmSquare", Square, TRUE), "AddSymbol");
   Check.Check(Run(Symbols) & ok, "capture it");
-  Check.Check(Probe.Pixel(20, 20) = black, "its draw runs, in the box given");
-  Check.Check(Probe.Pixel(5, 5) = white, "and no further");
-  Probe.Release;
+  Check.Check(FlTest.Pixel(20, 20) = black, "its draw runs, in the box given");
+  Check.Check(FlTest.Pixel(5, 5) = white, "and no further");
+  FlTest.Release;
   Check.Check(~FlDraw.AddSymbol("", Square, TRUE), "no empty name: that is the default symbol");
   Check.Check(~FlDraw.AddSymbol("#a", Square, TRUE), "nor # first");
   Check.Check(~FlDraw.AddSymbol("$a", Square, TRUE), "nor $ first");
@@ -387,10 +387,10 @@ BEGIN
   Check.Check((w > 0) & (h > 0) & (dy < 0), "TextExtents: the ink rises from the baseline");
   Check.Check(Run(Texts), "capture rotated text");
   Check.Check(Ink() > 10, "TextRotated draws");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(RightToLeft), "capture text right to left");
   Check.Check(Ink() > 10, "RightToLeft draws");
-  Probe.Release;
+  FlTest.Release;
 
   width := FlDraw.Width("ab");
   text := "ab_cd"; text[2] := 0AX;
@@ -435,29 +435,29 @@ PROCEDURE TestImages;
   VAR w, h: INTEGER; bad: ARRAY 2 OF ARRAY 16 OF CHAR;
 BEGIN
   Check.Check(Run(Plain) & Four(red, green, blue, white), "DrawImage");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Mirrored) & Four(green, red, white, blue), "a negative d runs right to left");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(BottomUp) & Four(blue, white, red, green), "a negative l runs bottom to top");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(FourBytes) & Four(red, green, blue, white), "4 bytes, with its fourth ignored");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Grays) & Four(black, white, gray, Fl.RGB(64, 64, 64)), "DrawImageMono");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Skipping) & Four(white, black, black, white) & (Ink() = 2),
     "of a byte of each pixel, and no size draws nothing");
-  Probe.Release;
+  FlTest.Release;
   rows.calls := 0;
   Check.Check(Run(Lines) & (rows.calls = 2), "DrawImageLines asks for each row");
   Check.Check(Four(Fl.RGB(0, 0, 0), red, Fl.RGB(0, 255, 0), Fl.RGB(255, 255, 0)), "and draws them");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(MonoLines) & Four(black, white, black, white), "DrawImageMonoLines");
-  Probe.Release;
+  FlTest.Release;
 
   ok := FALSE;
   Check.Check(Run(Pixmaps) & ok, "DrawPixmap");
-  Check.Check((Probe.Pixel(5, 5) = red) & (Probe.Pixel(6, 5) = blue), "draws");
-  Probe.Release;
+  Check.Check((FlTest.Pixel(5, 5) = red) & (FlTest.Pixel(6, 5) = blue), "draws");
+  FlTest.Release;
   Check.Check(FlImages.MeasurePixmap(pixmap, 4, w, h) & (w = 2) & (h = 1), "MeasurePixmap");
   w := -1;
   Check.Check(~FlImages.MeasurePixmap(pixmap, 3, w, h) & (w = -1), "too few lines");
@@ -484,12 +484,12 @@ BEGIN
   off.End;
   Check.Check(Run(Copied), "capture a copy of an offscreen");
   Fl.GetRGB(Fl.Blue, r, g, b);
-  Check.Check(Probe.Pixel(10, 10) = Fl.RGB(r, g, b), "Copy, from sx, sy");
-  Check.Check(Probe.Pixel(16, 10) = white, "and no more than w, h");
-  Probe.Release;
+  Check.Check(FlTest.Pixel(10, 10) = Fl.RGB(r, g, b), "Copy, from sx, sy");
+  Check.Check(FlTest.Pixel(16, 10) = white, "and no more than w, h");
+  FlTest.Release;
   off.Rescale;
-  Check.Check(Run(Copied) & (Probe.Pixel(10, 10) # white), "Rescale keeps the picture");
-  Probe.Release;
+  Check.Check(Run(Copied) & (FlTest.Pixel(10, 10) # white), "Rescale keeps the picture");
+  FlTest.Release;
 
   NEW(o); FlDraw.OpenOffscreen(o, 5, 5);
   off.Begin; o.Begin;
@@ -510,15 +510,15 @@ BEGIN
   NEW(part); part.color := Fl.Black; part.calls := 0;
   Check.Check(Run(Scrolled), "capture a scroll");
   Check.Check((part.calls = 1) & (part.w = 10) & (part.h = 10), "on a surface all of it is drawn");
-  Check.Check(Probe.Pixel(10, 10) = black, "by the Area");
-  Probe.Release;
+  Check.Check(FlTest.Pixel(10, 10) = black, "by the Area");
+  FlTest.Release;
   part.calls := 0;
   Check.Check(Run(Unscrolled) & (part.calls = 0), "no move, no call");
-  Probe.Release;
+  FlTest.Release;
   Check.Check(Run(Smoothing), "capture the antialias setting");
   Check.Check(smooth OR ~canSmooth, "SetAntialias(FALSE) is kept, or there is none");
   Check.Check(Run(Bare) & (Ink() = 0), "and SetAntialias(TRUE) puts it back: nothing was drawn");
-  Probe.Release
+  FlTest.Release
 END TestSurfaceScroll;
 
 PROCEDURE (w: Shown) Draw*;

@@ -1,6 +1,6 @@
 MODULE TestKeys; (* FlText: an editor's key bindings, its own and the global ones *)
 
-IMPORT Fl, FlText, Check, Probe;
+IMPORT Fl, FlText, FlTest, Check;
 
 CONST
   CtrlA = 01X; CtrlB = 02X; CtrlK = 0BX; CtrlU = 15X; CtrlN = 0EX; CtrlD = 04X;
@@ -55,7 +55,7 @@ END Closer;
 
 PROCEDURE Ctrl(c: CHAR; text: CHAR): BOOLEAN;
   VAR t: ARRAY 2 OF CHAR;
-BEGIN t[0] := text; t[1] := 0X; RETURN Probe.Key(Fl.EvKeyDown, ORD(c), Fl.Ctrl, t)
+BEGIN t[0] := text; t[1] := 0X; RETURN FlTest.Key(Fl.EvKeyDown, ORD(c), Fl.Ctrl, t)
 END Ctrl;
 
 BEGIN
@@ -79,10 +79,10 @@ BEGIN
   ok := Ctrl("a", CtrlA);
   Check.Check((first = 2) & (second = 1), "removing it uncovers the one before");
   Check.Check((e.BoundKey(ORD("a"), Fl.Ctrl, proc) = FlText.KfProgram) & (proc = pFirst), "BoundKey after the removal");
-  ok := Probe.Key(Fl.EvKeyDown, ORD("a"), Fl.Ctrl + Fl.Shift, CtrlA);
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("a"), Fl.Ctrl + Fl.Shift, CtrlA);
   Check.Check(first = 2, "a Ctrl binding isn't Ctrl+Shift's");
   e.AddKeyBinding(ORD("b"), FlText.AnyState, Any);
-  ok := Probe.Key(Fl.EvKeyDown, ORD("b"), Fl.Ctrl + Fl.Shift, CtrlB);
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("b"), Fl.Ctrl + Fl.Shift, CtrlB);
   Check.Check(any = 1, "AnyState matches any state");
 
   (* FLTK's own functions *)
@@ -97,7 +97,7 @@ BEGIN
   Check.Check(e.BoundKey(Fl.KeyBackSpace, {}, proc) = FlText.KfBackspace, "FLTK's default binding of BackSpace");
   Check.Check(e.BoundKey(ORD("j"), Fl.Ctrl, proc) = FlText.KfNone, "a key bound to nothing");
   e.SetInsertPosition(5);
-  ok := Probe.Key(Fl.EvKeyDown, ORD("x"), {}, "x");
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("x"), {}, "x");
   b.GetText(s);
   Check.Check(s = "hellox", "typed");
   e.BindBuiltin(ORD("u"), Fl.Ctrl, FlText.KfUndo);
@@ -109,9 +109,9 @@ BEGIN
   Check.Check(e.DefaultKeyFunction(proc) = FlText.KfDefault, "the default key function is FLTK's KfDefault");
   e.SetDefaultKeyFunction(Default);
   Check.Check((e.DefaultKeyFunction(proc) = FlText.KfProgram) & (proc = pDefault), "SetDefaultKeyFunction");
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyF + 1, {}, "");
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyF + 1, {}, "");
   Check.Check((dflt = 1) & (lastKey = 0), "the default key function, for F1, with no text");
-  ok := Probe.Key(Fl.EvKeyDown, ORD("q"), {}, "q");
+  ok := FlTest.Key(Fl.EvKeyDown, ORD("q"), {}, "q");
   b.GetText(s);
   Check.Check((dflt = 1) & (s = "helloq"), "a key that types text is typed, not given the default (147)");
   e.SetDefaultKeyFunction(NIL);

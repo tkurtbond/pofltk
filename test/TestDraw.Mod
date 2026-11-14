@@ -1,9 +1,9 @@
 MODULE TestDraw; (* Draw overrides and FlDraw, checked by their pixels *)
 
-(* Each widget is drawn into an image (Probe.Capture), as FLTK would draw
+(* Each widget is drawn into an image (FlTest.Capture), as FLTK would draw
    it in its window, which is never shown, and its pixels checked. *)
 
-IMPORT Fl, FlDraw, Check, Probe;
+IMPORT Fl, FlDraw, FlTest, Check;
 
 TYPE
   (* red, with a blue square at 10, 10 and a green line along y = 30 *)
@@ -119,7 +119,7 @@ BEGIN
   n := 0;
   FOR y := y0 TO y1 - 1 DO
     FOR x := x0 TO x1 - 1 DO
-      IF Probe.Pixel(x, y) # white THEN INC(n) END
+      IF FlTest.Pixel(x, y) # white THEN INC(n) END
     END
   END;
   RETURN n
@@ -139,21 +139,21 @@ BEGIN
   win.End;
 
   (* a Draw override, drawing in the window's coordinates *)
-  Check.Check(Probe.Capture(sw) & (sw.draws = 1), "a Draw override runs, once per capture");
-  Check.Check((Probe.Pixel(0, 0) = Fl.RGB(255, 0, 0)) & (Probe.Pixel(49, 39) = Fl.RGB(255, 0, 0)),
+  Check.Check(FlTest.Capture(sw) & (sw.draws = 1), "a Draw override runs, once per capture");
+  Check.Check((FlTest.Pixel(0, 0) = Fl.RGB(255, 0, 0)) & (FlTest.Pixel(49, 39) = Fl.RGB(255, 0, 0)),
     "FlDraw.RectF fills the whole widget with an indexed color (Fl.Red)");
   Fl.GetRGB(Fl.Blue, r, g, b);
-  Check.Check((Probe.Pixel(10, 10) = Fl.RGB(r, g, b)) & (Probe.Pixel(19, 19) = Fl.RGB(r, g, b))
-    & (Probe.Pixel(20, 20) = Fl.RGB(255, 0, 0)) & (Probe.Pixel(9, 9) = Fl.RGB(255, 0, 0)),
+  Check.Check((FlTest.Pixel(10, 10) = Fl.RGB(r, g, b)) & (FlTest.Pixel(19, 19) = Fl.RGB(r, g, b))
+    & (FlTest.Pixel(20, 20) = Fl.RGB(255, 0, 0)) & (FlTest.Pixel(9, 9) = Fl.RGB(255, 0, 0)),
     "a filled square exactly where drawn, relative to the widget");
-  Check.Check((Probe.Pixel(0, 30) = Fl.RGB(0, 255, 0)) & (Probe.Pixel(49, 30) = Fl.RGB(0, 255, 0))
-    & (Probe.Pixel(25, 31) = Fl.RGB(255, 0, 0)),
+  Check.Check((FlTest.Pixel(0, 30) = Fl.RGB(0, 255, 0)) & (FlTest.Pixel(49, 30) = Fl.RGB(0, 255, 0))
+    & (FlTest.Pixel(25, 31) = Fl.RGB(255, 0, 0)),
     "FlDraw.XYLine in an RGB color, one pixel high, end to end");
 
   (* clipping *)
-  Check.Check(Probe.Capture(cl), "capture a clipped Draw");
-  Check.Check((Probe.Pixel(0, 0) = Fl.RGB(r, g, b)) & (Probe.Pixel(9, 9) = Fl.RGB(r, g, b))
-    & (Probe.Pixel(10, 10) = white) & (Probe.Pixel(29, 0) = white),
+  Check.Check(FlTest.Capture(cl), "capture a clipped Draw");
+  Check.Check((FlTest.Pixel(0, 0) = Fl.RGB(r, g, b)) & (FlTest.Pixel(9, 9) = Fl.RGB(r, g, b))
+    & (FlTest.Pixel(10, 10) = white) & (FlTest.Pixel(29, 0) = white),
     "PushClip: only the clip rectangle is drawn");
   Check.Check(cl.inside & ~cl.outside, "NotClipped: TRUE inside the clip, FALSE outside");
   Check.Check((cl.cx = cl.X()) & (cl.cy = cl.Y()) & (cl.cw = 10) & (cl.ch = 10),
@@ -162,34 +162,34 @@ BEGIN
     "ClipBox: all of a rectangle inside the clip, none of one outside");
 
   (* a path, transformed *)
-  Check.Check(Probe.Capture(disc), "capture a transformed path");
-  Check.Check((Probe.Pixel(20, 20) = black) & (Probe.Pixel(14, 20) = black) & (Probe.Pixel(20, 26) = black)
-    & (Probe.Pixel(2, 2) = white) & (Probe.Pixel(37, 37) = white) & (Probe.Pixel(32, 20) = white),
+  Check.Check(FlTest.Capture(disc), "capture a transformed path");
+  Check.Check((FlTest.Pixel(20, 20) = black) & (FlTest.Pixel(14, 20) = black) & (FlTest.Pixel(20, 26) = black)
+    & (FlTest.Pixel(2, 2) = white) & (FlTest.Pixel(37, 37) = white) & (FlTest.Pixel(32, 20) = white),
     "Circle in a polygon, translated: black inside, white outside");
 
   (* two lines joined *)
-  Check.Check(Probe.Capture(bent), "capture Line3");
-  Check.Check((Probe.Pixel(5, 5) = black) & (Probe.Pixel(5, 18) = black) & (Probe.Pixel(5, 30) = black)
-    & (Probe.Pixel(18, 30) = black) & (Probe.Pixel(30, 30) = black)
-    & (Probe.Pixel(18, 18) = white) & (Probe.Pixel(18, 5) = white) & (Probe.Pixel(4, 18) = white),
+  Check.Check(FlTest.Capture(bent), "capture Line3");
+  Check.Check((FlTest.Pixel(5, 5) = black) & (FlTest.Pixel(5, 18) = black) & (FlTest.Pixel(5, 30) = black)
+    & (FlTest.Pixel(18, 30) = black) & (FlTest.Pixel(30, 30) = black)
+    & (FlTest.Pixel(18, 18) = white) & (FlTest.Pixel(18, 5) = white) & (FlTest.Pixel(4, 18) = white),
     "Line3 draws both lines, through the middle point");
-  Check.Check(Probe.Capture(stairs), "capture XYLine3 and YXLine3");
-  Check.Check((Probe.Pixel(2, 5) = black) & (Probe.Pixel(6, 5) = black) & (Probe.Pixel(10, 5) = black)
-    & (Probe.Pixel(10, 18) = black) & (Probe.Pixel(10, 30) = black)
-    & (Probe.Pixel(14, 30) = black) & (Probe.Pixel(18, 30) = black)
-    & (Probe.Pixel(6, 6) = white) & (Probe.Pixel(14, 31) = white) & (Probe.Pixel(19, 30) = white),
+  Check.Check(FlTest.Capture(stairs), "capture XYLine3 and YXLine3");
+  Check.Check((FlTest.Pixel(2, 5) = black) & (FlTest.Pixel(6, 5) = black) & (FlTest.Pixel(10, 5) = black)
+    & (FlTest.Pixel(10, 18) = black) & (FlTest.Pixel(10, 30) = black)
+    & (FlTest.Pixel(14, 30) = black) & (FlTest.Pixel(18, 30) = black)
+    & (FlTest.Pixel(6, 6) = white) & (FlTest.Pixel(14, 31) = white) & (FlTest.Pixel(19, 30) = white),
     "XYLine3: across, down, across");
-  Check.Check((Probe.Pixel(22, 5) = black) & (Probe.Pixel(22, 20) = black) & (Probe.Pixel(26, 20) = black)
-    & (Probe.Pixel(30, 20) = black) & (Probe.Pixel(30, 28) = black) & (Probe.Pixel(30, 35) = black)
-    & (Probe.Pixel(23, 12) = white) & (Probe.Pixel(30, 36) = white) & (Probe.Pixel(26, 21) = white),
+  Check.Check((FlTest.Pixel(22, 5) = black) & (FlTest.Pixel(22, 20) = black) & (FlTest.Pixel(26, 20) = black)
+    & (FlTest.Pixel(30, 20) = black) & (FlTest.Pixel(30, 28) = black) & (FlTest.Pixel(30, 35) = black)
+    & (FlTest.Pixel(23, 12) = white) & (FlTest.Pixel(30, 36) = white) & (FlTest.Pixel(26, 21) = white),
     "YXLine3: down, across, down");
-  Check.Check((Probe.Pixel(32, 2) = black) & (Probe.Pixel(38, 2) = black) & (Probe.Pixel(38, 8) = black)
-    & (Probe.Pixel(32, 30) = black) & (Probe.Pixel(32, 38) = black) & (Probe.Pixel(38, 38) = black)
-    & (Probe.Pixel(35, 5) = white) & (Probe.Pixel(35, 35) = white) & (Probe.Pixel(38, 9) = white),
+  Check.Check((FlTest.Pixel(32, 2) = black) & (FlTest.Pixel(38, 2) = black) & (FlTest.Pixel(38, 8) = black)
+    & (FlTest.Pixel(32, 30) = black) & (FlTest.Pixel(32, 38) = black) & (FlTest.Pixel(38, 38) = black)
+    & (FlTest.Pixel(35, 5) = white) & (FlTest.Pixel(35, 35) = white) & (FlTest.Pixel(38, 9) = white),
     "XYLine2 and YXLine2: one corner each");
 
   (* text *)
-  Check.Check(Probe.Capture(tx), "capture text");
+  Check.Check(FlTest.Capture(tx), "capture text");
   dark := NotWhite(0, 0, 80, 30);
   Check.Check((dark > 50) & (NotWhite(0, 0, 80, 3) = 0),
     "Text draws ink, below the top of the widget");
@@ -207,22 +207,22 @@ BEGIN
   (* FLTK's own box and label, from an override *)
   fr.SetBoxType(Fl.FlatBox); fr.SetColor(Fl.RGB(255, 255, 0));
   fr.SetLabel("x"); fr.SetLabelColor(Fl.Black); fr.SetAlign(Fl.AlignInside + Fl.AlignRight);
-  Check.Check(Probe.Capture(fr), "capture a Draw using DrawBox and DrawLabel");
-  Check.Check((Probe.Pixel(2, 2) = black) & (Probe.Pixel(10, 15) = Fl.RGB(255, 255, 0))
-    & (Probe.Pixel(59, 29) = Fl.RGB(255, 255, 0)),
+  Check.Check(FlTest.Capture(fr), "capture a Draw using DrawBox and DrawLabel");
+  Check.Check((FlTest.Pixel(2, 2) = black) & (FlTest.Pixel(10, 15) = Fl.RGB(255, 255, 0))
+    & (FlTest.Pixel(59, 29) = Fl.RGB(255, 255, 0)),
     "DrawBox fills the box in the widget's color, under the override's own drawing");
   Check.Check(NotWhite(0, 0, 60, 30) > 0, "the capture isn't blank");
   dark := 0;
   FOR y := 0 TO 29 DO FOR x := 30 TO 59 DO
-    IF Probe.Pixel(x, y) # Fl.RGB(255, 255, 0) THEN INC(dark) END
+    IF FlTest.Pixel(x, y) # Fl.RGB(255, 255, 0) THEN INC(dark) END
   END END;
   Check.Check(dark > 0, "DrawLabel draws the label, on the right");
 
   (* the default Draw: FLTK's *)
   plain.SetBoxType(Fl.FlatBox); plain.SetColor(Fl.DarkGreen);
   Fl.GetRGB(Fl.DarkGreen, r, g, b);
-  Check.Check(Probe.Capture(plain) & (Probe.Pixel(0, 0) = Fl.RGB(r, g, b))
-    & (Probe.Pixel(29, 19) = Fl.RGB(r, g, b)),
+  Check.Check(FlTest.Capture(plain) & (FlTest.Pixel(0, 0) = Fl.RGB(r, g, b))
+    & (FlTest.Pixel(29, 19) = Fl.RGB(r, g, b)),
     "a Box's own Draw: a flat box in its color");
 
   (* a group's Draw, drawing one child of its own choosing *)
@@ -230,10 +230,10 @@ BEGIN
   NEW(left); Fl.OpenBox(left, 0, 200, 50, 50, ""); left.SetBoxType(Fl.FlatBox); left.SetColor(Fl.Red);
   NEW(right); Fl.OpenBox(right, 50, 200, 50, 50, ""); right.SetBoxType(Fl.FlatBox); right.SetColor(Fl.Red);
   pair.End;
-  Check.Check(Probe.Capture(pair), "a group drawing one child");
-  Check.Check((Probe.Pixel(10, 10) = Fl.RGB(255, 0, 0)) & (Probe.Pixel(60, 10) # Fl.RGB(255, 0, 0)),
+  Check.Check(FlTest.Capture(pair), "a group drawing one child");
+  Check.Check((FlTest.Pixel(10, 10) = Fl.RGB(255, 0, 0)) & (FlTest.Pixel(60, 10) # Fl.RGB(255, 0, 0)),
     "Group.DrawChild draws the child it is given, and no other");
-  Probe.Release;
+  FlTest.Release;
   pair.Delete;
 
   (* a group's Draw, its own background and then all its children *)
@@ -241,18 +241,18 @@ BEGIN
   NEW(left); Fl.OpenBox(left, 0, 200, 50, 50, ""); left.SetBoxType(Fl.FlatBox); left.SetColor(Fl.Red);
   NEW(right); Fl.OpenBox(right, 100, 200, 50, 50, ""); right.SetBoxType(Fl.FlatBox); right.SetColor(Fl.Blue);
   both.End;
-  Check.Check(Probe.Capture(both), "a group drawing its children");
-  Check.Check((Probe.Pixel(10, 10) = Fl.RGB(255, 0, 0)) & (Probe.Pixel(75, 10) = Fl.RGB(255, 255, 255))
-    & (Probe.Pixel(140, 40) = Fl.RGB(0, 0, 255)),
+  Check.Check(FlTest.Capture(both), "a group drawing its children");
+  Check.Check((FlTest.Pixel(10, 10) = Fl.RGB(255, 0, 0)) & (FlTest.Pixel(75, 10) = Fl.RGB(255, 255, 255))
+    & (FlTest.Pixel(140, 40) = Fl.RGB(0, 0, 255)),
     "Group.DrawChildren draws every child over the group's own drawing");
-  Probe.Release;
+  FlTest.Release;
   both.Delete;
 
   (* damage *)
   plain.Redraw;
   Check.Check(Fl.DamageAll * plain.Damage() = Fl.DamageAll, "Redraw sets DamageAll");
 
-  Probe.Release;
+  FlTest.Release;
   win.Delete;
   Check.Check(Fl.OpenWidgets() = 0, "every widget deleted");
   Check.Summary

@@ -1,6 +1,6 @@
 MODULE TestImages; (* FlImages: images from pixels, files and memory; labels, drawing, surfaces *)
 
-IMPORT SYSTEM, GC := GarbageCollectedHeap, Files, Fl, FlDraw, FlBrowsers, FlMenus, FlImages, Check, Probe;
+IMPORT SYSTEM, GC := GarbageCollectedHeap, Files, Fl, FlDraw, FlBrowsers, FlMenus, FlImages, FlTest, Check, Probe;
 
 TYPE
   (* Draws its image at its top left, on white. *)
@@ -75,11 +75,11 @@ PROCEDURE FindRed(w: Fl.Widget; VAR x, y: INTEGER): BOOLEAN;
   VAR found: BOOLEAN;
 BEGIN
   found := FALSE;
-  IF Probe.Capture(w) THEN
+  IF FlTest.Capture(w) THEN
     y := 0;
     WHILE ~found & (y < w.H()) DO
       x := 0;
-      WHILE (x < w.W()) & (Probe.Pixel(x, y) # red) DO INC(x) END;
+      WHILE (x < w.W()) & (FlTest.Pixel(x, y) # red) DO INC(x) END;
       IF x < w.W() THEN found := TRUE ELSE INC(y) END
     END
   END;
@@ -285,9 +285,9 @@ BEGIN
 
   (* An image drawn in Draw *)
   NEW(pic); Fl.OpenBox(pic, 0, 0, 10, 10, ""); pic.img := i;
-  Check.Check(Probe.Capture(pic) & (Probe.Pixel(0, 0) = red) & (Probe.Pixel(3, 1) = blue)
-    & (Probe.Pixel(4, 0) = white), "Draw");
-  Probe.Release;
+  Check.Check(FlTest.Capture(pic) & (FlTest.Pixel(0, 0) = red) & (FlTest.Pixel(3, 1) = blue)
+    & (FlTest.Pixel(4, 0) = white), "Draw");
+  FlTest.Release;
 
   (* A label image, kept by its widget *)
   NEW(box); Fl.OpenBox(box, 20, 0, 20, 20, ""); box.SetBoxType(Fl.FlatBox); box.SetColor(Fl.White);
@@ -296,18 +296,18 @@ BEGIN
   n := FlImages.openImages;
   j.Close; j := NIL; Churn;
   Check.Check(FlImages.openImages = n - 1, "a label image closed by the program");
-  Check.Check(Probe.Capture(box) & (Probe.Pixel(8, 9) = red) & (Probe.Pixel(11, 9) = blue),
+  Check.Check(FlTest.Capture(box) & (FlTest.Pixel(8, 9) = red) & (FlTest.Pixel(11, 9) = blue),
     "is still drawn: its widget holds it");
-  Probe.Release;
+  FlTest.Release;
   NEW(j); i.Copy(j, 4, 2); j.Desaturate;
   FlImages.SetInactiveImage(box, j); j.Close;
   box.Deactivate;
-  ok := Probe.Capture(box); n := Probe.Pixel(8, 9); Probe.Release;
+  ok := FlTest.Capture(box); n := FlTest.Pixel(8, 9); FlTest.Release;
   Check.Check(SYSTEM.LSH(n, -24) MOD 100H = SYSTEM.LSH(n, -16) MOD 100H, "SetInactiveImage");
   box.Activate;
   FlImages.SetImage(box, NIL);
-  Check.Check(Probe.Capture(box) & (Probe.Pixel(8, 9) = white), "SetImage NIL");
-  Probe.Release;
+  Check.Check(FlTest.Capture(box) & (FlTest.Pixel(8, 9) = white), "SetImage NIL");
+  FlTest.Release;
   NEW(j); i.Copy(j, 4, 2); FlImages.SetImage(box, j); j.Close;
   box.Delete;  (* and the image with it: valgrind would see a leak *)
 
@@ -317,16 +317,16 @@ BEGIN
   NEW(j); i.Copy(j, 8, 20);
   FlImages.SetLineIcon(br, 2, j); FlImages.SetLineIcon(br, 3, j);
   j.Close; j := NIL; Churn;
-  Check.Check(FindRed(br, x, y) & (y > 10) & (Probe.Pixel(x + 4, y) = blue) & (Probe.Pixel(x + 3, y + 19) = red)
-    & (Probe.Pixel(x, y + 20) # red), "SetLineIcon: drawn on the line, after the program closed it");
-  Probe.Release;
+  Check.Check(FindRed(br, x, y) & (y > 10) & (FlTest.Pixel(x + 4, y) = blue) & (FlTest.Pixel(x + 3, y + 19) = red)
+    & (FlTest.Pixel(x, y + 20) # red), "SetLineIcon: drawn on the line, after the program closed it");
+  FlTest.Release;
   Check.Check(Probe.Kept(br) = 1, "held once for two lines");
   br.Remove(2);
   Check.Check(FindRed(br, x, y) & (Probe.Kept(br) = 1), "kept while a line shows it");
-  Probe.Release;
+  FlTest.Release;
   FlImages.SetLineIcon(br, 2, NIL);
   Check.Check(~FindRed(br, x, y) & (Probe.Kept(br) = 0), "SetLineIcon NIL: released");
-  Probe.Release;
+  FlTest.Release;
   NEW(j); i.Copy(j, 8, 20); FlImages.SetLineIcon(br, 1, j); j.Close;
   NEW(j); i.Copy(j, 8, 20); FlImages.SetLineIcon(br, 1, j); j.Close;
   Check.Check(Probe.Kept(br) = 1, "another icon on the line: the first released");
@@ -336,38 +336,38 @@ BEGIN
   tree.SetShowRoot(FALSE); tree.SetItemLabelSize(14);
   item := tree.Add("A/B");
   Check.Check(~FindRed(tree, x, y), "a tree starts with no red icon");
-  Probe.Release;
+  FlTest.Release;
 
   (* a tree's icons, drawn after the program closes them *)
   NEW(j); i.Copy(j, 8, 8); FlImages.SetUserIcon(tree, j); j.Close; Churn;
   Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "SetUserIcon draws every item's, kept");
-  Probe.Release;
+  FlTest.Release;
   NEW(j); i.Copy(j, 8, 8); FlImages.SetUserIcon(tree, j); j.Close;
   Check.Check(Probe.Kept(tree) = 1, "another: the first released");
   FlImages.SetUserIcon(tree, NIL);
   Check.Check(~FindRed(tree, x, y) & (Probe.Kept(tree) = 0), "SetUserIcon NIL: released");
-  Probe.Release;
+  FlTest.Release;
   NEW(j); i.Copy(j, 11, 11); FlImages.SetCloseIcon(tree, j); j.Close; Churn;
   Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "SetCloseIcon: an open item shows it");
-  Probe.Release;
+  FlTest.Release;
   folder := tree.Find("A"); folder.Close;
   Check.Check(~FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "not a closed one");
-  Probe.Release;
+  FlTest.Release;
   NEW(j); i.Copy(j, 11, 11); FlImages.SetOpenIcon(tree, j); j.Close; Churn;
   Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 2), "SetOpenIcon: a closed one shows that");
-  Probe.Release;
+  FlTest.Release;
   folder.Open;
   FlImages.SetOpenIcon(tree, NIL); FlImages.SetCloseIcon(tree, NIL);
   Check.Check(~FindRed(tree, x, y) & (Probe.Kept(tree) = 0), "NIL: FLTK's own, the icons released");
-  Probe.Release;
+  FlTest.Release;
 
   NEW(j); i.Copy(j, 8, 8); FlImages.SetItemIcon(item, j);
   FlImages.SetItemInactiveIcon(item, j); j.Close; Churn;
   Check.Check(FindRed(tree, x, y) & (Probe.Kept(tree) = 1), "SetItemIcon shows it, held once with the inactive icon");
-  Probe.Release;
+  FlTest.Release;
   item.Activate(FALSE);
   Check.Check(FindRed(tree, x, y), "SetItemInactiveIcon shows it on an inactive item");
-  Probe.Release;
+  FlTest.Release;
   item.Activate(TRUE);
   FlImages.SetItemIcon(item, NIL);
   Check.Check(Probe.Kept(tree) = 1, "kept while the inactive icon is set");
@@ -390,14 +390,14 @@ BEGIN
   ml.Close; ml := NIL; Churn;
   Check.Check(FlImages.openMultiLabels = n - 1, "a multi-label closed by the program");
   ok := FindRed(box, x, y);
-  Check.Check(ok & (Probe.Pixel(x + 4, y) = blue), "is still drawn: its widget holds it, and it its image");
+  Check.Check(ok & (FlTest.Pixel(x + 4, y) = blue), "is still drawn: its widget holds it, and it its image");
   k := x + 8; n := 0;
   WHILE k < 60 DO
-    IF Probe.Pixel(k, 10) # white THEN INC(n) END;
+    IF FlTest.Pixel(k, 10) # white THEN INC(n) END;
     INC(k)
   END;
   Check.Check(n > 0, "with its text after the image");
-  Probe.Release;
+  FlTest.Release;
   box.GetLabel(label);
   Check.Check(label = "", "GetLabel of a multi-label is empty");
   box.SetLabelType(Fl.ShadowLabel);
@@ -405,7 +405,7 @@ BEGIN
   box.SetLabel("text"); box.GetLabel(label);
   Check.Check((label = "text") & (box.LabelType() = Fl.NormalLabel) & ~FindRed(box, x, y),
     "SetLabel gives it text again");  (* and lets the multi-label go: valgrind would see it *)
-  Probe.Release;
+  FlTest.Release;
   NEW(ml); FlImages.OpenMultiLabel(ml); NEW(ml2); FlImages.OpenMultiLabel(ml2);
   ml2.SetText(0, "a", Fl.NormalLabel); ml.SetMulti(1, ml2); ml.SetText(0, "b", Fl.EngravedLabel);
   ml2.Close; FlImages.SetMultiLabel(box, ml); ml.Close;
@@ -435,7 +435,7 @@ BEGIN
   Check.Check(choice.Value() = open, "and keeps the item chosen");
   choice.Remove(k);
   Check.Check(FindRed(choice, x, y), "a choice shows its item's image");
-  Probe.Release;
+  FlTest.Release;
   FlImages.SetItemImage(choice, new, NIL); choice.ItemLabel(new, label);
   Check.Check((label = "New") & (Probe.Kept(choice) = 2), "SetItemImage NIL: text again, the image let go");
   NEW(j); i.Copy(j, 8, 8); FlImages.SetItemImage(choice, new, j); FlImages.SetItemImage(choice, new, j); j.Close;

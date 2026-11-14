@@ -1,6 +1,6 @@
 MODULE TestHelp; (* FlHelp: help views, their links and images, and the help dialog *)
 
-IMPORT Strings, Fl, FlHelp, FlImages, Check, Probe;
+IMPORT Strings, Fl, FlHelp, FlImages, FlTest, Check;
 
 TYPE
   (* A view that counts what it is asked, says no to what no names, and
@@ -115,7 +115,7 @@ BEGIN
   v.FileName(s); Check.Check(s = "help.html", "its file");
   v.Value(s); Check.Check(Contains(s, "findme"), "its text");
   n := v.images;
-  ok := Probe.Capture(v); ok := Probe.Capture(v);
+  ok := FlTest.Capture(v); ok := FlTest.Capture(v);
   Check.Check(v.images = n, "and not asked again to draw");
   Check.Check(v.Load("help.html"), "Load again");
   Check.Check(v.images = n, "nor to load the same images");
@@ -141,9 +141,9 @@ BEGIN
   w.End;
   v.no := "images/rb.ppm";
   Check.Check(v.Load("help.html"), "Link's FALSE for an image doesn't stop the page");
-  ok := Probe.Capture(v);
+  ok := FlTest.Capture(v);
   l.SetValue('<p><img src="nothing.png"></p>');
-  ok := Probe.Capture(l);
+  ok := FlTest.Capture(l);
   v.SetValue("<p>Next</p>");
   Check.Check(v.images >= 1, "the other image is still asked about");
   l.Delete;
@@ -160,7 +160,7 @@ BEGIN
   NEW(v); FlHelp.OpenHelpView(v, 0, 0, 300, 100, "");
   w.End;
   v.SetValue('<p><img src="images/big.png"></p>');
-  ok := Probe.Capture(v);
+  ok := FlTest.Capture(v);
   Check.Check(v.images = 1, "an image too large for an int is asked about, and refused");
   w.Delete
 END TestHugeImage;
@@ -172,8 +172,8 @@ BEGIN
   v.links := 0;
   y := 5;
   WHILE (y < 150) & (v.links = 0) DO
-    ok := Probe.Mouse(w, Fl.EvPush, 20, y, Fl.LeftMouse, Fl.Button1, 0);
-    ok := Probe.Mouse(w, Fl.EvRelease, 20, y, Fl.LeftMouse, {}, 1);
+    ok := FlTest.Mouse(w, Fl.EvPush, 20, y, Fl.LeftMouse, Fl.Button1, 0);
+    ok := FlTest.Mouse(w, Fl.EvRelease, 20, y, Fl.LeftMouse, {}, 1);
     INC(y, 4)
   END;
   RETURN v.links > 0
@@ -187,30 +187,30 @@ BEGIN
   w.End; w.Show;
   ok := Fl.Check();
   v.SetValue('<h1>Top</h1><p><a href="page:two">Two</a></p>');
-  ok := Probe.Capture(v);
+  ok := FlTest.Capture(v);
   Check.Check(ClickLink(w, v), "a click on a link asks Link");
   Check.Check(v.last = "page:two", "with its uri");
   v.Value(s); Check.Check(Contains(s, "called two"), "and Link's page shows");
 
   v.SetValue('<h1>Top</h1><p><a href="help2.html">Two</a></p>');
-  ok := Probe.Capture(v);
+  ok := FlTest.Capture(v);
   Check.Check(ClickLink(w, v), "a link to a file");
   v.Title(s); Check.Check(s = "Second Page", "loads it");
   Check.Check(Contains(v.last, "help2.html"), "as a file");
 
   (* The page replaced with a link held down: nothing follows it. *)
   v.SetValue('<h1>Top</h1><p><a href="page:two">Two</a></p>');
-  ok := Probe.Capture(v);
+  ok := FlTest.Capture(v);
   v.links := 0;
   y := 5;
   WHILE (y < 150) & (v.links = 0) DO
-    ok := Probe.Mouse(w, Fl.EvPush, 20, y, Fl.LeftMouse, Fl.Button1, 0);
+    ok := FlTest.Mouse(w, Fl.EvPush, 20, y, Fl.LeftMouse, Fl.Button1, 0);
     before := v.links;
     v.SetValue("<p>Replaced, and a good deal longer than it was before</p>");
-    ok := Probe.Capture(v);
-    ok := Probe.Mouse(w, Fl.EvRelease, 20, y, Fl.LeftMouse, {}, 1);
+    ok := FlTest.Capture(v);
+    ok := FlTest.Mouse(w, Fl.EvRelease, 20, y, Fl.LeftMouse, {}, 1);
     v.SetValue('<h1>Top</h1><p><a href="page:two">Two</a></p>');
-    ok := Probe.Capture(v);
+    ok := FlTest.Capture(v);
     INC(y, 4)
   END;
   Check.Check(v.links = 0, "a link whose page has gone isn't followed");

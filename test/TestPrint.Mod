@@ -3,7 +3,7 @@ MODULE TestPrint; (* FlPrint: files written and read back, the order of things, 
 (* No test here may break Cairo on a PostScript file: FLTK then uses the
    file after closing it (doc/fltk-issues.md, 101). *)
 
-IMPORT Files, Fl, FlDraw, FlImages, FlPrint, Check, Probe, BreakCairo;
+IMPORT Files, Fl, FlDraw, FlImages, FlPrint, FlTest, Check, BreakCairo;
 
 CONST
   tries = 400;  (* of 0.05 s, waiting for a dialog; generous, for valgrind *)
@@ -45,12 +45,12 @@ PROCEDURE (a: Answer) Fire*;
   VAR ok: BOOLEAN;
 BEGIN
   IF a.sent THEN (* only to wake the loop *)
-  ELSIF ~Probe.Modal(a.title) THEN
+  ELSIF ~FlTest.Modal(a.title) THEN
     INC(a.tries); IF a.tries < tries THEN Fl.RepeatTimeout(a, 0.05D0) END
   ELSIF a.seen < 2 THEN  (* let it settle *)
     INC(a.seen); Fl.RepeatTimeout(a, 0.05D0)
   ELSE
-    ok := Probe.ModalKey(Fl.KeyEscape, {}, 1BX);
+    ok := FlTest.ModalKey(Fl.KeyEscape, {}, 1BX);
     a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
   END
 END Fire;

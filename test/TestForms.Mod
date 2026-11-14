@@ -4,7 +4,7 @@ MODULE TestForms; (* FlForms: FLTK's Forms classes, Timer, Free, FormsBitmap, Fo
    images/anim.gif is three frames of that size. A widget shows them at
    its top left. *)
 
-IMPORT Fl, FlForms, FlImages, Check, Probe;
+IMPORT Fl, FlForms, FlImages, FlTest, Check;
 
 TYPE
   Ringing = POINTER TO RECORD (FlForms.TimerDesc)
@@ -60,20 +60,20 @@ END Callback;
 (* Pixel x, y of widget w as drawn. *)
 PROCEDURE Pixel(w: Fl.Widget; x, y: INTEGER): INTEGER;
   VAR q: INTEGER;
-BEGIN ok := Probe.Capture(w); q := Probe.Pixel(x, y); Probe.Release; RETURN q
+BEGIN ok := FlTest.Capture(w); q := FlTest.Pixel(x, y); FlTest.Release; RETURN q
 END Pixel;
 
 (* How many pixels of w, as drawn, in columns x0 to x1 aren't color c. *)
 PROCEDURE Ink(w: Fl.Widget; x0, x1, c: INTEGER): INTEGER;
   VAR x, y, n: INTEGER;
 BEGIN
-  n := 0; ok := Probe.Capture(w);
+  n := 0; ok := FlTest.Capture(w);
   FOR y := 0 TO w.H() - 1 DO
     FOR x := x0 TO x1 DO
-      IF Probe.Pixel(x, y) # c THEN INC(n) END
+      IF FlTest.Pixel(x, y) # c THEN INC(n) END
     END
   END;
-  Probe.Release; RETURN n
+  FlTest.Release; RETURN n
 END Ink;
 
 (* Lets FLTK's timers run for at most about s seconds: a wait can end
@@ -150,24 +150,24 @@ BEGIN
   NEW(h); h.called := FALSE;
   FlForms.OpenFree(h, FlForms.NormalFree, 10, 10, 40, 40, "");
   win.End;
-  ok := Probe.Capture(h); Probe.Release;
+  ok := FlTest.Capture(h); FlTest.Release;
   Check.Check(h.draws = 1, "a free draws through HandleFree");
   Check.Check((h.x = 0) & (h.y = 0) & (h.key = 0), "with nothing else to say");
 
-  ok := Probe.Mouse(win, Fl.EvPush, 20, 30, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvPush, 20, 30, 1, {}, 1);
   Check.Check(h.pushes = 1, "a free hears a push");
   Check.Check((h.x = 20) & (h.y = 30), "and where");
   Check.Check(h.key = 1, "and with which button");
   Check.Check(h.calls = 0, "it doesn't call back when told not to");
   h.called := TRUE;
-  ok := Probe.Mouse(win, Fl.EvDrag, 25, 35, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvDrag, 25, 35, 1, {}, 1);
   Check.Check(h.drags = 1, "it hears a drag");
   Check.Check(h.calls = 1, "and calls back when told to");
   h.called := FALSE;
-  ok := Probe.Mouse(win, Fl.EvRelease, 25, 35, 1, {}, 1);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 25, 35, 1, {}, 1);
 
   Fl.SetFocus(h);
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX);
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX);
   Check.Check(h.keys = 1, "it hears a key");
   Check.Check(h.key = Fl.KeyEnter, "whole, though FLTK passes a char");
   Fl.SetFocus(NIL);
@@ -256,12 +256,12 @@ BEGIN
   p.SetPixmap(a);
   a.Close;
   Run(0.35D0);
-  ok := Probe.Capture(p); Probe.Release;
+  ok := FlTest.Capture(p); FlTest.Release;
   Check.Check(TRUE, "the pixmap keeps one that plays, closed");
   NEW(a); ok := FlImages.OpenAnimGIF(a, "images/anim.gif", p, FlImages.DontSetAsImage);
   p.SetPixmap(a);
   Run(0.35D0);
-  ok := Probe.Capture(p); Probe.Release;
+  ok := FlTest.Capture(p); FlTest.Release;
   p.Delete;
   Run(0.35D0);
   Check.Check(a.Playing(), "an animation outlives its widget");

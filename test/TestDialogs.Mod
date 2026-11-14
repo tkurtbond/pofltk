@@ -1,22 +1,8 @@
 MODULE TestDialogs; (* FlDialogs: each dialog answered by keys, as a user would *)
 
-IMPORT Platform, Fl, FlDialogs, Check, Probe;
-
-CONST tries = 400;  (* of 0.05 s, waiting for a dialog; generous, for valgrind *)
-
-TYPE
-  (* Waits for a dialog, notes its title, types text into it, a key per
-     character, and then sends key. Then it fires once more: FLTK runs
-     timers and then waits for an event, so without one a dialog's loop
-     ends only when an event comes, and none comes under Xvfb. *)
-  Answer = POINTER TO RECORD (Fl.TimerDesc)
-    text, keyText, title: ARRAY 64 OF CHAR;
-    key, tries, seen: INTEGER;
-    sent: BOOLEAN
-  END;
+IMPORT Platform, Fl, FlDialogs, FlTest, Check, Probe;
 
 VAR
-  answer: Answer;
   fc: FlDialogs.NativeFileChooser;
   names: FlDialogs.Names;
   title: ARRAY 16 OF CHAR;
@@ -34,22 +20,6 @@ VAR
   win: Fl.Window;
   chooser: FlDialogs.ColorChooser;
 
-PROCEDURE (a: Answer) Fire*;
-  VAR i: INTEGER; c: ARRAY 2 OF CHAR; ok: BOOLEAN;
-BEGIN
-  IF a.sent THEN (* only to wake the loop *)
-  ELSIF ~Probe.Modal(a.title) THEN
-    INC(a.tries); IF a.tries < tries THEN Fl.RepeatTimeout(a, 0.05D0) END
-  ELSIF a.seen < 2 THEN  (* let it settle *)
-    INC(a.seen); Fl.RepeatTimeout(a, 0.05D0)
-  ELSE
-    i := 0; c[1] := 0X;
-    WHILE a.text[i] # 0X DO c[0] := a.text[i]; ok := Probe.ModalKey(ORD(c[0]), {}, c); INC(i) END;
-    ok := Probe.ModalKey(a.key, {}, a.keyText);
-    a.sent := TRUE; Fl.RepeatTimeout(a, 0.01D0)
-  END
-END Fire;
-
 PROCEDURE Picked(name-: ARRAY OF CHAR);
 BEGIN COPY(name, picked)
 END Picked;
@@ -58,27 +28,24 @@ PROCEDURE Count(w: Fl.Widget);
 BEGIN INC(calls)
 END Count;
 
-(* Answers the next dialog by typing text and then key. *)
-PROCEDURE Reply(text: ARRAY OF CHAR; key: INTEGER; keyText: ARRAY OF CHAR);
-BEGIN
-  NEW(answer); COPY(text, answer.text); answer.key := key; COPY(keyText, answer.keyText);
-  Fl.AddTimeout(answer, 0.05D0)
-END Reply;
+(* Whether the last dialog was answered. *)
+PROCEDURE Answered(): BOOLEAN;
+  VAR t: ARRAY 256 OF CHAR;
+BEGIN RETURN FlTest.Answered(t)
+END Answered;
 
-PROCEDURE Enter;
-BEGIN Reply("", Fl.KeyEnter, 0DX)
-END Enter;
-
-PROCEDURE Escape;
-BEGIN Reply("", Fl.KeyEscape, 1BX)
-END Escape;
+(* Whether the last dialog was answered, and had title t. *)
+PROCEDURE Titled(t: ARRAY OF CHAR): BOOLEAN;
+  VAR u: ARRAY 256 OF CHAR;
+BEGIN RETURN FlTest.Answered(u) & (u = t)
+END Titled;
 
 (* A dialog with this icon text, for this call alone: FLTK keeps the pointer. *)
 PROCEDURE ShowIcon(text: ARRAY OF CHAR);
   VAR s: ARRAY 8 OF CHAR;
 BEGIN
   COPY(text, s); FlDialogs.SetIconLabel(s);
-  Enter; FlDialogs.Message("An icon")
+  FlTest.Enter; FlDialogs.Message("An icon")
 END ShowIcon;
 
 PROCEDURE Ends(s, end: ARRAY OF CHAR): BOOLEAN;
@@ -114,86 +81,86 @@ BEGIN
   Check.Check((font = Fl.Courier) & (size = 16), "SetFont");
   FlDialogs.SetFont(Fl.Helvetica, 0);
 
-  Enter; FlDialogs.Message("100% done");
-  Check.Check(answer.tries < tries, "Message waits for the user; Enter closes it");
-  Escape; FlDialogs.Alert("Careful");
-  Check.Check(answer.tries < tries, "Alert; Escape closes it");
+  FlTest.Enter; FlDialogs.Message("100% done");
+  Check.Check(Answered(), "Message waits for the user; Enter closes it");
+  FlTest.Escape; FlDialogs.Alert("Careful");
+  Check.Check(Answered(), "Alert; Escape closes it");
 
-  Enter; i := FlDialogs.Choice("Save?", "No", "Yes", "Cancel");
+  FlTest.Enter; i := FlDialogs.Choice("Save?", "No", "Yes", "Cancel");
   Check.Check(i = 1, "Enter pushes Choice's b1");
-  Escape; i := FlDialogs.Choice("Save?", "No", "Yes", "Cancel");
+  FlTest.Escape; i := FlDialogs.Choice("Save?", "No", "Yes", "Cancel");
   Check.Check(i = FlDialogs.Escaped, "Escape is Escaped");
-  Reply("", ORD("n"), "n"); i := FlDialogs.Choice("Save?", "&No", "&Yes", "&Cancel");
+  FlTest.Answer("", ORD("n")); i := FlDialogs.Choice("Save?", "&No", "&Yes", "&Cancel");
   Check.Check(i = 0, "b0, by its shortcut");
-  Reply("", ORD("c"), "c"); i := FlDialogs.Choice("Save?", "&No", "&Yes", "&Cancel");
+  FlTest.Answer("", ORD("c")); i := FlDialogs.Choice("Save?", "&No", "&Yes", "&Cancel");
   Check.Check(i = 2, "b2");
-  Enter; i := FlDialogs.Choice("Go on?", "", "Go", "");
+  FlTest.Enter; i := FlDialogs.Choice("Go on?", "", "Go", "");
   Check.Check(i = 1, "an empty label is no button");
 
   s := "abc";
-  Reply("xy", Fl.KeyEnter, 0DX); ok := FlDialogs.Input("Name:", s);
+  FlTest.Answer("xy", Fl.KeyEnter); ok := FlDialogs.Input("Name:", s);
   Check.Check(ok & (s = "abcxy"), "Input starts with the text, the cursor after it");
-  Escape; ok := FlDialogs.Input("Name:", s);
+  FlTest.Escape; ok := FlDialogs.Input("Name:", s);
   Check.Check(~ok & (s = "abcxy"), "cancelled, the text is unchanged");
   FOR i := 0 TO 299 DO big[i] := CHR(ORD("a") + i MOD 26) END; big[300] := 0X;
-  Reply("xy", Fl.KeyEnter, 0DX); str := FlDialogs.InputText("Name:", big);
+  FlTest.Answer("xy", Fl.KeyEnter); str := FlDialogs.InputText("Name:", big);
   Check.Check((str # NIL) & (LEN(str^) = 303) & (str[299] = big[299]) & (str[300] = "x") & (str[301] = "y"),
     "InputText, of any length");
-  Escape; str := FlDialogs.InputText("Name:", "abc");
+  FlTest.Escape; str := FlDialogs.InputText("Name:", "abc");
   Check.Check(str = NIL, "NIL if cancelled");
-  Reply("pass", Fl.KeyEnter, 0DX); str := FlDialogs.PasswordText("Password:", "");
+  FlTest.Answer("pass", Fl.KeyEnter); str := FlDialogs.PasswordText("Password:", "");
   Check.Check((str # NIL) & (str^ = "pass"), "PasswordText");
   s := "";
-  Reply("secret", Fl.KeyEnter, 0DX); ok := FlDialogs.Password("Password:", s);
+  FlTest.Answer("secret", Fl.KeyEnter); ok := FlDialogs.Password("Password:", s);
   Check.Check(ok & (s = "secret"), "Password");
   s := "";
-  Reply("secret", Fl.KeyEnter, 0DX); ok := FlDialogs.PasswordLimited("Password:", s, 3);
+  FlTest.Answer("secret", Fl.KeyEnter); ok := FlDialogs.PasswordLimited("Password:", s, 3);
   Check.Check(ok & (s = "sec"), "PasswordLimited takes no more than its limit");
   s := "x"; s[0] := 0C3X; s[1] := 0A9X; s[2] := 0X;  (* an e acute, two bytes *)
-  Reply("abc", Fl.KeyEnter, 0DX); ok := FlDialogs.InputLimited("Name:", s, 3);
+  FlTest.Answer("abc", Fl.KeyEnter); ok := FlDialogs.InputLimited("Name:", s, 3);
   Check.Check(ok & (s[0] = 0C3X) & (s[1] = 0A9X) & (s[2] = "a") & (s[3] = "b") & (s[4] = 0X),
     "InputLimited counts characters, not bytes");
   s := "";
-  Reply("abcd", Fl.KeyEnter, 0DX); ok := FlDialogs.InputLimited("Name:", s, 0);
+  FlTest.Answer("abcd", Fl.KeyEnter); ok := FlDialogs.InputLimited("Name:", s, 0);
   Check.Check(ok & (s = "abcd"), "and a limit of 0 is none");
 
   FlDialogs.SetTitle("Once");
-  Enter; FlDialogs.Message("titled");
-  Check.Check(answer.title = "Once", "SetTitle titles the next dialog");
-  Enter; FlDialogs.Message("untitled");
-  Check.Check(answer.title = "", "and that one only");
+  FlTest.Enter; FlDialogs.Message("titled");
+  Check.Check(Titled("Once"), "SetTitle titles the next dialog");
+  FlTest.Enter; FlDialogs.Message("untitled");
+  Check.Check(Titled(""), "and that one only");
   FlDialogs.SetDefaultTitle("Always");
-  Enter; FlDialogs.Message("titled");
-  Enter; FlDialogs.Message("titled");
-  Check.Check(answer.title = "Always", "SetDefaultTitle titles every one");
+  FlTest.Enter; FlDialogs.Message("titled");
+  FlTest.Enter; FlDialogs.Message("titled");
+  Check.Check(Titled("Always"), "SetDefaultTitle titles every one");
   FlDialogs.SetDefaultTitle("");
 
   r := 10; g := 300; b := -5;
-  Enter; ok := FlDialogs.ChooseColor("Color", r, g, b, FlDialogs.ColorByte);
-  Check.Check(ok & (answer.title = "Color") & (r = 10) & (g = 255) & (b = 0),
+  FlTest.Enter; ok := FlDialogs.ChooseColor("Color", r, g, b, FlDialogs.ColorByte);
+  Check.Check(ok & (Titled("Color")) & (r = 10) & (g = 255) & (b = 0),
     "ChooseColor: OK gives the color, brought into range");
   r := 1; g := 2; b := 3;
-  Escape; ok := FlDialogs.ChooseColor("Color", r, g, b, FlDialogs.ColorDefault);
+  FlTest.Escape; ok := FlDialogs.ChooseColor("Color", r, g, b, FlDialogs.ColorDefault);
   Check.Check(~ok & (r = 1) & (g = 2) & (b = 3), "cancelled, unchanged");
 
   s := "TestDialogs.Mod";
   picked := "";
   FlDialogs.SetFilePicked(Picked);
-  Enter; ok := FlDialogs.ChooseFile("Open", "*.Mod", s, TRUE);
-  Check.Check(ok & (answer.title = "Open") & (s = "TestDialogs.Mod"), "ChooseFile, relative");
+  FlTest.Enter; ok := FlDialogs.ChooseFile("Open", "*.Mod", s, TRUE);
+  Check.Check(ok & (Titled("Open")) & (s = "TestDialogs.Mod"), "ChooseFile, relative");
   Check.Check(Ends(picked, "/TestDialogs.Mod"), "SetFilePicked");
   FlDialogs.SetFilePicked(NIL);
   picked := "";
-  Enter; ok := FlDialogs.ChooseFile("Open", "*.Mod", s, FALSE);
+  FlTest.Enter; ok := FlDialogs.ChooseFile("Open", "*.Mod", s, FALSE);
   Check.Check(ok & (s[0] = "/") & Ends(s, "/test/TestDialogs.Mod"), "and absolute");
   Check.Check(picked = "", "SetFilePicked(NIL) stops it");
   s := "New.txt";
-  Enter; ok := FlDialogs.ChooseFile("Save", "", s, TRUE);
+  FlTest.Enter; ok := FlDialogs.ChooseFile("Save", "", s, TRUE);
   Check.Check(ok & (s = "New.txt"), "a file that doesn't exist");
-  Escape; ok := FlDialogs.ChooseFile("Save", "", s, TRUE);
+  FlTest.Escape; ok := FlDialogs.ChooseFile("Save", "", s, TRUE);
   Check.Check(~ok & (s = "New.txt"), "cancelled, unchanged");
   s := "..";
-  Enter; ok := FlDialogs.ChooseDirectory("Folder", s, FALSE);
+  FlTest.Enter; ok := FlDialogs.ChooseDirectory("Folder", s, FALSE);
   Check.Check(ok & (s[0] = "/") & ~Ends(s, "/test"), "ChooseDirectory");
 
   (* FLTK's own chooser, which keys can answer, and not the desktop's *)
@@ -218,24 +185,24 @@ BEGIN
   Check.Check(fc.Options() = FlDialogs.SaveAsConfirm, "SetOptions");
   fc.SetOptions({});
   fc.SetDirectory("."); fc.SetPresetFile("TestDialogs.Mod");
-  Enter; i := fc.Show();
-  Check.Check(answer.title = "Native", "the title, copied");
+  FlTest.Enter; i := fc.Show();
+  Check.Check(Titled("Native"), "the title, copied");
   Check.Check(i = FlDialogs.Chosen, "Show: Chosen");
   IF fc.Count() = 1 THEN fc.FileName(0, s) ELSE s := "" END;
   Check.Check((s[0] = "/") & Ends(s, "/test/TestDialogs.Mod"), "FileName: the file chosen, absolute");
   IF fc.Count() = 1 THEN str := fc.Name(0) ELSE str := NIL END;
   Check.Check((str # NIL) & (str^ = s), "Name");
-  Escape; i := fc.Show();
+  FlTest.Escape; i := fc.Show();
   Check.Check((i = FlDialogs.Cancelled) & (fc.Count() = 0), "Show: Cancelled");
   fc.SetKind(FlDialogs.BrowseSaveFile); fc.SetPresetFile("New.txt");
   Check.Check(fc.Kind() = FlDialogs.BrowseSaveFile, "SetKind");
-  Enter; i := fc.Show();
+  FlTest.Enter; i := fc.Show();
   IF fc.Count() = 1 THEN fc.FileName(0, s) ELSE s := "" END;
   Check.Check((i = FlDialogs.Chosen) & Ends(s, "/test/New.txt"), "BrowseSaveFile: a file that doesn't exist");
   fc.Close; fc.Close;
   Check.Check(~fc.IsOpen() & (FlDialogs.openChoosers = 0), "Close");
 
-  Escape; c := FlDialogs.ChooseFromColormap(Fl.Red);
+  FlTest.Escape; c := FlDialogs.ChooseFromColormap(Fl.Red);
   Check.Check(c = Fl.Red, "ChooseFromColormap gives back old if none is picked");
 
   (* test/names: empty files, whose names each sort orders differently *)
@@ -275,8 +242,8 @@ BEGIN
   chooser.SetMode(FlDialogs.ColorHSV);
   Check.Check(chooser.Mode() = FlDialogs.ColorHSV, "Mode reads back");
   chooser.SetMode(FlDialogs.ColorRGB);
-  ok := Probe.Mouse(win, Fl.EvPush, 25, 60, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 25, 60, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 25, 60, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 25, 60, Fl.LeftMouse, {}, 0);
   x := chooser.Hue();
   Check.Check((calls >= 1) & (x # 2.0D0), "a click on the hue box changes the color, and calls back");
   win.Delete;
@@ -413,7 +380,7 @@ BEGIN
   FlDialogs.SetDefaultIconLabel("");
   FlDialogs.SetIcon(Fl.ThinUpBox, Fl.TimesBold, 34, Fl.White, Fl.Blue);
   ShowIcon("");
-  Check.Check(answer.tries < tries, "SetIconLabel, SetIcon: dialogs still run");
+  Check.Check(Answered(), "SetIconLabel, SetIcon: dialogs still run");
   NEW(win); Fl.OpenWindow(win, 220, 110, "TestDialogs");
   NEW(box2); Fl.OpenBox(box2, 20, 30, 40, 10, "");
   win.End;

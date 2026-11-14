@@ -1,6 +1,6 @@
 MODULE TestBrowsers; (* FlBrowsers: lines, selection by program and by mouse, files and check boxes *)
 
-IMPORT Fl, FlBrowsers, Check, Probe;
+IMPORT Fl, FlBrowsers, FlTest, Check, Probe;
 
 VAR
   win: Fl.Window;
@@ -19,13 +19,13 @@ PROCEDURE Ink(b: FlBrowsers.Browser): INTEGER;
   VAR x, y, white: INTEGER;
 BEGIN
   white := Fl.RGB(255, 255, 255);
-  ASSERT(Probe.Capture(b));
+  ASSERT(FlTest.Capture(b));
   FOR x := 3 TO 150 DO
     FOR y := 4 TO 16 DO
-      IF Probe.Pixel(x, y) # white THEN Probe.Release; RETURN x END
+      IF FlTest.Pixel(x, y) # white THEN FlTest.Release; RETURN x END
     END
   END;
-  Probe.Release; RETURN -1
+  FlTest.Release; RETURN -1
 END Ink;
 
 (* Sets f's filter from an array that dies with this frame. *)
@@ -87,8 +87,8 @@ END LineSpacing;
 PROCEDURE Click(x, y: INTEGER);
   VAR ok: BOOLEAN;
 BEGIN
-  ok := Probe.Mouse(win, Fl.EvPush, x, y, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, x, y, Fl.LeftMouse, {}, 0)
+  ok := FlTest.Mouse(win, Fl.EvPush, x, y, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, x, y, Fl.LeftMouse, {}, 0)
 END Click;
 
 BEGIN
@@ -160,7 +160,7 @@ BEGIN
   hold.Add("a"); hold.Add("b"); hold.Add("c");
   Click(110, 10);
   Check.Check(hold.Value() = 0, "a browser never drawn selects nothing when clicked (FLTK)");
-  ok := Probe.Capture(hold);
+  ok := FlTest.Capture(hold);
   calls := 0;
   Click(110, 32);
   Check.Check((hold.Value() = 2) & hold.Selected(2) & (calls = 1), "a click selects a line and calls back");
@@ -174,10 +174,10 @@ BEGIN
   (* A multi browser *)
   NEW(multi); FlBrowsers.OpenMultiBrowser(multi, 250, 0, 150, 100, "");
   multi.Add("a"); multi.Add("b"); multi.Add("c");
-  ok := Probe.Capture(multi); Probe.Release;
+  ok := FlTest.Capture(multi); FlTest.Release;
   Click(260, 12);
-  ok := Probe.Mouse(win, Fl.EvPush, 260, 52, Fl.LeftMouse, Fl.Button1 + Fl.Ctrl, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 260, 52, Fl.LeftMouse, Fl.Ctrl, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 260, 52, Fl.LeftMouse, Fl.Button1 + Fl.Ctrl, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 260, 52, Fl.LeftMouse, Fl.Ctrl, 0);
   Check.Check(multi.Selected(1) & ~multi.Selected(2) & multi.Selected(3) & (multi.Value() = 3),
     "a multi browser: Ctrl-click adds a line");
   Click(260, 32);
@@ -238,7 +238,7 @@ BEGIN
   checks.GetText(1, s);
   Check.Check((checks.Count() = 2) & (s = "b"), "Remove");
   checks.CheckNone;
-  ok := Probe.Capture(checks); Probe.Release;
+  ok := FlTest.Capture(checks); FlTest.Release;
   calls := 0;
   Click(10, 226);
   Check.Check(checks.Checked(2) & ~checks.Checked(1) & (checks.Value() = 2) & (calls = 0),

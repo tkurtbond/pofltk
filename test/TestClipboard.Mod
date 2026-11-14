@@ -1,6 +1,6 @@
 MODULE TestClipboard; (* Fl's clipboard, and FlImages' images on it *)
 
-IMPORT Fl, FlDraw, FlInputs, FlImages, Check, Probe;
+IMPORT Fl, FlDraw, FlInputs, FlImages, FlTest, Check;
 
 TYPE
   (* Keeps what is pasted into it: the text, or the image if take. *)
@@ -170,21 +170,21 @@ BEGIN
   NEW(d); Fl.OpenBox(d, 50, 50, 20, 20, "");
   dwin.End;
   d.accept := TRUE;
-  Check.Check(Probe.Mouse(dwin, Fl.EvDndEnter, 55, 55, 0, {}, 0) & (d.last = Fl.EvDndEnter)
+  Check.Check(FlTest.Mouse(dwin, Fl.EvDndEnter, 55, 55, 0, {}, 0) & (d.last = Fl.EvDndEnter)
     & (Fl.BelowMouse() = d), "EvDndEnter: a widget that takes it is below the mouse");
-  Check.Check(Probe.Mouse(dwin, Fl.EvDndDrag, 60, 60, 0, {}, 0) & (d.last = Fl.EvDndDrag) & (d.events = 2),
+  Check.Check(FlTest.Mouse(dwin, Fl.EvDndDrag, 60, 60, 0, {}, 0) & (d.last = Fl.EvDndDrag) & (d.events = 2),
     "EvDndDrag over it");
-  Check.Check(Probe.Mouse(dwin, Fl.EvDndRelease, 60, 60, 0, {}, 0) & (d.last = Fl.EvDndRelease),
+  Check.Check(FlTest.Mouse(dwin, Fl.EvDndRelease, 60, 60, 0, {}, 0) & (d.last = Fl.EvDndRelease),
     "EvDndRelease: TRUE takes the drop");
-  ok := Probe.Mouse(dwin, Fl.EvDndDrag, 90, 5, 0, {}, 0);  (* FALSE: the window has no use for it *)
+  ok := FlTest.Mouse(dwin, Fl.EvDndDrag, 90, 5, 0, {}, 0);  (* FALSE: the window has no use for it *)
   Check.Check((d.last = Fl.EvDndLeave) & (d.events = 4) & (Fl.BelowMouse() = dwin), "EvDndLeave: dragged off it");
-  ok := Probe.Mouse(dwin, Fl.EvDndLeave, 90, 5, 0, {}, 0);
+  ok := FlTest.Mouse(dwin, Fl.EvDndLeave, 90, 5, 0, {}, 0);
   Check.Check((d.events = 5) & (d.last = Fl.EvDndLeave) & (Fl.BelowMouse() = NIL),
     "EvDndLeave: out of the window, which passes it to each child again");
   d.accept := FALSE; d.events := 0;
-  Check.Check(~Probe.Mouse(dwin, Fl.EvDndEnter, 55, 55, 0, {}, 0) & (d.last = Fl.EvDndEnter)
+  Check.Check(~FlTest.Mouse(dwin, Fl.EvDndEnter, 55, 55, 0, {}, 0) & (d.last = Fl.EvDndEnter)
     & (Fl.BelowMouse() # d), "EvDndEnter refused: not below the mouse");
-  ok := Probe.Mouse(dwin, Fl.EvDndLeave, 90, 5, 0, {}, 0);
+  ok := FlTest.Mouse(dwin, Fl.EvDndLeave, 90, 5, 0, {}, 0);
   dwin.Delete;
 
   win.Delete;

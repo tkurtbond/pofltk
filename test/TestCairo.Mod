@@ -1,6 +1,6 @@
 MODULE TestCairo; (* FlCairo: windows drawn with cairo, their contexts, and gradients *)
 
-IMPORT Fl, FlCairo, Check, Probe;
+IMPORT Fl, FlCairo, FlTest, Check;
 
 CONST Limit = 500; (* of waits, so that valgrind has time *)
 
@@ -195,37 +195,37 @@ BEGIN
   halves.Show;
   Wait(halves.draws, 0);
   Check.Check(halves.draws > 0, "DrawCairo is called");
-  Check.Check((Probe.ShownPixel(halves, 10, 10) = red) & (Probe.ShownPixel(halves, 90, 50) = blue),
+  Check.Check((FlTest.ShownPixel(halves, 10, 10) = red) & (FlTest.ShownPixel(halves, 90, 50) = blue),
     "it draws in the window's coordinates, over the widgets");
   before := halves.draws;
   halves.Redraw;
   Wait(halves.draws, before);
   Check.Check(halves.draws > before, "again at each redraw");
-  Check.Check(Probe.ShownPixel(halves, 90, 50) = blue, "the same again");
+  Check.Check(FlTest.ShownPixel(halves, 90, 50) = blue, "the same again");
 
   before := halves.draws;
   kid.Resize(0, 0, 200, 60);
   halves.Resize(halves.X(), halves.Y(), 200, 60);
   halves.Redraw;
   Wait(halves.draws, before);
-  Check.Check(Probe.ShownPixel(halves, 90, 50) = red, "resized, its left half is wider");
-  Check.Check(Probe.ShownPixel(halves, 190, 50) = blue, "and it draws on the new part");
+  Check.Check(FlTest.ShownPixel(halves, 90, 50) = red, "resized, its left half is wider");
+  Check.Check(FlTest.ShownPixel(halves, 190, 50) = blue, "and it draws on the new part");
 
   NEW(second);
   FlCairo.OpenCairoWindow(second, 80, 40, "");
   second.End;
   second.Show;
   Wait(second.draws, 0);
-  Check.Check(Probe.ShownPixel(second, 70, 30) = blue, "a second window");
-  Check.Check(Probe.ShownPixel(halves, 190, 50) = blue, "leaves the first");
+  Check.Check(FlTest.ShownPixel(second, 70, 30) = blue, "a second window");
+  Check.Check(FlTest.ShownPixel(halves, 190, 50) = blue, "leaves the first");
 
   (* A surface isn't the display: the widgets are shown, without cairo. *)
   before := halves.draws;
-  Check.Check(Probe.Capture(halves), "captured");
-  Check.Check((Probe.Pixel(10, 10) = green) & (halves.draws = before),
+  Check.Check(FlTest.Capture(halves), "captured");
+  Check.Check((FlTest.Pixel(10, 10) = green) & (halves.draws = before),
     "on another surface, DrawCairo isn't called");
-  Probe.Release;
-  Check.Check(Probe.ShownPixel(halves, 10, 10) = red, "and the window is as it was");
+  FlTest.Release;
+  Check.Check(FlTest.ShownPixel(halves, 10, 10) = red, "and the window is as it was");
   second.Delete;
   halves.Delete;
   Check.Check(~kid.IsOpen(), "its children go with it")
@@ -242,7 +242,7 @@ BEGIN
   sticky.Redraw;
   Wait(sticky.draws, 1);
   Check.Check(sticky.fresh, "the next draw has a good context");
-  Check.Check(Probe.ShownPixel(sticky, 90, 50) = blue, "with no scale left from the last");
+  Check.Check(FlTest.ShownPixel(sticky, 90, 50) = blue, "with no scale left from the last");
   sticky.Delete
 END TestSticky;
 
@@ -271,14 +271,14 @@ BEGIN
   graded.Show;
   Wait(graded.draws, 0);
   Check.Check(graded.ok, "a gradient");
-  left := Probe.ShownPixel(graded, 1, 30); right := Probe.ShownPixel(graded, 98, 30);
+  left := FlTest.ShownPixel(graded, 1, 30); right := FlTest.ShownPixel(graded, 98, 30);
   Check.Check(Near(left, 250, 0, 0) & Near(right, 0, 0, 250),
     "from red to blue");
   before := graded.draws;
   graded.closed := TRUE;
   graded.Redraw;
   Wait(graded.draws, before);
-  Check.Check(graded.ok & (Probe.ShownPixel(graded, 98, 30) = right), "cairo keeps a closed one it was set");
+  Check.Check(graded.ok & (FlTest.ShownPixel(graded, 98, 30) = right), "cairo keeps a closed one it was set");
   before := graded.draws;
   graded.bad := TRUE;
   graded.Redraw;
@@ -307,7 +307,7 @@ BEGIN
   dark := 0;
   FOR y := 0 TO 119 DO
     FOR x := 0 TO 199 DO
-      IF Probe.ShownPixel(texted, x, y) # white THEN INC(dark) END
+      IF FlTest.ShownPixel(texted, x, y) # white THEN INC(dark) END
     END
   END;
   Check.Check(dark > 100, "ShowText, TextPath and their fill draw");
@@ -322,14 +322,14 @@ BEGIN
   shapes.End;
   shapes.Show;
   Wait(shapes.draws, 0);
-  Check.Check(Probe.ShownPixel(shapes, 5, 5) = red, "Clip and Paint");
-  Check.Check(Probe.ShownPixel(shapes, 11, 11) = white, "Restore ends the clip");
-  Check.Check((Probe.ShownPixel(shapes, 115, 15) = red) & (Probe.ShownPixel(shapes, 99, 5) = white),
+  Check.Check(FlTest.ShownPixel(shapes, 5, 5) = red, "Clip and Paint");
+  Check.Check(FlTest.ShownPixel(shapes, 11, 11) = white, "Restore ends the clip");
+  Check.Check((FlTest.ShownPixel(shapes, 115, 15) = red) & (FlTest.ShownPixel(shapes, 99, 5) = white),
     "Translate and Scale");
-  Check.Check(Probe.ShownPixel(shapes, 5, 105) = blue, "a path of lines");
-  Check.Check((Probe.ShownPixel(shapes, 113, 105) = blue) & (Probe.ShownPixel(shapes, 105, 105) = white),
+  Check.Check(FlTest.ShownPixel(shapes, 5, 105) = blue, "a path of lines");
+  Check.Check((FlTest.ShownPixel(shapes, 113, 105) = blue) & (FlTest.ShownPixel(shapes, 105, 105) = white),
     "an arc stroked");
-  Check.Check(Probe.ShownPixel(shapes, 60, 60) = blue, "Rotate");
+  Check.Check(FlTest.ShownPixel(shapes, 60, 60) = blue, "Rotate");
   shapes.Delete
 END TestShapes;
 
@@ -343,7 +343,7 @@ BEGIN
   outer.End;
   outer.Show;
   Wait(inner.draws, 0);
-  Check.Check((Probe.ShownPixel(inner, 10, 10) = red) & (Probe.ShownPixel(inner, 90, 50) = blue),
+  Check.Check((FlTest.ShownPixel(inner, 10, 10) = red) & (FlTest.ShownPixel(inner, 90, 50) = blue),
     "a window in a window");
   outer.Delete;
   Check.Check(~inner.IsOpen(), "goes with it")

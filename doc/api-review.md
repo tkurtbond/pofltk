@@ -144,7 +144,7 @@ add a line literally, or a setting for it, made prominent in the README.
   doesn't size its child, so ova's `ShowRows` (`OvaWindow.Mod:667-707`)
   sizes a Flex in one by hand.
 
-### 9. A test-support module for programs
+### 9. A test-support module for programs `[done]`
 
 `test/Probe` isn't installed, so both programs make their dialogs
 replaceable procedure variables, and drive everything by `DoCallback`.
@@ -164,6 +164,11 @@ besm2 exports test-only hooks where `DoCallback` (`Fl.Mod:977`) and
 
 Proposal: an installed `FlTest`, with `Probe`'s events and its answering
 of dialogs, and these helpers.
+
+Done 2026-11-14, in pofltk 0.3.0 (PLAN.md, "FlTest: testing a
+program"), with the helpers named `Type`, `Choose`, `Click`,
+`SelectLine`, `Turn`, `Change`, `Settle`, `Expose` and `LineWith`, and
+the README's "Testing your program".
 
 ## What the rewrite to 0.2.0 showed
 

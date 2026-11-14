@@ -1,9 +1,9 @@
 MODULE TestInputs; (* FlInputs: text in and out, typing, editing, numbers *)
 
-(* Keys are sent as from the window system (Probe) to the focus, in a
+(* Keys are sent as from the window system (FlTest) to the focus, in a
    window never shown. *)
 
-IMPORT Strings, Fl, FlInputs, Check, Probe;
+IMPORT Strings, Fl, FlInputs, FlTest, Check;
 
 VAR
   win: Fl.Window;
@@ -33,7 +33,7 @@ PROCEDURE Type(keys: ARRAY OF CHAR);
 BEGIN
   i := 0; t[1] := 0X;
   WHILE keys[i] # 0X DO
-    t[0] := keys[i]; used := Probe.Key(Fl.EvKeyDown, ORD(keys[i]), {}, t); INC(i)
+    t[0] := keys[i]; used := FlTest.Key(Fl.EvKeyDown, ORD(keys[i]), {}, t); INC(i)
   END
 END Type;
 
@@ -55,7 +55,7 @@ BEGIN
   chooser.Add(long);
   chooser.Item(0, got);
   Check.Check((chooser.Length() = 3) & (got = "five"), "a tab ends an item's label");
-  ok := Probe.Shortcut(win, ORD("f"), Fl.Ctrl, "f");
+  ok := FlTest.Shortcut(win, ORD("f"), Fl.Ctrl, "f");
   chooser.Value(got);
   Check.Check(got = "five", "and the shortcut after it picks the item")
 END LongItem;
@@ -99,15 +99,15 @@ BEGIN
   Check.Check((s = "abc") & (calls = 3), "typed keys go in, with a Callback each (WhenChanged)");
   (* with the text the window system gives it: under Wayland, FLTK takes
      a key with no text as composed text *)
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyBackSpace, {}, 08X);
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyBackSpace, {}, 08X);
   in.Value(s);
   Check.Check(ok & (s = "ab"), "BackSpace deletes");
   in.SetWhen(Fl.WhenEnterKey); calls := 0;
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX);
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX);
   Check.Check(calls = 0, "Enter doesn't call back (WhenEnterKey) if nothing changed");
   Check.Check((in.InsertPosition() = 2) & (in.Mark() = 0), "but selects all the text");
   in.Select(2, 2); Type("c");
-  ok := Probe.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX);
+  ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX);
   in.Value(s);
   Check.Check((calls = 1) & (s = "abc"), "Enter calls back once something has changed, typing nothing");
   in.SetMaximumSize(4); in.Select(3, 3);
@@ -154,7 +154,7 @@ BEGIN
 
   (* many lines *)
   Check.Check(multi.TakeFocus(), "focus to the multiline input");
-  Type("a"); ok := Probe.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX); Type("b");
+  Type("a"); ok := FlTest.Key(Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX); Type("b");
   multi.Value(s);
   Check.Check((s[0] = "a") & (s[1] = 0AX) & (s[2] = "b") & (s[3] = 0X),
     "Enter types a new line in a multiline input");
@@ -196,9 +196,9 @@ BEGIN
   (* the bar's click makes the window current, which Wayland refuses, in
      an alert no one answers, for a window not shown *)
   win.Show; win.WaitForExpose;
-  ok := Probe.Capture(file); Probe.Release;
-  ok := Probe.Mouse(win, Fl.EvPush, 66, 203, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 66, 203, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Capture(file); FlTest.Release;
+  ok := FlTest.Mouse(win, Fl.EvPush, 66, 203, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 66, 203, Fl.LeftMouse, {}, 0);
   file.Value(s);
   Check.Check((s = "/") & (calls = 1), "a click on its first directory cuts the path to it, and calls back");
 
@@ -234,8 +234,8 @@ BEGIN
     & (chooser.TextColor() = Fl.Blue) & (chooser.TextFont() = Fl.Courier),
     "the box and text settings read back");
   chooser.SetValue("");
-  ok := Probe.Mouse(win, Fl.EvPush, 70, 260, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 70, 260, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Mouse(win, Fl.EvPush, 70, 260, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 70, 260, Fl.LeftMouse, {}, 0);
   Type("x");
   chooser.Value(s);
   Check.Check((calls = 1) & (s = "x"), "typing in it calls back");

@@ -1,6 +1,6 @@
 MODULE TestTree; (* FlBrowsers.Tree: items, paths, removal, selection by program and by mouse *)
 
-IMPORT Fl, FlBrowsers, Check, Probe;
+IMPORT Fl, FlBrowsers, FlTest, Check;
 
 VAR
   win: Fl.Window;
@@ -28,8 +28,8 @@ PROCEDURE Click(row: INTEGER; state: SET);
   VAR ok: BOOLEAN; y: INTEGER;
 BEGIN
   y := 15 + 20 * row;
-  ok := Probe.Mouse(win, Fl.EvPush, 60, y, Fl.LeftMouse, Fl.Button1 + state, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 60, y, Fl.LeftMouse, state, 0)
+  ok := FlTest.Mouse(win, Fl.EvPush, 60, y, Fl.LeftMouse, Fl.Button1 + state, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 60, y, Fl.LeftMouse, state, 0)
 END Click;
 
 PROCEDURE Is(i: FlBrowsers.TreeItem; label: ARRAY OF CHAR): BOOLEAN;
@@ -154,7 +154,7 @@ BEGIN
 
   (* Selection by the user: rows are a, b, c, d, e from 0, the root hidden
      taking none. *)
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   Click(1, {});
   Check.Check(b.IsSelected() & (calls = 1) & FlBrowsers.Same(last, b) & (reason = FlBrowsers.ReasonSelected),
     "a click selects an item, and calls back with it");
@@ -170,7 +170,7 @@ BEGIN
      are now c, d, e. *)
   Click(1, {});
   a.Remove;
-  ok := Probe.Capture(t); Probe.Release;
+  ok := FlTest.Capture(t); FlTest.Release;
   t.DeselectAll;
   Click(0, Fl.Shift);
   Check.Check(c.IsSelected() & ~d.IsSelected() & ~e.IsSelected(),
@@ -185,10 +185,10 @@ BEGIN
      drag moves it (doc/fltk-issues.md, 59), which valgrind sees. Rows are
      c, e. *)
   t.SetSelectMode(FlBrowsers.TreeSelectSingleDraggable); t.DeselectAll;
-  ok := Probe.Capture(t); Probe.Release;
-  ok := Probe.Mouse(win, Fl.EvPush, 60, 35, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvDrag, 60, 12, Fl.LeftMouse, Fl.Button1, 0);
-  ok := Probe.Mouse(win, Fl.EvRelease, 60, 12, Fl.LeftMouse, {}, 0);
+  ok := FlTest.Capture(t); FlTest.Release;
+  ok := FlTest.Mouse(win, Fl.EvPush, 60, 35, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvDrag, 60, 12, Fl.LeftMouse, Fl.Button1, 0);
+  ok := FlTest.Mouse(win, Fl.EvRelease, 60, 12, Fl.LeftMouse, {}, 0);
   Check.Check(~e.IsLive() & c.IsLive() & (root.Children() = 1),
     "an item removed in its callback as it is pushed, and a drag");
   removeInCallback := FALSE;
@@ -198,11 +198,11 @@ BEGIN
   i := t.Add("many/0");
   FOR n := 1 TO 39 DO s := "many/x"; s[5] := CHR(ORD("0") + n DIV 10); s[6] := CHR(ORD("0") + n MOD 10); j := t.Add(s) END;
   i := t.Find("many/20");
-  ok := Probe.Capture(t); Probe.Release;
-  i.ShowAtTop; ok := Probe.Capture(t); Probe.Release; n := t.VPosition();
-  i.ShowInMiddle; ok := Probe.Capture(t); Probe.Release; calls := t.VPosition();
+  ok := FlTest.Capture(t); FlTest.Release;
+  i.ShowAtTop; ok := FlTest.Capture(t); FlTest.Release; n := t.VPosition();
+  i.ShowInMiddle; ok := FlTest.Capture(t); FlTest.Release; calls := t.VPosition();
   Check.Check(i.Displayed() & (n > calls), "ShowInMiddle scrolls less far than ShowAtTop");
-  i.ShowAtBottom; ok := Probe.Capture(t); Probe.Release;
+  i.ShowAtBottom; ok := FlTest.Capture(t); FlTest.Release;
   Check.Check(i.Displayed() & (calls > t.VPosition()) & (t.VPosition() > 0), "ShowAtBottom less far still");
 
   t.Clear;

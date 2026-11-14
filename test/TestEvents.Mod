@@ -1,10 +1,10 @@
 MODULE TestEvents; (* Handle and Resize overrides; the Event queries, focus *)
 
-(* Events are sent to the window as from the window system (Probe), and
+(* Events are sent to the window as from the window system (FlTest), and
    FLTK delivers them to the widgets as it would the user's; the window
    is never shown. *)
 
-IMPORT Fl, Check, Probe;
+IMPORT Fl, FlTest, Check;
 
 TYPE
   (* records the last event it had, and what the Event queries said *)
@@ -65,7 +65,7 @@ BEGIN
   win.End;
 
   (* the mouse *)
-  used := Probe.Mouse(win, Fl.EvPush, 50, 60, Fl.LeftMouse, Fl.Button1, 0);
+  used := FlTest.Mouse(win, Fl.EvPush, 50, 60, Fl.LeftMouse, Fl.Button1, 0);
   Check.Check(used & (pad.last = Fl.EvPush) & (pad.event = Fl.EvPush),
     "EvPush reaches the Handle of the widget under the mouse, which uses it");
   Check.Check((pad.x = 50) & (pad.y = 60) & (pad.xRoot = win.X() + 50),
@@ -74,33 +74,33 @@ BEGIN
     & (pad.clicks = 0), "EventButton, EventState and EventClicks of a single click");
   Check.Check(pad.inside & ~pad.insideRect, "Widget.EventInside and Fl.EventInside");
   Check.Check((Fl.Pushed() = pad) & Fl.HasPushed(), "Pushed is the widget that took the EvPush");
-  used := Probe.Mouse(win, Fl.EvDrag, 200, 70, Fl.LeftMouse, Fl.Button1, 0);
+  used := FlTest.Mouse(win, Fl.EvDrag, 200, 70, Fl.LeftMouse, Fl.Button1, 0);
   Check.Check(used & (pad.last = Fl.EvDrag) & (pad.x = 200) & ~pad.inside,
     "EvDrag goes to the pushed widget, even outside it");
-  used := Probe.Mouse(win, Fl.EvRelease, 200, 70, Fl.LeftMouse, {}, 0);
+  used := FlTest.Mouse(win, Fl.EvRelease, 200, 70, Fl.LeftMouse, {}, 0);
   Check.Check(used & (pad.last = Fl.EvRelease) & (Fl.Pushed() = NIL) & ~Fl.HasPushed(),
     "EvRelease goes to it too, and ends the push");
-  used := Probe.Mouse(win, Fl.EvPush, 50, 60, Fl.RightMouse, Fl.Button3 + Fl.Shift, 1);
+  used := FlTest.Mouse(win, Fl.EvPush, 50, 60, Fl.RightMouse, Fl.Button3 + Fl.Shift, 1);
   Check.Check((pad.button = Fl.RightMouse) & (pad.clicks = 1)
     & (pad.state * (Fl.Shift + Fl.Buttons) = Fl.Button3 + Fl.Shift),
     "a shifted right double click");
-  used := Probe.Mouse(win, Fl.EvRelease, 50, 60, Fl.RightMouse, {}, 1);
+  used := FlTest.Mouse(win, Fl.EvRelease, 50, 60, Fl.RightMouse, {}, 1);
 
   (* moving and the wheel *)
-  used := Probe.Mouse(win, Fl.EvMove, 60, 60, 0, {}, 0);
+  used := FlTest.Mouse(win, Fl.EvMove, 60, 60, 0, {}, 0);
   Check.Check((Fl.BelowMouse() = pad) & Fl.HasBelowMouse(), "EvMove: the widget under the mouse is BelowMouse");
-  used := Probe.Wheel(win, 60, 60, 0, 3);
+  used := FlTest.Wheel(win, 60, 60, 0, 3);
   Check.Check(used & (pad.last = Fl.EvMouseWheel) & (pad.dy = 3),
     "EvMouseWheel reaches it, with EventDy");
 
   (* the keyboard *)
   Check.Check(pad.VisibleFocus() & pad.TakeFocus() & (Fl.Focus() = pad),
     "TakeFocus, when Handle uses EvFocus, gives the focus");
-  used := Probe.Key(Fl.EvKeyDown, ORD("a"), Fl.Ctrl, "a");
+  used := FlTest.Key(Fl.EvKeyDown, ORD("a"), Fl.Ctrl, "a");
   Check.Check(used & (pad.key = ORD("a")) & (pad.text = "a") & (pad.length = 1)
     & (pad.state * Fl.Ctrl = Fl.Ctrl),
     "EvKeyDown reaches the focus, with EventKey, EventText, EventLength and EventState");
-  used := Probe.Key(Fl.EvKeyDown, Fl.KeyF + 2, {}, "");
+  used := FlTest.Key(Fl.EvKeyDown, Fl.KeyF + 2, {}, "");
   Check.Check(~used & (pad.key = Fl.KeyF + 2) & (pad.text = ""),
     "a key the focus doesn't use: F2, with no text");
   Fl.SetFocus(other);
@@ -153,7 +153,7 @@ BEGIN
   (* Last, since FLTK raises a window clicked in where no widget uses the
      click: it shows it, and makes it the pushed widget. *)
   pad.events := 0;
-  used := Probe.Mouse(win, Fl.EvPush, other.X() + 5, other.Y() + 5, Fl.LeftMouse, Fl.Button1, 0);
+  used := FlTest.Mouse(win, Fl.EvPush, other.X() + 5, other.Y() + 5, Fl.LeftMouse, Fl.Button1, 0);
   Check.Check((pad.last # Fl.EvPush) & (Fl.Pushed() = win),
     "a push on a plain box: the pad doesn't see it, and the window is Pushed");
   Check.Check(used & win.Shown() & (pad.events = 1) & (pad.last = Fl.EvShow),

@@ -1,6 +1,6 @@
 MODULE TestMenus; (* FlMenus: items, picking, shortcuts, choices, a global menu and a pop-up *)
 
-IMPORT Strings, Fl, FlMenus, Check, Probe;
+IMPORT Strings, Fl, FlMenus, FlTest, Check, Probe;
 
 TYPE
   (* Answers a pop-up menu: Down and Enter to pick its first item, Enter
@@ -47,12 +47,12 @@ BEGIN
   grabbed := Probe.Grab(gx, gy, gw, gh);
   menuGrab := Fl.HasGrab() & (Fl.Grab() = NIL);
   IF a.enter THEN
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
   ELSIF a.pick THEN
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyDown, {}, "");
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyDown, {}, "");
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyEnter, {}, 0DX)
   ELSE
-    ok := Probe.HandleKey(win, Fl.EvKeyDown, Fl.KeyEscape, {}, 1BX)
+    ok := FlTest.HandleKey(win, Fl.EvKeyDown, Fl.KeyEscape, {}, 1BX)
   END
 END Fire;
 
@@ -170,9 +170,9 @@ BEGIN
   Check.Check((opened = 1) & (last = bar) & (bar.Value() = open), "Pick calls the item's action with the menu");
   bar.Pick(copy);
   Check.Check((barCalls = 1) & (opened = 1) & (bar.Value() = copy), "an item without one calls the menu's");
-  ok := Probe.Shortcut(win, ORD("o"), Fl.Ctrl, "o");
+  ok := FlTest.Shortcut(win, ORD("o"), Fl.Ctrl, "o");
   Check.Check(ok & (opened = 2), "an item's shortcut picks it");
-  ok := Probe.Shortcut(win, ORD("x"), Fl.Ctrl, "x");
+  ok := FlTest.Shortcut(win, ORD("x"), Fl.Ctrl, "x");
   Check.Check(ok & (quitted = 1), "a shortcut changed by Add");
   bar.Pick(grid);
   Check.Check(FlMenus.MenuValue * bar.ItemFlags(grid) # {}, "picking a toggle item turns it on");
@@ -256,13 +256,13 @@ BEGIN
   (* a global menu, in no window *)
   NEW(other); FlMenus.OpenMenuBar(other, 0, 0, 10, 10, "");
   i := other.Add("Go", ORD("g"), Fl.Ctrl, Quit, {});
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
   Check.Check(~ok & (quitted = 2), "another menu's shortcut doesn't work in this window");
   other.Global;
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
   Check.Check(ok & (quitted = 3), "until it is global");
   other.Delete;
-  ok := Probe.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
+  ok := FlTest.HandleKey(win, Fl.EvShortcut, ORD("g"), Fl.Ctrl, "g");
   Check.Check(~ok & (quitted = 3), "a global menu deleted is forgotten");
 
   (* a menu in no window, asked of the key just handled, Ctrl+g *)
