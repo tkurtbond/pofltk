@@ -1298,8 +1298,13 @@ None at present.
   GLEW; 2763 with no cairo; 2785 with no GLU; and on a Wayland FLTK
   without `FLTK_HAVE_CAIRO`, 2807 on Xvfb and 2783 on sway. After
   FlTest, version 0.3.0 (2026-11-14), 2856 (1 skipped), 2832 (9
-  skipped), 2558 (1 skipped) and 2535 (8 skipped) here; the BSDs and
-  the FLTK variants not run.
+  skipped), 2558 (1 skipped) and 2535 (8 skipped) here; and on
+  2915a04, the same four again; 2856, 1 skipped, on NetBSD and FreeBSD
+  and 2848, 2 skipped, on OpenBSD; 2844, 5 skipped, with neither Cairo
+  nor Pango; 2479, 20 skipped, with no SVG, printing or GL; 2782, 5
+  skipped, with no Forms; 2573, 5 skipped, with no GL; 2854 with no
+  GLEW; 2812 with no cairo; 2834 with no GLU; and on a Wayland FLTK
+  without `FLTK_HAVE_CAIRO`, 2856 on Xvfb and 2832 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every
