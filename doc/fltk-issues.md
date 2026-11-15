@@ -3590,17 +3590,20 @@ drivers derive from this one, and GTK builds its filters from
 `_parsedfilt` (`src/Fl_Native_File_Chooser_GTK.cxx:713`); the Windows
 and macOS drivers have their own parsers, not checked.
 
-**Effect on pofltk:** `SetFilter` passes its text to FLTK as it is, and
-`AddFilter` (`ofl_fnfc_add_filter`, `src/FlDialogs.cpp`) adds a line
-with no name when `name` is "", so `AddFilter("", "*.c")` followed by
-`AddFilter("YAML", "*.{yaml,yml}")` loses `*.c`, by its source.
-`TestDialogs` adds its unnamed filter last, so it doesn't see this.
-FLTKAda's `Add_Filter` gives every line a name, the pattern itself when
-there is none, including the lines `Set_Filter` gave before it; pofltk
-could do the same. Not changed here.
+**Effect on pofltk:** `AddFilter` (`ofl_fnfc_add_filter`,
+`src/FlDialogs.cpp`) added a line with no name when `name` was "", so
+`AddFilter("", "*.c")` followed by `AddFilter("YAML", "*.{yaml,yml}")`
+lost `*.c`. Fixed 2026-11-15, as FLTKAda's `Add_Filter` does it:
+`AddFilter` now gives every line a name, the pattern itself when there
+is none, including the lines `SetFilter` gave before it. `SetFilter`
+alone still passes its text to FLTK as it is, so a caller who writes
+`"*.c\nHeaders\t*.h"` there gets FLTK's behaviour.
 
 **Confirmed:** in FLTKAda, 2026-11-15: a scratch C++ program under Xvfb
 printed `filters()` as 1 for `"*.c\nHeaders\t*.h"` and 2 for
 `"Headers\t*.h\n*.c"`, `"*.c\n*.h"` and `"*.c\t*.c\nHeaders\t*.h"`;
 FLTKAda's `test_native_chooser_filter` failed with a count of 1 before
-its `Add_Filter` named the lines.
+its `Add_Filter` named the lines. In pofltk, 2026-11-15: two checks
+added to `TestDialogs` (an unnamed `AddFilter`, and an unnamed
+`SetFilter`, each followed by a named `AddFilter`) found 1 filter, not
+2, under Xvfb; with the fix, 2.

@@ -179,6 +179,11 @@ BEGIN
   Check.Check((fc.Filters() = 4) & (fc.FilterValue() = 3), "AddFilter");
   fc.SetFilter(""); fc.AddFilter("Oberon", "*.Mod");
   Check.Check(fc.Filters() = 1, "after SetFilter, AddFilter adds to its filters");
+  (* FLTK drops a line with no name before one with a name (fltk-issues 178) *)
+  fc.SetFilter(""); fc.AddFilter("", "*.c"); fc.AddFilter("Headers", "*.h");
+  Check.Check(fc.Filters() = 2, "a filter with no name, then one with a name");
+  fc.SetFilter("*.c"); fc.AddFilter("Headers", "*.h");
+  Check.Check(fc.Filters() = 2, "SetFilter with no name, then AddFilter with one");
   fc.SetFilter(s);
   fc.SetFilterValue(0);
   fc.SetOptions({}); fc.SetOptions(FlDialogs.SaveAsConfirm);

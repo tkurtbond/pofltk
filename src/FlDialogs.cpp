@@ -411,19 +411,33 @@ int32_t ofl_fnfc_set_text(intptr_t c, int32_t what, const char *s) {
 }
 
 // Adds a filter to what ofl_fnfc_set_text gave: name, a tab and pattern,
-// or pattern alone if name is "", after a newline if there were filters.
-// The text is kept here, not read back, since a driver's filter() isn't
-// the text it was given (Kdialog's is what it last parsed). 0 if out of
-// memory.
+// after a newline if there were filters. Every line is given a name, the
+// pattern itself if it has none, the new one and any from SetFilter,
+// since FLTK drops a line with no name before one with a name
+// (fltk-issues 178). The text is kept here, not read back, since a
+// driver's filter() isn't the text it was given (Kdialog's is what it
+// last parsed). 0 if out of memory.
 int32_t ofl_fnfc_add_filter(intptr_t c, const char *name, const char *pattern) {
   Chooser *ch = chooser(c);
   try {
-    std::string t = ch->filter;
-    if (!t.empty()) t += '\n';
-    if (*name) {
-      t += name;
-      t += '\t';
+    std::string t;
+    const std::string &old = ch->filter;
+    std::string::size_type at = 0;
+    while (at < old.size()) {
+      std::string::size_type end = old.find('\n', at);
+      if (end == std::string::npos) end = old.size();
+      std::string line = old.substr(at, end - at);
+      if (!t.empty()) t += '\n';
+      if (!line.empty() && line.find('\t') == std::string::npos) {
+        t += line;
+        t += '\t';
+      }
+      t += line;
+      at = end + 1;
     }
+    if (!t.empty()) t += '\n';
+    t += *name ? name : pattern;
+    t += '\t';
     t += pattern;
     ch->filter.swap(t);
   } catch (...) {
