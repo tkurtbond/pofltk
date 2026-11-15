@@ -545,6 +545,25 @@ ssh to each as the user.
   GLEW and `/usr/local/bin/Xvfb`. DejaVu is their only font.
   `make test` passed on both 2026-10-30, all 823 `ok` lines.
 
+### Raspberry Pi (sadric)
+
+sadric is a Raspberry Pi 400 running Raspberry Pi OS, on Debian 13
+(trixie), aarch64 (2026-11-14): the first ARM Linux host, and the first
+FLTK older than 1.4.5, Debian's 1.4.3 (X11 and Wayland, Cairo, Forms,
+GL; GLU, no GLEW), with poc 0.11.2. The agent can ssh to it as the user.
+
+- **Debian's `fltk-config` prints nothing for `--includedir`** (its
+  option sets `echo_includedir` to the directory, not `yes`), so the
+  makefile takes the `include` beside `fltk-config`'s `bin`.
+- **FLTK 1.4.3 has no `fl_utf8_next_composed_char`** or
+  `fl_utf8_previous_composed_char`, added with 1.4.5's emoji support:
+  `FlUtf8.cpp` steps one character there (`FL_API_VERSION < 10405`).
+- `make install` there passed, and `make` built every test and example,
+  on 2026-11-14, into `~/.local/lib/poc/aarch64-unknown-linux-gnu`.
+- **No Xvfb and no sway**, and its desktop session is live (`wayland-0`),
+  so nothing that opens a window runs there; the tests haven't been run.
+  `TestConstants` would fail where 1.4.3's values differ.
+
 **So that a test passes on every system**, it must not depend on the
 font, the drawing back end, or the FPU:
 

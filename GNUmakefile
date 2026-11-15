@@ -59,7 +59,11 @@ FLTK_LIBS     := $(if $(filter -lpng1%,$(FLTK_LIBS_ALL)),$(filter-out -lpng,$(FL
 # with sources in src/<part>/. fl_config.h says so for Forms. For OpenGL
 # it says nothing, and FLTK installs GL's headers without GL, and
 # fltk-config names libfltk_gl, so that library's being there decides.
-FLTK_CONFIG_H := $(shell $(FLTK_CONFIG) --includedir)/FL/fl_config.h
+# Debian's fltk-config 1.4.3 prints nothing for --includedir: then it is
+# the include beside fltk-config's bin.
+FLTK_INCDIR   := $(shell $(FLTK_CONFIG) --includedir)
+FLTK_INCDIR   := $(or $(FLTK_INCDIR),$(patsubst %/bin/,%/include,$(dir $(shell command -v $(FLTK_CONFIG)))))
+FLTK_CONFIG_H := $(FLTK_INCDIR)/FL/fl_config.h
 HAVE_FORMS    := $(shell grep -q 'define FLTK_HAVE_FORMS 1' $(FLTK_CONFIG_H) && echo yes)
 FLTK_LIBDIR   := $(dir $(firstword $(shell $(FLTK_CONFIG) --libs)))
 HAVE_GL       := $(if $(wildcard $(FLTK_LIBDIR)libfltk_gl.*),yes)

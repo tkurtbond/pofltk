@@ -128,7 +128,8 @@ END Test;
 (* The start of what follows at: the next character, or, for an emoji
    sequence (a flag, a keycap, characters joined), what follows that. It
    doesn't take a letter and its combining marks as one. Length(s) if
-   nothing follows. *)
+   nothing follows. With an FLTK before 1.4.5, which has no emoji
+   sequences, the next character alone. *)
 PROCEDURE NextComposed*(s-: ARRAY OF CHAR; at: INTEGER): INTEGER;
   VAR n: INTEGER;
 BEGIN

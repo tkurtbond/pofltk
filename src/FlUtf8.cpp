@@ -7,6 +7,7 @@
 // zeros on both sides (Text), and what it returns is kept within the
 // text.
 
+#include <FL/Enumerations.H>
 #include <FL/fl_utf8.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -115,6 +116,18 @@ int32_t ofl_utf8_nb_char(intptr_t a, int32_t n) {
 int32_t ofl_utf8_test(intptr_t a, int32_t n) {
   return fl_utf8test(reinterpret_cast<const char *>(a), uint32_t(n));
 }
+
+#if FL_API_VERSION < 10405
+// FLTK 1.4.5 added the composed-character walks (its "complete support of
+// emojis"): before it, a composed character is one character.
+static const char *fl_utf8_next_composed_char(const char *from, const char *end) {
+  return fl_utf8fwd(from + 1, from, end);
+}
+
+static const char *fl_utf8_previous_composed_char(const char *from, const char *begin) {
+  return fl_utf8back(from - 1, begin, from);
+}
+#endif
 
 int32_t ofl_utf8_next_composed(intptr_t a, int32_t n, int32_t at) {
   Text t(a, n);
