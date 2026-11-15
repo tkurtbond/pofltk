@@ -411,12 +411,17 @@ valgrind: tests display
 # The same, on a virtual X server (Xvfb), not the desktop. WAYLAND_DISPLAY
 # is unset because FLTK prefers Wayland when it is set, even under
 # xvfb-run, which sets only DISPLAY; without it FLTK uses X11 (confirmed,
-# PLAN.md Phase 0).
+# PLAN.md Phase 0). XDG_RUNTIME_DIR is a directory of our own, since with
+# WAYLAND_DISPLAY unset FLTK still tries the socket wayland-0 there, a
+# desktop's on Debian (AGENTS.md, "FLTK's behaviour").
+HEADLESS = mkdir -p -m 700 $(BUILD)/xdg-run && \
+  env -u WAYLAND_DISPLAY XDG_RUNTIME_DIR=$(CURDIR)/$(BUILD)/xdg-run xvfb-run -a
+
 test-headless: tests
-	env -u WAYLAND_DISPLAY xvfb-run -a $(MAKE) test
+	$(HEADLESS) $(MAKE) test
 
 valgrind-headless: tests
-	env -u WAYLAND_DISPLAY xvfb-run -a $(MAKE) valgrind
+	$(HEADLESS) $(MAKE) valgrind
 
 # The same on Wayland, on a headless sway (tools/with-sway.sh): a compositor
 # with no screen, so no window appears on the desktop, where the user's

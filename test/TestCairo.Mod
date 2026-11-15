@@ -225,7 +225,9 @@ BEGIN
   Check.Check((FlTest.Pixel(10, 10) = green) & (halves.draws = before),
     "on another surface, DrawCairo isn't called");
   FlTest.Release;
-  Check.Check(FlTest.ShownPixel(halves, 10, 10) = red, "and the window is as it was");
+  (* Outside second: before 1.4.5, X11 reads a window as the screen shows
+     it (doc/fltk-issues.md, 177). *)
+  Check.Check(FlTest.ShownPixel(halves, 90, 50) = red, "and the window is as it was");
   second.Delete;
   halves.Delete;
   Check.Check(~kid.IsOpen(), "its children go with it")

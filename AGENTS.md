@@ -409,7 +409,9 @@ widgets never shown; `make test` stops with a message without one.
 - **`make test-headless`** runs them on Xvfb instead, so no windows
   appear on the desktop. It unsets `WAYLAND_DISPLAY`: a plain `xvfb-run`
   in a Wayland session leaves it set, and FLTK then uses the real desktop
-  (confirmed).
+  (confirmed). It sets `XDG_RUNTIME_DIR` to `build/xdg-run`, since FLTK
+  tries a `wayland-0` there even with `WAYLAND_DISPLAY` unset (below),
+  and that is the desktop's on Debian (sadric, 2026-11-14).
 - **`make test-sway`** runs them on Wayland without the desktop: on a
   headless sway, through `tools/with-sway.sh` (2026-10-06). sway's
   headless back end (`WLR_BACKENDS=headless`, software rendering with
@@ -557,12 +559,21 @@ GL; GLU, no GLEW), with poc 0.11.2. The agent can ssh to it as the user.
   makefile takes the `include` beside `fltk-config`'s `bin`.
 - **FLTK 1.4.3 has no `fl_utf8_next_composed_char`** or
   `fl_utf8_previous_composed_char`, added with 1.4.5's emoji support:
-  `FlUtf8.cpp` steps one character there (`FL_API_VERSION < 10405`).
+  `FlUtf8.cpp` steps one character there (`FL_API_VERSION < 10405`), and
+  `TestUtf8` skips its six emoji checks.
+- **Its X11 `fl_read_image` reads the screen**, not a double window's
+  offscreen buffer (`doc/fltk-issues.md`, 177), so a test reads a shown
+  window only where no other window covers it.
 - `make install` there passed, and `make` built every test and example,
   on 2026-11-14, into `~/.local/lib/poc/aarch64-unknown-linux-gnu`.
-- **No Xvfb and no sway**, and its desktop session is live (`wayland-0`),
-  so nothing that opens a window runs there; the tests haven't been run.
-  `TestConstants` would fail where 1.4.3's values differ.
+- **The display**: Xvfb is installed (2026-11-14), no sway, and its
+  desktop session is live, on `wayland-0`, which FLTK finds even with
+  `WAYLAND_DISPLAY` unset: run only `make test-headless`, which gives it
+  an `XDG_RUNTIME_DIR` of its own, and for one program
+  `env -u WAYLAND_DISPLAY XDG_RUNTIME_DIR=$HOME/pofltk/build/xdg-run
+  xvfb-run -a`. 1.4.3's constants are 1.4.5's: `TestConstants` passes.
+- Tested there 2026-11-14: `make test-headless` passes, 2882 `ok` lines,
+  7 skipped (the emoji checks, and `Iconize`); GLEW not built.
 
 **So that a test passes on every system**, it must not depend on the
 font, the drawing back end, or the FPU:
@@ -697,6 +708,10 @@ held only in C++ memory**.
   TRUE, none FALSE; this desktop's is `wayland-1`). A program refusing
   to start with no display checks the variables itself first, and asks
   `CanOpenDisplay` for one that names a display gone.
+- **Before 1.4.5, X11's `fl_read_image` of a double window reads the
+  screen**, not its offscreen buffer, so a part another window covers
+  reads black under Xvfb: `FlTest.ShownPixel` reads only what shows
+  there (`doc/fltk-issues.md`, 177).
 - **`Fl_Image_Surface` draws a widget that was never shown**, and its
   pixels read back exactly (`FL_RED` is 255,0,0), on both back ends.
   `Fl_Widget_Surface::draw(w, 0, 0)` puts a child widget's top left at

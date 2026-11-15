@@ -1,6 +1,6 @@
 MODULE TestUtf8; (* FlUtf8: bad text, text filling its array, and buffers too short *)
 
-IMPORT C := Check, U := FlUtf8;
+IMPORT C := Check, Fl, U := FlUtf8;
 
 VAR
   i, n, size: INTEGER;
@@ -26,6 +26,13 @@ BEGIN
   WHILE t[i] # 0X DO s[at + i] := t[i]; INC(i) END;
   s[at + i] := 0X
 END Add;
+
+(* A check of an emoji sequence, which an FLTK before 1.4.5 doesn't
+   compose: there FlUtf8 steps one character. *)
+PROCEDURE Emoji(ok: BOOLEAN; label: ARRAY OF CHAR);
+BEGIN
+  IF Fl.BuiltApiVersion() >= 10405 THEN C.Check(ok, label) ELSE C.Skip(label) END
+END Emoji;
 
 PROCEDURE Same(a-, b-: ARRAY OF CHAR): BOOLEAN;
   VAR i: INTEGER;
@@ -114,23 +121,23 @@ BEGIN
   n := U.Encode(1F1E6H, e); Add(s, 0, e);
   n := U.Encode(1F1E7H, e); Add(s, 4, e);
   Add(s, 8, "x");
-  C.Check(U.NextComposed(s, 0) = 8, "NextComposed of a flag");
+  Emoji(U.NextComposed(s, 0) = 8, "NextComposed of a flag");
   C.Check(U.NextComposed(s, 8) = 9, "NextComposed to the end");
   C.Check(U.NextComposed(s, 9) = 9, "NextComposed at the end");
   C.Check(U.PreviousComposed(s, 9) = 8, "PreviousComposed");
-  C.Check(U.PreviousComposed(s, 8) = 0, "PreviousComposed of a flag");
+  Emoji(U.PreviousComposed(s, 8) = 0, "PreviousComposed of a flag");
   C.Check(U.PreviousComposed(s, 0) = 0, "PreviousComposed at the start");
   Add(s, 0, "9");
   n := U.Encode(0FE0FH, e); Add(s, 1, e);
   n := U.Encode(20E3H, e); Add(s, 4, e);
-  C.Check(U.NextComposed(s, 0) = 7, "NextComposed of a keycap");
-  C.Check(U.PreviousComposed(s, 7) = 0, "PreviousComposed of a keycap");
+  Emoji(U.NextComposed(s, 0) = 7, "NextComposed of a keycap");
+  Emoji(U.PreviousComposed(s, 7) = 0, "PreviousComposed of a keycap");
   Set(s, ORD("e"), 0CCH, 081H, 0, 0, 0);
   C.Check(U.NextComposed(s, 0) = 1, "NextComposed stops at a mark");
   e[0] := 0F0X; e[1] := 0X;
   C.Check(U.NextComposed(e, 0) = 1, "NextComposed of a lone lead byte");
   Set(s, ORD("a"), 0E2H, 080H, 08DH, 0, 0);    (* a joiner, last *)
-  C.Check(U.NextComposed(s, 0) = 4, "NextComposed of a joiner at the end");
+  Emoji(U.NextComposed(s, 0) = 4, "NextComposed of a joiner at the end");
   Set(s, ORD("a"), 0E2H, 080H, 08DH, 080H, 0);    (* and a stray byte *)
   n := U.NextComposed(s, 0);
   C.Check((n > 0) & (n <= 5), "NextComposed of a joiner and a stray byte");
@@ -141,7 +148,7 @@ BEGIN
   four[0] := 0F0X; four[1] := 09FX; four[2] := 087X; four[3] := 0A6X;
   C.Check(U.NextComposed(four, 0) = 4, "NextComposed of half a flag filling its array");
   four[0] := "a"; four[1] := 0E2X; four[2] := 080X; four[3] := 08DX;
-  C.Check(U.NextComposed(four, 0) = 4, "NextComposed of a joiner filling its array");
+  Emoji(U.NextComposed(four, 0) = 4, "NextComposed of a joiner filling its array");
   C.Check(U.PreviousComposed(four, 4) = 1, "PreviousComposed of a joiner filling its array");
 
   (* characters *)

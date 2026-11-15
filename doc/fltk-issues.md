@@ -3550,3 +3550,24 @@ FlTest's module comment says a click or typing may show the window, and
 shown: shown after the push on Xvfb, with the backtrace `Fl_Window::show`
 from `Fl_X11_Window_Driver::take_focus` from `Fl::focus` from
 `Fl_Button::handle`; still unshown on headless sway.
+
+## 177. Before 1.4.5, X11's `fl_read_image` of a double window reads the screen
+
+**What happens:** in FLTK 1.4.3, `fl_read_image` with a double window
+current, on X11, reads the window as the screen shows it, so a part
+another window covers reads as whatever X gives for it (black, under
+Xvfb with no window manager). 1.4.5 reads the window's offscreen buffer,
+which has the whole window.
+
+**Cause:** `Fl_X11_Screen_Driver::read_win_rectangle`
+(`src/drivers/X11/Fl_X11_Screen_Driver.cxx`) reads `fl_xid(win)` in
+1.4.3; 1.4.5 reads `other_xid->offscreen()` for a double window.
+
+**Effect on pofltk:** `FlTest.ShownPixel` reads through it, so on an
+FLTK before 1.4.5 it gives only what the screen shows. `TestCairo` read
+its first window at a point its second window covers, and failed on
+Debian's 1.4.3 (sadric); it now reads a point outside the second.
+
+**Confirmed:** 2026-11-14, `TestCairo` on FLTK 1.4.3 built here (x86-64,
+Xvfb) and on sadric: the covered point read black before any capture,
+the points outside it read as drawn; on 1.4.5 all read as drawn.
