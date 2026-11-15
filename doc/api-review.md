@@ -73,7 +73,7 @@ Proposal: getters returning such a pointer: `Input.Text()`,
 `NativeFileChooser.Name(i)`, `Preferences.Text(name)`, and an `Input`
 dialog giving the text or NIL.
 
-### 4. Rebuilding a group from one of its own buttons
+### 4. Rebuilding a group from one of its own buttons `[done]`
 
 A widget deleted in a callback stays a child of its group, and shown,
 until FLTK runs its queue (`pofltk.h:284-303`, `ofl::delete_widget`, by
@@ -89,6 +89,11 @@ first, and delete it later, so a group can be rebuilt from its own
 child's callback. At least, document it, and add `Fl.Later(proc)`, a
 one-shot idle call, so a zero timeout isn't the idiom. Needs care, and
 valgrind, given issue 72.
+
+Done 2026-11-14, in pofltk 0.6.0 (PLAN.md, "Rebuilding in a callback,
+0.6.0"): rebuilding already worked, since issue 72's fix; what remained
+was `Children` counting the old children until the callback returns.
+That is documented, and `Fl.Later` added.
 
 ### 5. The file chooser's filter needs a tab `[done]`
 

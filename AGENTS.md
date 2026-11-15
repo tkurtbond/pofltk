@@ -1331,7 +1331,14 @@ None at present.
   skipped, with no SVG, printing or GL; 2808, 5 skipped, with no Forms;
   2599, 5 skipped, with no GL; 2880 with no GLEW; 2838 with no cairo;
   2860 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
-  2882 on Xvfb and 2858 on sway.
+  2882 on Xvfb and 2858 on sway. After `Fl.Later`, version 0.6.0
+  (2026-11-14), 2890 (1 skipped), 2866 (9 skipped), 2590 (1 skipped)
+  and 2567 (8 skipped) here; 2890, 1 skipped, on NetBSD and FreeBSD and
+  2882, 2 skipped, on OpenBSD; 2878, 5 skipped, with neither Cairo nor
+  Pango; 2513, 20 skipped, with no SVG, printing or GL; 2816, 5
+  skipped, with no Forms; 2607, 5 skipped, with no GL; 2888 with no
+  GLEW; 2846 with no cairo; 2868 with no GLU; and on a Wayland FLTK
+  without `FLTK_HAVE_CAIRO`, 2890 on Xvfb and 2866 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

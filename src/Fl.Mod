@@ -28,8 +28,8 @@ CONST
      release meant for others, the minor number for features, the patch
      number for fixes, as poc's. Version, ApiVersion and the rest below
      are FLTK's. *)
-  PofltkVersion* = "0.5.0";
-  PofltkApiVersion* = 500;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
+  PofltkVersion* = "0.6.0";
+  PofltkApiVersion* = 600;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
 
   (* ASSERT codes of programmer errors (PLAN.md, "Halt codes") *)
   NotOpen* = 70;        (* a method of a widget never opened, or deleted *)
@@ -492,6 +492,10 @@ TYPE
     (* called by the default Fire, when set *)
     action*: PROCEDURE (t: Timer)
   END;
+
+  (* Later's timer, calling a procedure once. *)
+  LaterTimer = POINTER TO LaterTimerDesc;
+  LaterTimerDesc = RECORD (TimerDesc) proc: PROCEDURE END;
 
   (* Runs whenever the event loop has nothing else to do, while added
      (AddIdle): its Run, whose default calls its action. *)
@@ -1311,6 +1315,9 @@ PROCEDURE (g: Group) End*;
 BEGIN CEnd(Live(g))
 END End;
 
+(* How many children g has. Children deleted inside a callback, Draw or
+   Handle still count, and are still open, until the event loop deletes
+   them after it returns (Later). *)
 PROCEDURE (g: Group) Children*(): INTEGER;
 BEGIN RETURN CChildren(Live(g))
 END Children;
@@ -2379,6 +2386,21 @@ END RemoveTimeout;
 PROCEDURE PendingTimers*(): LONGINT;
 BEGIN RETURN pendingCount
 END PendingTimers;
+
+PROCEDURE (t: LaterTimer) Fire*;
+BEGIN t.proc
+END Fire;
+
+(* Calls proc once, when the event loop next runs, after the widgets
+   deleted in the callback, Draw or Handle now running are gone: as for
+   work that must wait until a callback returns. Each call calls proc
+   once more; it counts as a pending timer until then. *)
+PROCEDURE Later*(proc: PROCEDURE);
+  VAR t: LaterTimer;
+BEGIN
+  ASSERT(proc # NIL, NilArgument);
+  NEW(t); t.proc := proc; t.action := NIL; AddTimeout(t, 0.0D0)
+END Later;
 
 (* Idle callbacks *)
 

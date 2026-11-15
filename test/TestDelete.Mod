@@ -33,6 +33,10 @@ VAR
   label: ARRAY 16 OF CHAR;
   got: ARRAY 32 OF CHAR;
   shown: BOOLEAN;
+  rebuilder: Trigger;          (* g's child, rebuilding g in its callback *)
+  laterRuns, inside: INTEGER;
+  aOpenLater: BOOLEAN;
+  i: INTEGER;
 
 PROCEDURE (w: SelfDeleting) Callback*;
 BEGIN w.Delete; w.openInside := w.IsOpen()
@@ -57,6 +61,24 @@ END DeleteGThenA;
 PROCEDURE DeleteGThenClear;
 BEGIN g.Delete; g.Clear
 END DeleteGThenClear;
+
+PROCEDURE AtLater;
+BEGIN INC(laterRuns); aOpenLater := a.IsOpen()
+END AtLater;
+
+PROCEDURE DeleteAThenLater;
+BEGIN a.Delete; Fl.Later(AtLater)
+END DeleteAThenLater;
+
+(* Rebuilds g, rebuilder's own group, with two new boxes. *)
+PROCEDURE Rebuild;
+  VAR x, y: Fl.Box;
+BEGIN
+  g.Clear; g.Begin;
+  NEW(x); Fl.OpenBox(x, 0, 0, 10, 10, "new 1");
+  NEW(y); Fl.OpenBox(y, 0, 20, 10, 10, "new 2");
+  g.End; inside := g.Children()
+END Rebuild;
 
 (* g holding a and inner, inner holding b. *)
 PROCEDURE Family;
@@ -133,7 +155,34 @@ BEGIN
   Family; Inside(DeleteGThenClear);
   shown := Fl.Check();
   Check.Check(AllClosed(), "inside a callback, a group deleted, then cleared: each deleted once");
+
+  (* Later: once, after the widgets deleted in the callback are gone *)
+  Family; laterRuns := 0; aOpenLater := TRUE; Inside(DeleteAThenLater);
+  Check.Check((laterRuns = 0) & a.IsOpen() & (Fl.PendingTimers() = 1),
+    "Later calls nothing at once, and counts as a pending timer");
+  i := 0;
+  WHILE (laterRuns = 0) & (i < 200) DO Fl.Wait(0.01D0); INC(i) END;
+  Check.Check((laterRuns = 1) & ~aOpenLater & (Fl.PendingTimers() = 0),
+    "the event loop calls it after deleting what the callback deleted");
+  Fl.Wait(0.01D0); shown := Fl.Check();
+  Check.Check(laterRuns = 1, "and only once");
+  g.Delete;
+  Check.Check(AllClosed(), "the rest with their group");
   trigger.Delete;
+
+  (* a group rebuilt in the callback of one of its own children *)
+  Family; g.Begin;
+  NEW(rebuilder); Fl.OpenBox(rebuilder, 0, 60, 10, 10, "rebuild");
+  g.End; rebuilder.run := Rebuild;
+  rebuilder.DoCallback;
+  Check.Check((inside = 5) & rebuilder.IsOpen() & a.IsOpen(),
+    "rebuilt in its own child's callback: the old children counted till it returns");
+  shown := Fl.Check();
+  Check.Check(~rebuilder.IsOpen() & ~a.IsOpen() & ~inner.IsOpen() & ~b.IsOpen()
+    & (g.Children() = 2) & (Fl.OpenWidgets() = 3),
+    "then only the new ones, the old deleted once");
+  g.Delete;
+  Check.Check(Fl.OpenWidgets() = 0, "and the new ones with their group");
 
   (* a shown window *)
   NEW(win); Fl.OpenWindow(win, 120, 80, "TestDelete");

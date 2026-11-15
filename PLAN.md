@@ -3574,6 +3574,32 @@ showed. Done 2026-11-14, all additions, so the version is 0.4.0
   capture, after a resize and back, two -1s sharing, a 0 ending the
   list; and `@b` drawing nothing until the format character is 0X.
 
+### Rebuilding in a callback, 0.6.0 `[done]`
+
+`doc/api-review.md`, 4. Done 2026-11-14, an addition, so the version is
+0.6.0 (`PofltkApiVersion` 600):
+- **Rebuilding a group from one of its own children's callbacks already
+  works**, since issue 72's fix: `Clear` queues the old children, the
+  new ones are added beside them, and the event loop deletes the old
+  once. A scratch program (a scroll holding a pack of buttons, each
+  rebuilding the pack with one row fewer, clicked through `FlTest`)
+  ran clean under valgrind on Xvfb and sway. ova's zero timer predates
+  that fix.
+- What remains surprising: inside the callback, `Children` and `Child`
+  count the old children too (9, 7, 5, 3 for new counts 4, 3, 2, 1), and
+  they stay open, hidden. The README's Lifetime and `Children`'s comment
+  say so. Removing them from the group at once was not done: FLTK may
+  still be using the widget whose callback is running, and its group
+  with it (the reason for `Fl::delete_widget`).
+- **`Fl.Later(proc)`** calls `proc` once, from a zero timeout, so the
+  idiom has a name. `Fl::wait` runs `do_widget_deletion` before the
+  timeouts (`Fl_System_Driver::wait`), so `proc` runs after the
+  callback's deletions. It counts as a pending timer until it runs; NIL
+  halts 72 (`HaltLaterNil`).
+- Checked by `TestDelete`: `Later` calls nothing at once, then once,
+  after the deleted child is closed; a group rebuilt from its own child's
+  callback counts 5 inside it and 2 after, each old widget deleted once.
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

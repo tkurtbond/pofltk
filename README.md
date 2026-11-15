@@ -283,7 +283,11 @@ FLTK's pointers. Delete a widget with `Delete`. Inside a
 callback, or a `Draw` or `Handle`, FLTK deletes it later, when its
 event loop next runs (`Fl::delete_widget`), since FLTK may still be
 using it. Deleting it again, or its group, before then deletes it
-once. A widget a tree item shows (`TreeItem.SetWidget`) is
+once. So a group can be rebuilt, `Clear`ed and filled again, from one of
+its own children's callbacks; until the callback returns, `Children`
+and `Child` still count the old children, which stay open, hidden.
+`Fl.Later(proc)` calls `proc` once when the event loop next runs, after
+those deletions, for work that must wait until they are done. A widget a tree item shows (`TreeItem.SetWidget`) is
 deleted with the item.
 
 **No globals needed.** pofltk keeps every open widget reachable until
