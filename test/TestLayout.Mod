@@ -19,7 +19,7 @@ VAR
   a, b, c, d, content, p1, p2, left, right: Fl.Box;
   g1, g2: Fl.Group;
   w1, w2, w3, span: Fl.Box;
-  l, t, r, bo, rg, cg: INTEGER;
+  l, t, r, bo, rg, cg, sb: INTEGER;
 
 PROCEDURE NewBox(VAR box: Fl.Box; x, y, w, h: INTEGER);
 BEGIN NEW(box); Fl.OpenBox(box, x, y, w, h, "")
@@ -145,6 +145,33 @@ BEGIN
   scroll.Clear;
   Check.Check((scroll.Children() = 2) & ~content.IsOpen(), "Clear deletes the content, not the scrollbars");
   Check.Check(FlTest.Capture(scroll), "and the scroll still draws");
+  FlTest.Release;
+
+  (* a scroll whose children fill its width *)
+  Check.Check(~scroll.FitWidth(), "FitWidth: FALSE to start with");
+  scroll.SetScrollbarAlign(Fl.AlignBottom);
+  scroll.Begin; NewBox(a, 300, 0, 50, 40); NewBox(b, 310, 40, 30, 40); scroll.End;
+  scroll.SetFitWidth(TRUE);
+  sb := Fl.ScrollbarSize();
+  Check.Check(scroll.FitWidth() & Is(a, 300, 0, 100, 40) & Is(b, 310, 40, 90, 40),
+    "SetFitWidth: each child reaches the right edge");
+  scroll.Begin; NewBox(c, 300, 80, 20, 40); scroll.End;
+  IF FlTest.Capture(scroll) THEN END; FlTest.Release;
+  Check.Check(Is(a, 300, 0, 100 - sb, 40) & Is(b, 310, 40, 90 - sb, 40) & Is(c, 300, 80, 100 - sb, 40),
+    "a child added, drawn: they reach the vertical scrollbar it brings");
+  scroll.Resize(300, 0, 150, 100);
+  Check.Check(Is(a, 300, 0, 150 - sb, 40) & Is(c, 300, 80, 150 - sb, 40), "and follow a resize");
+  c.Delete;
+  IF FlTest.Capture(scroll) THEN END; FlTest.Release;
+  Check.Check(Is(a, 300, 0, 150, 40) & Is(b, 310, 40, 140, 40), "and the scrollbar's going");
+  scroll.SetKind(FlLayout.ScrollBothAlways);
+  IF FlTest.Capture(scroll) THEN END; FlTest.Release;
+  Check.Check(Is(a, 300, 0, 150 - sb, 40), "and one always shown");
+  scroll.SetFitWidth(FALSE); scroll.SetKind(FlLayout.ScrollBoth);
+  scroll.Resize(300, 0, 100, 100);
+  IF FlTest.Capture(scroll) THEN END; FlTest.Release;
+  Check.Check(~scroll.FitWidth() & Is(a, 300, 0, 150 - sb, 40), "SetFitWidth FALSE leaves them alone");
+  scroll.Clear;
 
   (* tabs *)
   NEW(tabs); FlLayout.OpenTabs(tabs, 300, 100, 200, 150, "");

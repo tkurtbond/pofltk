@@ -134,11 +134,13 @@ Done 2026-11-14, in pofltk 0.5.0 (PLAN.md, "Browser columns, 0.5.0"):
 -1 is a share of the rest, refitted on resize and as lines are drawn;
 `SetFormatChar(0X)` is the setting, now in the README.
 
-### 8. Small helpers `[done in part]`
+### 8. Small helpers `[done]`
 
 Done in 0.4.0: `IntValue`, `Find`, `CanOpenDisplay` and `SetTextQuietly`
 (PLAN.md, "Small helpers and the rewrite's findings, 0.4.0"). The
-others weren't made.
+other three in 0.7.0 (PLAN.md, "Fitted images, labels and scrolls,
+0.7.0"): `FlImages.SetImageFit`, `Fl.OpenLabel` and
+`Scroll.SetFitWidth`.
 
 - `Spinner.IntValue`: `Value` (`FlValuators.Mod:579`) is a `LONGREAL`,
   and besm2 writes `ENTIER(x + 0.5)` 5 times.

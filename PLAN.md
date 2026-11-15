@@ -3600,6 +3600,35 @@ showed. Done 2026-11-14, all additions, so the version is 0.4.0
   after the deleted child is closed; a group rebuilt from its own child's
   callback counts 5 inside it and 2 after, each old widget deleted once.
 
+### Fitted images, labels and scrolls, 0.7.0 `[done]`
+
+`doc/api-review.md`, 8's last three. Done 2026-11-14, additions, so the
+version is 0.7.0 (`PofltkApiVersion` 700):
+- **`FlImages.SetImageFit(w, fit, expand)`**: as `W<B>::draw` runs, the
+  widget's `image()` and `deimage()` are scaled to the box's inside
+  (`Fl::box_dw`, `box_dh`), in proportion, grown only with `expand`
+  (`ofl::FitImages`, `src/pofltk.h`), and their sizes put back after,
+  with `scale(w, h, 0, 1)`, which sets a size exactly. So an image shared
+  between widgets, or drawn elsewhere, keeps its own size, and the
+  shared-image pool, which sorts by the data's size, isn't touched.
+  `Fl_Image::scale` is virtual and drawn at `w()`, `h()` by SVG and the
+  animated GIF alike. The fit is kept in the widget's `Ref`.
+- **`Fl.OpenLabel`** is `OpenBox` with `AlignLeft + AlignInside`; a box
+  is `FL_NO_BOX` to start with.
+- **`Scroll.SetFitWidth(on)`**: a scroll is now the shim's `Sc`, whose
+  `resize` and `draw` make each child reach the right edge of `bbox()`,
+  the inside less the scrollbars needed. A width change can bring the
+  vertical scrollbar in or out, so it fits up to three times, until
+  nothing changes. Done in `draw` too, since children added or deleted
+  change it with no resize. A child left of the inside's right edge
+  keeps its x; only its width changes.
+- Checked by `TestImages` (a 4x2 image in a 20x20 box: not grown, then
+  grown, inside a frame, its size put back, following a resize, and a
+  40x20 one shrunk), `TestLayout` (two children reach the edge, then
+  less the scrollbar's width when a third needs one, after a resize,
+  after a delete, and left alone when off) and `TestWidget`
+  (`OpenLabel`'s box, align and a drawn label).
+
 ## Open questions
 
 Decided 2026-10-06, with the user, as recommended when this plan was

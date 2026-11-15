@@ -127,6 +127,8 @@ PROCEDURE ["C", "ofl_scroll_scrollbar_size"] CScrollbarSize(s: SYSTEM.ADDRESS): 
 PROCEDURE ["C", "ofl_scroll_set_scrollbar_size"] CSetScrollbarSize(s: SYSTEM.ADDRESS; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_scroll_scrollbar_align"] CScrollbarAlign(s: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_scroll_set_scrollbar_align"] CSetScrollbarAlign(s: SYSTEM.ADDRESS; a: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_scroll_fit_width"] CFitWidth(s: SYSTEM.ADDRESS): SYSTEM.INT32;
+PROCEDURE ["C", "ofl_scroll_set_fit_width"] CSetFitWidth(s: SYSTEM.ADDRESS; on: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_tabs_value"] CTabsValue(t: SYSTEM.ADDRESS): SYSTEM.ADDRESS;
 PROCEDURE ["C", "ofl_tabs_set_value"] CTabsSetValue(t, w: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_tabs_tab_align"] CTabAlign(t: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -452,6 +454,23 @@ END ScrollbarAlign;
 PROCEDURE (s: Scroll) SetScrollbarAlign*(a: SET);
 BEGIN CSetScrollbarAlign(Fl.Live(s), ORD(a))
 END SetScrollbarAlign;
+
+(* Whether each child is kept as wide as reaches the scroll's right edge,
+   inside the vertical scrollbar where that shows: a column of rows that
+   scrolls down and not across. The children are fitted after each resize
+   and before each draw, so rows added, or grown, follow; a child is
+   resized, so a group's own children follow it as its Resize places them.
+   FALSE, to start with, leaves their widths alone, as FLTK does. *)
+PROCEDURE (s: Scroll) FitWidth*(): BOOLEAN;
+BEGIN RETURN CFitWidth(Fl.Live(s)) # 0
+END FitWidth;
+
+PROCEDURE (s: Scroll) SetFitWidth*(on: BOOLEAN);
+  VAR i: SYSTEM.INT32;
+BEGIN
+  IF on THEN i := 1 ELSE i := 0 END;
+  CSetFitWidth(Fl.Live(s), i)
+END SetFitWidth;
 
 (* Tabs *)
 

@@ -201,6 +201,8 @@ PROCEDURE ["C", "ofl_browser_icon"] CBrowserIcon(b: SYSTEM.ADDRESS; line: SYSTEM
 PROCEDURE ["C", "ofl_tree_icon"] CTreeIcon(t: SYSTEM.ADDRESS; what: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_tree_item_icon"] CTreeItemIcon(t, p: SYSTEM.ADDRESS; what: SYSTEM.INT32; i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_widget_image"] CWidgetImage(w: SYSTEM.ADDRESS; slot: SYSTEM.INT32; i: SYSTEM.ADDRESS);
+PROCEDURE ["C", "ofl_widget_image_fit"] CWidgetImageFit(w: SYSTEM.ADDRESS; fit: SYSTEM.INT32);
+PROCEDURE ["C", "ofl_widget_image_fit_of"] CWidgetImageFitOf(w: SYSTEM.ADDRESS): SYSTEM.INT32;
 PROCEDURE ["C", "ofl_window_icon"] CWindowIcon(w, i: SYSTEM.ADDRESS);
 PROCEDURE ["C", "ofl_window_icons"] CWindowIcons(w: SYSTEM.ADDRESS; is: ARRAY OF SYSTEM.ADDRESS; n: SYSTEM.INT32);
 PROCEDURE ["C", "ofl_window_shape"] CWindowShape(w, i: SYSTEM.ADDRESS): SYSTEM.INT32;
@@ -562,6 +564,24 @@ END SetImage;
 PROCEDURE SetInactiveImage*(w: Fl.Widget; i: Image);
 BEGIN CWidgetImage(Fl.Live(w), 1, Handle(i))
 END SetInactiveImage;
+
+(* Whether w draws its image and inactive image scaled to fit inside its
+   box, keeping their proportions: shrunk where they are larger, and, if
+   expand, grown where they are smaller. Each draw scales them to w's size
+   then, so they follow w as it is resized, and puts back their own sizes
+   after, so an image other widgets show is theirs unchanged. FALSE, the
+   default, draws them at their own sizes (Image.Scale). *)
+PROCEDURE SetImageFit*(w: Fl.Widget; fit, expand: BOOLEAN);
+  VAR f: SYSTEM.INT32;
+BEGIN
+  IF ~fit THEN f := 0 ELSIF ~expand THEN f := 1 ELSE f := 2 END;
+  CWidgetImageFit(Fl.Live(w), f)
+END SetImageFit;
+
+(* Whether w's images fit its box (SetImageFit). *)
+PROCEDURE ImageFit*(w: Fl.Widget): BOOLEAN;
+BEGIN RETURN CWidgetImageFitOf(Fl.Live(w)) # 0
+END ImageFit;
 
 (* The icon the window system shows for win, copied; NIL for none.
    Wayland has none, and ignores it. *)

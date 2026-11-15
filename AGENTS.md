@@ -64,6 +64,9 @@ prefix of the C++ parts (`ofl::`, `ofl_`) was kept.
   - `ofl::ItemLabel`, a menu item's image or multi-label, which keeps
     the item's text (`doc/fltk-issues.md`, 54);
   - `ofl::label_text`, which every label goes through ("" is none);
+  - `ofl::FitImages`, which scales a widget's images to its box for a
+    draw and puts their sizes back (`FlImages.SetImageFit`; the fit is
+    `Ref::fit`);
   - `ofl::Overlaid<B>`, `ofl::W<B>` with `draw_overlay()` sent to
     Oberon too;
   - the dispatch depth.
@@ -1372,7 +1375,15 @@ None at present.
   Pango; 2513, 20 skipped, with no SVG, printing or GL; 2816, 5
   skipped, with no Forms; 2607, 5 skipped, with no GL; 2888 with no
   GLEW; 2846 with no cairo; 2868 with no GLU; and on a Wayland FLTK
-  without `FLTK_HAVE_CAIRO`, 2890 on Xvfb and 2866 on sway.
+  without `FLTK_HAVE_CAIRO`, 2890 on Xvfb and 2866 on sway. After fitted
+  images, labels and scrolls, version 0.7.0 (2026-11-14), 2907 (1
+  skipped), 2883 (9 skipped), 2607 (1 skipped) and 2584 (8 skipped)
+  here; 2907, 1 skipped, on NetBSD and FreeBSD and 2899, 2 skipped, on
+  OpenBSD; 2895, 5 skipped, with neither Cairo nor Pango; 2530, 20
+  skipped, with no SVG, printing or GL; 2833, 5 skipped, with no Forms;
+  2624, 5 skipped, with no GL; 2905 with no GLEW; 2863 with no cairo;
+  2885 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
+  2907 on Xvfb and 2883 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

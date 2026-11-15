@@ -28,8 +28,8 @@ CONST
      release meant for others, the minor number for features, the patch
      number for fixes, as poc's. Version, ApiVersion and the rest below
      are FLTK's. *)
-  PofltkVersion* = "0.6.0";
-  PofltkApiVersion* = 600;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
+  PofltkVersion* = "0.7.0";
+  PofltkApiVersion* = 700;   (* major * 10000 + minor * 100 + patch, as FLTK's FL_API_VERSION *)
 
   (* ASSERT codes of programmer errors (PLAN.md, "Halt codes") *)
   NotOpen* = 70;        (* a method of a widget never opened, or deleted *)
@@ -931,6 +931,15 @@ PROCEDURE OpenBox*(b: Box; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
 BEGIN
   EndOpen(b, CBoxNew(x, y, w, h, BeginOpen(b))); CCopyLabel(b.h, label)
 END OpenBox;
+
+(* A box showing label as a form's label does: on the left, inside, with
+   no box drawn; to set beside a field opened with no label of its own. *)
+PROCEDURE OpenLabel*(b: Box; x, y, w, h: INTEGER; label-: ARRAY OF CHAR);
+  VAR a: SET;
+BEGIN
+  a := AlignLeft + AlignInside;
+  OpenBox(b, x, y, w, h, label); CSetAlign(b.h, ORD(a))
+END OpenLabel;
 
 (* Widget *)
 

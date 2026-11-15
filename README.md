@@ -416,6 +416,14 @@ since FLTK ends the program when it can't, so a program that can run
 without one asks first. With `WAYLAND_DISPLAY` unset FLTK still tries
 the socket `wayland-0`, so a program that wants to refuse to start when
 neither `DISPLAY` nor `WAYLAND_DISPLAY` is set checks them itself.
+`FlImages.SetImageFit(w, TRUE, expand)` draws a widget's images
+scaled to fit inside its box, in proportion, as it is resized, shrunk
+only or, with `expand`, grown too, with no `Scale` to call after each
+resize; `Fl.OpenLabel` opens a box showing its label as a form's label
+does, on the left, inside, with no box; and `Scroll.SetFitWidth(TRUE)`
+keeps each of a scroll's children as wide as the scroll's inside,
+within its vertical scrollbar, so a `Flex` or `Pack` in it needn't be
+sized by hand.
 
 **Counting.** A browser's lines count from 1, and a menu's or choice's
 items from 0, as FLTK's do.

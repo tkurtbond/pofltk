@@ -21,6 +21,51 @@ intptr_t make(int32_t x, int32_t y, int32_t w, int32_t h, const char *label,
   return ofl::open(g, self);
 }
 
+// A scroll group whose children can be made to fill its width
+// (fit_width): each child other than the scrollbars is made as wide as
+// reaches the area's right edge, inside the vertical scrollbar where
+// that shows, after every resize and before every draw, as Fl_Pack
+// sizes its children as it draws, since children added or grown can
+// bring the scrollbar on. Fl_Scroll::resize only moves its children.
+class Sc : public Fl_Scroll {
+public:
+  Sc(int x, int y, int w, int h) : Fl_Scroll(x, y, w, h) {}
+  void resize(int x, int y, int w, int h) override {
+    Fl_Scroll::resize(x, y, w, h);
+    fit();
+  }
+  void draw() override {
+    fit();
+    Fl_Scroll::draw();
+  }
+  // Fits the children to the area bbox gives, which depends on whether
+  // they then need the scrollbars; it is the same at the third pass at
+  // most (a narrowing that drops the horizontal scrollbar can drop the
+  // vertical one, which widens the area).
+  void fit() {
+    if (!fit_width) return;
+    for (int pass = 0; pass < 3; pass++) {
+      int X, Y, W, H;
+      bbox(X, Y, W, H);
+      bool changed = false;
+      for (int i = 0; i < children(); i++) {
+        Fl_Widget *o = child(i);
+        if (o == &scrollbar || o == &hscrollbar) continue;
+        int ow = X + W - o->x();
+        if (ow > 0 && ow != o->w()) {
+          o->resize(o->x(), o->y(), ow, o->h());
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      redraw();
+    }
+  }
+  bool fit_width = false;
+};
+
+Sc *sc(intptr_t s) { return dynamic_cast<Sc *>(ofl::widget(s)); }
+
 Fl_Flex *flex(intptr_t f) { return ofl::as<Fl_Flex>(f); }
 Fl_Grid *grid(intptr_t g) { return ofl::as<Fl_Grid>(g); }
 
@@ -34,7 +79,7 @@ intptr_t ofl_layout_new(int32_t kind, int32_t x, int32_t y, int32_t w,
   switch (kind) {
     case 1: return make<Fl_Grid>(x, y, w, h, label, self);
     case 2: return make<Fl_Pack>(x, y, w, h, label, self);
-    case 3: return make<Fl_Scroll>(x, y, w, h, label, self);
+    case 3: return make<Sc>(x, y, w, h, label, self);
     case 4: return make<Fl_Tabs>(x, y, w, h, label, self);
     case 5: return make<Fl_Tile>(x, y, w, h, label, self);
     case 6: return make<Fl_Wizard>(x, y, w, h, label, self);
@@ -217,6 +262,14 @@ void ofl_scroll_set_scrollbar_align(intptr_t s, int32_t a) {
 void ofl_scroll_set_scrollbar_size(intptr_t s, int32_t n) {
   ofl::as<Fl_Scroll>(s)->scrollbar_size(n);
 }
+
+void ofl_scroll_set_fit_width(intptr_t s, int32_t on) {
+  sc(s)->fit_width = on != 0;
+  sc(s)->fit();
+  sc(s)->redraw();
+}
+
+int32_t ofl_scroll_fit_width(intptr_t s) { return sc(s)->fit_width; }
 
 // Tabs and wizards: value is the child shown, as its Oberon object (0 if
 // none, or FLTK made it).

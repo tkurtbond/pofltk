@@ -71,6 +71,18 @@ BEGIN
   b.Delete
 END Margins;
 
+(* OpenLabel: a box with no box drawn, its label on the left inside. *)
+PROCEDURE Label;
+  VAR b: Fl.Box;
+BEGIN
+  NEW(b); Fl.OpenLabel(b, 0, 0, 100, 20, "Name:");
+  Check.Check((b.BoxType() = Fl.NoBox) & (b.Align() = Fl.AlignLeft + Fl.AlignInside),
+    "OpenLabel: no box, aligned left inside");
+  b.SetBoxType(Fl.FlatBox); b.SetColor(Fl.White); b.SetLabelColor(Fl.Black);
+  Check.Check(LeftInk(b) < 10, "and drawn there");
+  b.Delete
+END Label;
+
 (* A window opened as a top level, then added to another: shown with it
    only once it is set visible. *)
 PROCEDURE Visibility;
@@ -429,6 +441,7 @@ BEGIN
 
   win.Delete;
   Margins;
+  Label;
   Visibility;
   Check.Check(Fl.OpenWidgets() = 0, "all deleted");
   Check.Summary

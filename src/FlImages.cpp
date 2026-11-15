@@ -1276,6 +1276,17 @@ void ofl_widget_image(intptr_t w, int32_t slot, intptr_t i) {
   wd->redraw();
 }
 
+// How w's images fit its box as it draws: ofl::Ref's fit.
+void ofl_widget_image_fit(intptr_t w, int32_t fit) {
+  Fl_Widget *wd = ofl::widget(w);
+  ofl::ref_of(wd)->fit = fit;
+  wd->redraw();
+}
+
+int32_t ofl_widget_image_fit_of(intptr_t w) {
+  return ofl::ref_of(ofl::widget(w))->fit;
+}
+
 // The window system's icon for window w, i 0 for none. FLTK's X11 driver
 // copies it; Wayland's has no icons, and ignores it (doc/fltk-issues.md,
 // 44).

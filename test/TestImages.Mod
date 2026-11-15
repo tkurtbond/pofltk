@@ -308,7 +308,41 @@ BEGIN
   FlImages.SetImage(box, NIL);
   Check.Check(FlTest.Capture(box) & (FlTest.Pixel(8, 9) = white), "SetImage NIL");
   FlTest.Release;
-  NEW(j); i.Copy(j, 4, 2); FlImages.SetImage(box, j); j.Close;
+
+  (* A label image fitted to its box: pixels away from the image's edges
+     and middle, where a scaling filter blends. *)
+  NEW(j); i.Copy(j, 4, 2); FlImages.SetImage(box, j);
+  Check.Check(~FlImages.ImageFit(box), "ImageFit: FALSE to start with");
+  FlImages.SetImageFit(box, TRUE, FALSE);
+  Check.Check(FlImages.ImageFit(box) & FlTest.Capture(box) & (FlTest.Pixel(8, 9) = red)
+    & (FlTest.Pixel(11, 9) = blue) & (FlTest.Pixel(3, 9) = white), "SetImageFit: a smaller image isn't grown");
+  FlTest.Release;
+  FlImages.SetImageFit(box, TRUE, TRUE);
+  Check.Check(FlTest.Capture(box) & (FlTest.Pixel(3, 9) = red) & (FlTest.Pixel(16, 9) = blue)
+    & (FlTest.Pixel(10, 3) = white) & (FlTest.Pixel(10, 16) = white), "unless expand: grown, in proportion");
+  FlTest.Release;
+  Check.Check((j.W() = 4) & (j.H() = 2), "and its size is put back after");
+  box.Resize(20, 0, 40, 20);
+  Check.Check(FlTest.Capture(box) & (FlTest.Pixel(5, 3) = red) & (FlTest.Pixel(34, 16) = blue),
+    "and follows its box");
+  FlTest.Release;
+  box.Resize(20, 0, 20, 20);
+  j.Close;
+  NEW(j); i.Copy(j, 40, 20); FlImages.SetImage(box, j);
+  FlImages.SetImageFit(box, TRUE, FALSE);
+  Check.Check(FlTest.Capture(box) & (FlTest.Pixel(3, 9) = red) & (FlTest.Pixel(16, 9) = blue)
+    & (FlTest.Pixel(10, 3) = white) & (j.W() = 40), "a larger image is shrunk");
+  FlTest.Release;
+  box.SetBoxType(Fl.DownBox);
+  Check.Check(FlTest.Capture(box) & (FlTest.Pixel(4, 9) = red) & (FlTest.Pixel(15, 9) = blue)
+    & (FlTest.Pixel(8, 4) = white), "inside its box's frame");
+  FlTest.Release;
+  FlImages.SetImageFit(box, FALSE, FALSE);
+  Check.Check(~FlImages.ImageFit(box) & FlTest.Capture(box) & (FlTest.Pixel(6, 4) = red)
+    & (FlTest.Pixel(14, 4) = blue), "SetImageFit FALSE: drawn at its own size");
+  FlTest.Release;
+  box.SetBoxType(Fl.FlatBox);
+  j.Close;
   box.Delete;  (* and the image with it: valgrind would see a leak *)
 
   (* A browser line's icon, kept by the browser while a line shows it *)

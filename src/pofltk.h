@@ -174,6 +174,9 @@ public:
   const intptr_t self;
   // Queued by delete_widget, inside a dispatch.
   bool queued = false;
+  // How the widget's images fit its box as it draws (FitImages, below):
+  // 0 as they are, 1 shrunk to fit, 2 shrunk or grown.
+  int fit = 0;
 
 private:
   Shared *held[slots];
@@ -330,6 +333,38 @@ inline void drop_pasted_image() {
   }
 }
 
+// For one draw of w, scales its image and inactive image to fit inside
+// its box, keeping their proportions, if its Ref's fit says so, and puts
+// back their sizes after: an image may be shown by other widgets, of
+// other sizes. Fl_Image::scale(w, h, 0, 1) sets the size exactly, and
+// changes no pixels; a shared image is known in FLTK's pool by its data
+// size, which scaling leaves alone.
+class FitImages {
+public:
+  explicit FitImages(Fl_Widget *w) {
+    int fit = ref_of(w)->fit;
+    int bw = w->w() - Fl::box_dw(w->box());
+    int bh = w->h() - Fl::box_dh(w->box());
+    m_[0] = fit && bw > 0 && bh > 0 ? w->image() : 0;
+    m_[1] = fit && bw > 0 && bh > 0 ? w->deimage() : 0;
+    for (int i = 0; i < 2; i++) {
+      if (!m_[i]) continue;
+      w_[i] = m_[i]->w();
+      h_[i] = m_[i]->h();
+      m_[i]->scale(bw, bh, 1, fit == 2);
+    }
+  }
+  ~FitImages() {
+    for (int i = 0; i < 2; i++) {
+      if (m_[i]) m_[i]->scale(w_[i], h_[i], 0, 1);
+    }
+  }
+
+private:
+  Fl_Image *m_[2];
+  int w_[2], h_[2];
+};
+
 // FLTK class B, with draw(), handle() and resize() sent to the Oberon
 // object. Until open has set the user data there is no object, and B's
 // own run.
@@ -345,6 +380,7 @@ public:
   void draw() override {
     if (this->user_data()) {
       Dispatch d;
+      FitImages f(this);
       on_draw(self_of(this));
     } else {
       B::draw();
