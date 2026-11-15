@@ -286,6 +286,77 @@ using it. Deleting it again, or its group, before then deletes it
 once. A widget a tree item shows (`TreeItem.SetWidget`) is
 deleted with the item.
 
+**No globals needed.** pofltk keeps every open widget reachable until
+it is deleted, so a program needn't keep one in a global for the
+collector's sake, nor set it to NIL afterwards. `Delete` hides a widget
+at once, even where the deletion waits for a callback to end, so `Hide`
+before it adds nothing.
+
+**A widget's owner.** An `action` is given only the widget. To find
+what the widget belongs to, extend it with a field pointing to its owner:
+
+```oberon
+TYPE
+  Panel = POINTER TO PanelDesc;
+  PanelButton = POINTER TO PanelButtonDesc;
+  PanelButtonDesc = RECORD (FlButtons.ButtonDesc) owner: Panel END;
+  PanelDesc = RECORD count: INTEGER; more: PanelButton END;
+
+PROCEDURE More(w: Fl.Widget);
+  VAR b: PanelButton;
+BEGIN b := w(PanelButton); INC(b.owner.count)
+END More;
+```
+
+with `p.more.owner := p; p.more.action := More`. A widget in a
+window of the program's own extension has its owner already:
+`w.Window()` is that window, the program's own record.
+
+**A dialog of the program's own.** Extend a window with what the dialog
+needs, make it modal, and show it; its buttons finish it. A widget
+deleted in a callback is deleted after it, so a dialog can delete itself
+from its own button:
+
+```oberon
+TYPE
+  Ask = POINTER TO AskDesc;
+  AskDesc = RECORD (Fl.DoubleWindowDesc)
+    done: PROCEDURE (yes: BOOLEAN)
+  END;
+
+PROCEDURE Finish(w: Fl.Widget; yes: BOOLEAN);
+  VAR win: Fl.Window; d: Ask;
+BEGIN
+  win := w.Window(); d := win(Ask);
+  d.Delete; d.done(yes)
+END Finish;
+
+PROCEDURE Yes(w: Fl.Widget); BEGIN Finish(w, TRUE) END Yes;
+PROCEDURE No(w: Fl.Widget); BEGIN Finish(w, FALSE) END No;
+
+PROCEDURE Closed(w: Fl.Widget);  (* the window's close box *)
+  VAR d: Ask;
+BEGIN d := w(Ask); d.Delete; d.done(FALSE)
+END Closed;
+
+PROCEDURE OpenAsk(question: ARRAY OF CHAR; done: PROCEDURE (yes: BOOLEAN));
+  VAR d: Ask; yes: FlButtons.ReturnButton; no: FlButtons.Button;
+BEGIN
+  NEW(d); Fl.OpenDoubleWindow(d, 300, 100, question); d.done := done;
+  NEW(yes); FlButtons.OpenReturnButton(yes, 110, 60, 85, 25, "Yes");
+  yes.action := Yes;
+  NEW(no); FlButtons.OpenButton(no, 205, 60, 85, 25, "No");
+  no.action := No;
+  d.End;
+  d.action := Closed;
+  d.SetModal; d.Show
+END OpenAsk;
+```
+
+`OpenAsk` returns at once, and the program goes on handling events;
+while the dialog is shown, FLTK sends the program's other windows no
+input. `done` is given the answer.
+
 **Resources.** `TextBuffer`, `Image`, `MultiLabel`, `Surface`,
 `CopySurface`, `Preferences` and `NativeFileChooser` belong to the program: `Close`
 them when done (`Close` is idempotent, and the collector closes one lost
@@ -341,6 +412,16 @@ since FLTK ends the program when it can't, so a program that can run
 without one asks first. With `WAYLAND_DISPLAY` unset FLTK still tries
 the socket `wayland-0`, so a program that wants to refuse to start when
 neither `DISPLAY` nor `WAYLAND_DISPLAY` is set checks them itself.
+
+**Counting.** A browser's lines count from 1, and a menu's or choice's
+items from 0, as FLTK's do.
+
+**Method names.** A widget's methods (`Show`, `Hide`, `Value`, `Label`
+and the rest) are taken. An extension's method of the same name with
+other parameters doesn't compile ("redefinition's formal parameters do
+not match the original"), and one with the same parameters overrides
+the widget's, so every call of it reaches the extension's. Pick another
+name (ova's `Display`, say).
 
 **Errors and halts.** Bad data from outside comes back as FALSE: an
 image that can't be decoded, a file that can't be read, a cancelled

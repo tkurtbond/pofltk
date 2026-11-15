@@ -248,7 +248,14 @@ and `Choose` once. What didn't fit:
 
 None of these asks for a change to `FlTest`.
 
-## Documentation
+## Documentation `[done]`
+
+Done 2026-11-14: README.md's Concepts has "No globals needed", "A
+widget's owner" (an extended button, or `w.Window()`), "A dialog of the
+program's own" (deleting itself from its own button, as ova's do),
+"Counting" and "Method names"; its "Testing your program" came with
+`FlTest` (0.3.0). The recipes were run on Xvfb, under valgrind, and on
+sway before they went in. No API change, so no new version.
 
 For the README:
 
