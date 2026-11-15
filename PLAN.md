@@ -256,7 +256,7 @@ Programmer errors halt, as in polibfyaml. poc's `ASSERT(x, n)` prints
 | 75 | `RepeatTimeout` outside its own timer's `Fire`, `HandleDefault` outside the event dispatch (`Fl.NotFiring`) |
 | 76 | a widget that must be a group's child isn't: a grid's cell, a flex's fixed size, a tab or wizard page, a tile's size range (`Fl.NotAChild`) |
 | 77 | a `Begin` and `End` out of order: an image surface's `End` that doesn't match the last `Begin`; a help view's page set in `Link` about an image (`Fl.OutOfOrder`) |
-| 78 | an argument a call can't take: a multi-label for a window, a multi-label put in itself, a label type that needs an image, a file descriptor's conditions empty or unknown; a tree's root replaced; a window shaped by an image with no pixels to read (a tiled one); an `AnimGIF` opened as another image, or another image as one; an animation's frame set while it plays; a terminal's size, text size or error character it can't take (`Fl.Unsupported`) |
+| 78 | an argument a call can't take: a multi-label for a window, a multi-label put in itself, a label type that needs an image, a file descriptor's conditions empty or unknown; a tree's root replaced; a window shaped by an image with no pixels to read (a tiled one); an `AnimGIF` opened as another image, or another image as one; an animation's frame set while it plays; a terminal's size, text size or error character it can't take; a browser column width below -1 (`Fl.Unsupported`) |
 
 Bad data from outside the program is never a halt: an image that fails
 to load, a file chooser cancelled. Those come back as `BOOLEAN` results.
@@ -3545,6 +3545,34 @@ showed. Done 2026-11-14, all additions, so the version is 0.4.0
   helper).
 - Checked by `TestValuators`, `TestBrowsers`, `TestText`, `TestDisplay`,
   `TestMenus` (`Literal`, and the choice) and `TestDialogs`.
+
+### Browser columns, 0.5.0 `[done]`
+
+`doc/api-review.md`, 7. Done 2026-11-14, an addition, so the version is
+0.5.0 (`PofltkApiVersion` 500):
+- **A column width of -1** in `SetColumnWidths` is a share of the rest:
+  what the browser's width, inside its box and scrollbar, leaves after
+  the other widths, shared equally, the last taking the remainder. ova
+  and besm2 worked widths out from `W()` and refitted them after each
+  resize, from a timer.
+- The shim keeps the widths as given (`Keeps::asked`) beside FLTK's
+  list, and works the -1s out as they are set and on each resize, from
+  `bbox`, and, for `Fl_Browser` and its selecting kinds, as each line is
+  drawn (`Lines::item_draw`), from the width FLTK draws it in, so a
+  vertical scrollbar coming or going is allowed for.
+  `Fl_File_Browser::item_draw` is private, so a file browser is fitted
+  only as it is set and resized.
+- A 0 still ends the list, as both programs write it; a width below -1
+  halts 78. With a -1, every column's width is given, since the column
+  after the list takes the rest itself.
+- **`@` as text**: `SetFormatChar(0X)` already turns formatting off; the
+  module comment and the README now say a browser of the program's data
+  needs it. A literal `Add` wasn't made: FLTK reads formatting at each
+  column's start, so doubling `@` would have to follow the column
+  character, and one setting for the browser is what both programs use.
+- Checked by `TestBrowsers`: columns filled with `@B`, measured in a
+  capture, after a resize and back, two -1s sharing, a 0 ending the
+  list; and `@b` drawing nothing until the format character is 0X.
 
 ## Open questions
 

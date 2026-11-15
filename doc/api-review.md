@@ -111,7 +111,7 @@ per-item state calls, so both programs write `f := bar.ItemFlags(i); f
 Proposal: `SetItemActive(i, on)`, `ItemActive(i)`, `SetItemChecked(i,
 on)` and `ItemChecked(i)`.
 
-### 7. Browsers: column widths and format characters
+### 7. Browsers: column widths and format characters `[done]`
 
 Column widths are worked out from `browser.W()` and refitted after each
 resize (ova `OvaTraitPanel.Mod:73-85`, `OvaWidgets.Mod:316-317` `widths[0]
@@ -124,6 +124,10 @@ besm2 calls `SetFormatChar(0X)` (`FlBrowsers.Mod:482`) on every browser,
 Proposal: a width of -1 in `SetColumnWidths` (`FlBrowsers.Mod:497`)
 meaning the rest of the width, kept by the shim on resize; and a way to
 add a line literally, or a setting for it, made prominent in the README.
+
+Done 2026-11-14, in pofltk 0.5.0 (PLAN.md, "Browser columns, 0.5.0"):
+-1 is a share of the rest, refitted on resize and as lines are drawn;
+`SetFormatChar(0X)` is the setting, now in the README.
 
 ### 8. Small helpers `[done in part]`
 

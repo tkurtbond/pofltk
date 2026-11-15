@@ -1324,7 +1324,14 @@ None at present.
   SVG, printing or GL; 2800, 5 skipped, with no Forms; 2591, 5 skipped,
   with no GL; 2872 with no GLEW; 2830 with no cairo; 2852 with no GLU;
   and on a Wayland FLTK without `FLTK_HAVE_CAIRO`, 2874 on Xvfb and 2850
-  on sway.
+  on sway. After browser columns, version 0.5.0 (2026-11-14), 2882 (1
+  skipped), 2858 (9 skipped), 2583 (1 skipped) and 2560 (8 skipped)
+  here; 2882, 1 skipped, on NetBSD and FreeBSD and 2874, 2 skipped, on
+  OpenBSD; 2870, 5 skipped, with neither Cairo nor Pango; 2505, 20
+  skipped, with no SVG, printing or GL; 2808, 5 skipped, with no Forms;
+  2599, 5 skipped, with no GL; 2880 with no GLEW; 2838 with no cairo;
+  2860 with no GLU; and on a Wayland FLTK without `FLTK_HAVE_CAIRO`,
+  2882 on Xvfb and 2858 on sway.
 - **poc 0.6.0** (2026-10-15): pofltk builds with it unchanged, and
   `make test-headless`, `test-sway`, `valgrind-headless` and
   `valgrind-sway` all pass here (823, 819, 753 and 749 `ok` lines; every

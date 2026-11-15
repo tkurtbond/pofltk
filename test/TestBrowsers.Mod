@@ -9,18 +9,18 @@ VAR
   multi: FlBrowsers.MultiBrowser;
   files: FlBrowsers.FileBrowser;
   checks: FlBrowsers.CheckBrowser;
-  calls, i, sink: INTEGER;
+  calls, i, j, k, m, n, at, first, sink, red, green, blue: INTEGER;
   s: ARRAY 64 OF CHAR;
   ok: BOOLEAN;
 
-(* The first x, from 3, at which line 1 of b, drawn, isn't white; -1 if
-   none is. *)
+(* The first x, from 3 to inside its right edge, at which line 1 of b,
+   drawn, isn't white; -1 if none is. *)
 PROCEDURE Ink(b: FlBrowsers.Browser): INTEGER;
   VAR x, y, white: INTEGER;
 BEGIN
   white := Fl.RGB(255, 255, 255);
   ASSERT(FlTest.Capture(b));
-  FOR x := 3 TO 150 DO
+  FOR x := 3 TO b.W() - 4 DO
     FOR y := 4 TO 16 DO
       IF FlTest.Pixel(x, y) # white THEN FlTest.Release; RETURN x END
     END
@@ -39,6 +39,28 @@ PROCEDURE SetWidths(b: FlBrowsers.Browser);
   VAR w: ARRAY 2 OF INTEGER;
 BEGIN w[0] := 40; w[1] := 40; b.SetColumnWidths(w, 1)
 END SetWidths;
+
+(* How many pixels of row 8 of b, drawn, are rgb, and the first x of
+   them in first, -1 if none is. *)
+PROCEDURE Span(b: FlBrowsers.Browser; rgb: INTEGER; VAR first: INTEGER): INTEGER;
+  VAR x, n: INTEGER;
+BEGIN
+  ASSERT(FlTest.Capture(b));
+  n := 0; first := -1;
+  FOR x := 0 TO b.W() - 1 DO
+    IF FlTest.Pixel(x, 8) = rgb THEN
+      IF first < 0 THEN first := x END;
+      INC(n)
+    END
+  END;
+  FlTest.Release; RETURN n
+END Span;
+
+(* Sets b's column widths to the n of a, b and c. *)
+PROCEDURE Widths(br: FlBrowsers.Browser; a, b, c, n: INTEGER);
+  VAR w: ARRAY 3 OF INTEGER;
+BEGIN w[0] := a; w[1] := b; w[2] := c; br.SetColumnWidths(w, n)
+END Widths;
 
 (* Writes over the stack that SetFilter used. *)
 PROCEDURE Clobber;
@@ -144,6 +166,31 @@ BEGIN
   SetWidths(b); Clobber;
   i := Ink(b);
   Check.Check((i >= 40) & (i < 50), "the column widths, copied: the second column at 40");
+
+  (* Columns filled red, green and blue (@B, FL_RED, FL_GREEN, FL_BLUE) *)
+  b.SetColumnChar(9X); b.Clear; b.Add("@B88@.	@B216@.");
+  red := Fl.RGB(255, 0, 0); green := Fl.RGB(0, 255, 0); blue := Fl.RGB(0, 0, 255);
+  Widths(b, -1, 40, 0, 2);
+  n := Span(b, blue, at); m := Span(b, red, first);
+  Check.Check((n = 40) & (m > 40) & (first + m = at) & (at + n < b.W()) & (at + n > b.W() - 6),
+    "a column width of -1: the rest of the width, to the left of the last 40");
+  b.Resize(0, 0, 200, 100);
+  i := Span(b, blue, j); k := Span(b, red, first);
+  Check.Check((i = 40) & (j = at + 100) & (k = m + 100), "and it is the rest as the browser is resized");
+  b.Resize(0, 0, 100, 100);
+  Check.Check((Span(b, blue, j) = 40) & (j = at), "and resized back");
+  Widths(b, 30, -1, 0, 3);
+  Check.Check((Span(b, red, first) = 30) & (Span(b, blue, j) = m + 10), "a 0 ends the widths, and -1 last is the rest");
+  b.Clear; b.Add("@B88@.	@B63@.	@B216@.");
+  Widths(b, -1, -1, 20, 3);
+  i := Span(b, red, first); j := Span(b, green, k);
+  Check.Check((ABS(i - j) <= 1) & (k = first + i) & (Span(b, blue, at) = 20) & (at = k + j),
+    "two widths of -1 share the rest");
+  b.Clear; b.Add("@b");
+  Check.Check(Ink(b) = -1, "a line of @b is bold and empty");
+  b.SetFormatChar(0X);
+  Check.Check(Ink(b) > 0, "with no format character, @ is text");
+  b.SetFormatChar("@");
 
   b.SetTextSize(20);
   Check.Check(b.TextSize() = 20, "SetTextSize");

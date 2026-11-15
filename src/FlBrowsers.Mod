@@ -10,8 +10,12 @@ MODULE FlBrowsers; (* Browsers: scrolling lists of lines to choose from, and tre
    A line may start with formatting, each code starting with the format
    character ("@" to start with): "@b" bold, "@i" italic, "@c" centred,
    "@C" n color n, "@." no more formatting, and the others FLTK's
-   Fl_Browser documents. The column character (Tab, 9X, to start with)
-   divides a line into columns, of the widths SetColumnWidths gives.
+   Fl_Browser documents. So a line of the program's data starting with
+   "@" isn't shown as it is: SetFormatChar(0X) turns formatting off, and
+   any line is then shown as itself. The column character (Tab, 9X, to
+   start with) divides a line into columns, of the widths SetColumnWidths
+   gives, where -1 is the rest of the width, kept as the browser is
+   resized.
 
    The Callback runs when the user selects or deselects a line: to start
    with, whenever the mouse button is released (Fl.WhenReleaseAlways),
@@ -507,11 +511,20 @@ PROCEDURE (b: Browser) SetColumnChar*(c: CHAR);
 BEGIN CSetChar(Fl.Live(b), 1, ORD(c))
 END SetColumnChar;
 
-(* The width of each column but the last, which takes the rest; the
-   first n of widths. *)
+(* The widths of the columns, the first n of widths, or up to the first
+   0, as FLTK's list ends; a column past them takes the rest. A width of
+   -1 is a share of the rest: what the browser's width, inside its box
+   and scrollbar, leaves after the other widths, shared equally, and
+   worked out again as the browser is resized. So with a -1, give every
+   column's width: [-1, 70] is a column of 70 at the right, and the rest
+   at the left. Halts Fl.Unsupported for a width less than -1. *)
 PROCEDURE (b: Browser) SetColumnWidths*(widths: ARRAY OF INTEGER; n: INTEGER);
+  VAR i: INTEGER;
 BEGIN
   ASSERT((n >= 0) & (n <= LEN(widths)), Fl.IndexOutOfRange);
+  i := 0;
+  WHILE (i < n) & (widths[i] # 0) DO ASSERT(widths[i] >= -1, Fl.Unsupported); INC(i) END;
+  n := i;
   ASSERT(CColumnWidths(Fl.Live(b), widths, n) # 0)  (* out of memory *)
 END SetColumnWidths;
 

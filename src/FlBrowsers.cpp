@@ -25,29 +25,78 @@ namespace {
 // Fl_File_Browser::load keep the pointer they are given
 // (doc/fltk-issues.md, 37), so a browser keeps its own copies, which
 // outlive their use: FLTK's destructors don't read them.
+//
+// A width of -1 is a share of the rest: what the browser's width leaves
+// after the other widths, shared equally. asked keeps the widths as
+// given, and widths, FLTK's, the -1s worked out, each time a line is
+// drawn, for the width it is drawn in, and on a resize, for the lines'
+// widths FLTK measures before it draws.
 class Keeps {
 public:
-  Keeps() : widths(0), pattern(0), dir(0) {}
+  Keeps() : widths(0), asked(0), n(0), pattern(0), dir(0) {}
   virtual ~Keeps() {
     free(widths);
+    free(asked);
     free(pattern);
     free(dir);
   }
-  int *widths;
+  // Works the -1s out for width W, writing only widths' elements.
+  void fit(int W) const {
+    int shares = 0, rest = W;
+    for (int i = 0; i < n; i++) {
+      if (asked[i] < 0) shares++; else rest -= asked[i];
+    }
+    if (shares == 0) return;
+    if (rest < 0) rest = 0;
+    // Each share is what is left over the shares left, so the last
+    // takes the remainder; at least 1, since 0 would end FLTK's list.
+    for (int i = 0; i < n; i++) {
+      if (asked[i] < 0) {
+        int w = rest / shares--;
+        widths[i] = w < 1 ? 1 : w;
+        rest -= w;
+      }
+    }
+  }
+  virtual void refit() = 0;
+  int *widths, *asked, n;
   char *pattern, *dir;
 };
 
 template <class B> class Br : public Keeps, public ofl::W<B> {
 public:
   using ofl::W<B>::W;
+  void refit() override {
+    int X, Y, W, H;
+    this->bbox(X, Y, W, H);
+    fit(W);
+  }
+  void resize(int x, int y, int w, int h) override {
+    ofl::W<B>::resize(x, y, w, h);
+    refit();
+  }
+};
+
+// A browser whose lines are Fl_Browser's, fitted as each is drawn, which
+// sees a vertical scrollbar come and go. Fl_File_Browser's item_draw is
+// private, so a file browser is fitted only as it is set and resized.
+template <class B> class Lines : public Br<B> {
+public:
+  using Br<B>::Br;
+  void item_draw(void *item, int X, int Y, int W, int H) const override {
+    // W is from the line's start, scrolled or not, to the browser's
+    // right edge.
+    this->fit(W);
+    B::item_draw(item, X, Y, W, H);
+  }
 };
 
 Keeps *keeps(intptr_t b) { return dynamic_cast<Keeps *>(ofl::widget(b)); }
 
-template <class T>
+template <class T, class C = Br<T> >
 intptr_t make(int32_t x, int32_t y, int32_t w, int32_t h, const char *label,
               intptr_t self) {
-  Br<T> *b = new Br<T>(x, y, w, h);
+  C *b = new C(x, y, w, h);
   b->copy_label(ofl::label_text(label));
   return ofl::open(b, self);
 }
@@ -213,12 +262,12 @@ extern "C" {
 intptr_t ofl_browser_new(int32_t kind, int32_t x, int32_t y, int32_t w,
                          int32_t h, const char *label, intptr_t self) {
   switch (kind) {
-    case 1: return make<Fl_Hold_Browser>(x, y, w, h, label, self);
-    case 2: return make<Fl_Multi_Browser>(x, y, w, h, label, self);
-    case 3: return make<Fl_Select_Browser>(x, y, w, h, label, self);
+    case 1: return make<Fl_Hold_Browser, Lines<Fl_Hold_Browser> >(x, y, w, h, label, self);
+    case 2: return make<Fl_Multi_Browser, Lines<Fl_Multi_Browser> >(x, y, w, h, label, self);
+    case 3: return make<Fl_Select_Browser, Lines<Fl_Select_Browser> >(x, y, w, h, label, self);
     case 4: return make<Fl_File_Browser>(x, y, w, h, label, self);
     case 5: return make<Fl_Check_Browser>(x, y, w, h, label, self);
-    default: return make<Fl_Browser>(x, y, w, h, label, self);
+    default: return make<Fl_Browser, Lines<Fl_Browser> >(x, y, w, h, label, self);
   }
 }
 
@@ -408,11 +457,20 @@ int32_t ofl_browser_column_widths(intptr_t b, const int32_t *widths,
   Keeps *k = keeps(b);
   int *w = static_cast<int *>(malloc((n + 1) * sizeof(int)));
   if (w == 0) return 0;
-  for (int i = 0; i < n; i++) w[i] = widths[i];
-  w[n] = 0;
+  int *a = static_cast<int *>(malloc((n + 1) * sizeof(int)));
+  if (a == 0) {
+    free(w);
+    return 0;
+  }
+  for (int i = 0; i < n; i++) w[i] = a[i] = widths[i];
+  w[n] = a[n] = 0;
   browser(b)->column_widths(w);
   free(k->widths);
+  free(k->asked);
   k->widths = w;
+  k->asked = a;
+  k->n = n;
+  k->refit();
   browser(b)->redraw();
   return 1;
 }

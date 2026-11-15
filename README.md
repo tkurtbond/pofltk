@@ -314,6 +314,17 @@ the text back as it was put in, where `ItemLabel` gives FLTK's, `&` and
 `@` doubled. An item's state has `ItemActive`,
 `SetItemActive`, `ItemChecked` and `SetItemChecked`, beside its flags.
 
+**Browser lines.** A browser line, or each column of one, starting
+with `@` is formatting: `@b` bold, `@c` centred, and so on, with no
+text shown for them. So a browser showing the program's data, names a
+user typed or lines from a file, needs `SetFormatChar(0X)`, after which
+every line is shown as it is. Columns are divided by a tab, and
+`SetColumnWidths` gives their widths; a width of -1 is a share of what
+the browser's width leaves after the others, worked out again as it is
+resized, so `[-1, 70]` puts a column of 70 pixels at the right and gives
+the rest to the left, with no width to work out from `W()` after each
+resize.
+
 **Results.** poc refuses a function called as a statement, so where a
 result is seldom wanted there is a procedure too: `Menu.Choose(i)` for
 `SetValue`, `AddText` for `Add`, `Browser.SetSelected(line, on)` for
@@ -346,7 +357,7 @@ prints `assertion failed (n)`:
 | 75 | `RepeatTimeout` outside its timer's `Fire`, `HandleDefault` outside the event dispatch (`Fl.NotFiring`) |
 | 76 | a widget that must be a group's child isn't (`Fl.NotAChild`) |
 | 77 | a surface's `Begin` and `End` out of order (`Fl.OutOfOrder`) |
-| 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file chooser filter's name or pattern holding a tab or line feed; a file descriptor's conditions empty or unknown; a tree's root replaced; a line number format that isn't one number's; a GL texture pile under 1 (`Fl.Unsupported`) |
+| 78 | an argument a call can't take: a multi-label for a window, or put in itself; a file chooser filter's name or pattern holding a tab or line feed; a file descriptor's conditions empty or unknown; a tree's root replaced; a line number format that isn't one number's; a GL texture pile under 1; a browser column width below -1 (`Fl.Unsupported`) |
 
 ## Testing your program
 
