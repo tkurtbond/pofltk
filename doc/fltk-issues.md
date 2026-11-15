@@ -3571,3 +3571,36 @@ Debian's 1.4.3 (sadric); it now reads a point outside the second.
 **Confirmed:** 2026-11-14, `TestCairo` on FLTK 1.4.3 built here (x86-64,
 Xvfb) and on sadric: the covered point read black before any capture,
 the points outside it read as drawn; on 1.4.5 all read as drawn.
+
+## 178. `Fl_Native_File_Chooser` drops a filter with no name before one with a name
+
+**What happens:** given the filter `"*.c\nHeaders\t*.h"`, `filters()` is
+1, and `*.c` isn't offered. A line with no name (no tab) is lost
+whenever a later line has a name; in the other order,
+`"Headers\t*.h\n*.c"`, both are kept. FLTK's manual gives both forms and
+says nothing of their order. Found by FLTKAda (its F41), 2026-11-15.
+
+**Cause:** `Fl_Native_File_Chooser_FLTK_Driver::parse_filter`
+(`src/Fl_Native_File_Chooser_FLTK.cxx:243-245, 282`) chooses between
+reading a name and reading a pattern with `strchr(in, '\t')`, which
+looks for a tab anywhere in the rest of the string, not in the current
+line. So `*.c` is read as a name, the line feed ends it with no pattern,
+and a filter with no pattern isn't added. The GTK, Kdialog and Zenity
+drivers derive from this one, and GTK builds its filters from
+`_parsedfilt` (`src/Fl_Native_File_Chooser_GTK.cxx:713`); the Windows
+and macOS drivers have their own parsers, not checked.
+
+**Effect on pofltk:** `SetFilter` passes its text to FLTK as it is, and
+`AddFilter` (`ofl_fnfc_add_filter`, `src/FlDialogs.cpp`) adds a line
+with no name when `name` is "", so `AddFilter("", "*.c")` followed by
+`AddFilter("YAML", "*.{yaml,yml}")` loses `*.c`, by its source.
+`TestDialogs` adds its unnamed filter last, so it doesn't see this.
+FLTKAda's `Add_Filter` gives every line a name, the pattern itself when
+there is none, including the lines `Set_Filter` gave before it; pofltk
+could do the same. Not changed here.
+
+**Confirmed:** in FLTKAda, 2026-11-15: a scratch C++ program under Xvfb
+printed `filters()` as 1 for `"*.c\nHeaders\t*.h"` and 2 for
+`"Headers\t*.h\n*.c"`, `"*.c\n*.h"` and `"*.c\t*.c\nHeaders\t*.h"`;
+FLTKAda's `test_native_chooser_filter` failed with a count of 1 before
+its `Add_Filter` named the lines.
