@@ -2403,7 +2403,11 @@ END Fire;
 (* Calls proc once, when the event loop next runs, after the widgets
    deleted in the callback, Draw or Handle now running are gone: as for
    work that must wait until a callback returns. Each call calls proc
-   once more; it counts as a pending timer until then. *)
+   once more; it counts as a pending timer until then. But a callback
+   that runs a nested event loop (Check, Wait, a modal dialog) after
+   calling Later runs proc inside itself, since Later is a zero
+   timeout and the nested loop runs the timeouts due (FLTKAda's
+   test_timeouts). *)
 PROCEDURE Later*(proc: PROCEDURE);
   VAR t: LaterTimer;
 BEGIN
