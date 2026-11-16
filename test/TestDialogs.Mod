@@ -170,6 +170,10 @@ BEGIN
   NEW(fc); FlDialogs.OpenNativeFileChooser(fc, FlDialogs.BrowseFile);
   Check.Check(fc.IsOpen() & (fc.Kind() = FlDialogs.BrowseFile) & (FlDialogs.openChoosers = 1), "OpenNativeFileChooser");
   title := "Native"; fc.SetTitle(title); title := "Changed";
+  (* FLTK drops a line with no name before one with a name (fltk-issues 178) *)
+  s := "*.c?Headers?*.h"; s[3] := 0AX; s[11] := 09X;
+  fc.SetFilter(s);
+  Check.Check(fc.Filters() = 2, "SetFilter, a line with no name before one with a name");
   s := "Oberon?*.Mod?Text?*.txt"; s[6] := 09X; s[12] := 0AX; s[17] := 09X;
   fc.SetFilter(s);
   fc.SetFilterValue(1);

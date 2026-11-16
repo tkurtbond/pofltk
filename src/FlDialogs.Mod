@@ -547,7 +547,9 @@ END SetTitle;
 
 (* The files offered: patterns, one a line ("*.txt"), or a name, a tab
    and a pattern ("Text" + 09X + "*.{txt,md}"), lines separated by
-   0AX. *)
+   0AX. A pattern alone is offered as itself: it is given itself as a
+   name, since FLTK drops a line with no name before one with a name
+   (doc/fltk-issues.md, 178). *)
 PROCEDURE (c: NativeFileChooser) SetFilter*(filter-: ARRAY OF CHAR);
 BEGIN SetText(c, 1, filter)
 END SetFilter;

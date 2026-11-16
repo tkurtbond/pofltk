@@ -3593,11 +3593,11 @@ and macOS drivers have their own parsers, not checked.
 **Effect on pofltk:** `AddFilter` (`ofl_fnfc_add_filter`,
 `src/FlDialogs.cpp`) added a line with no name when `name` was "", so
 `AddFilter("", "*.c")` followed by `AddFilter("YAML", "*.{yaml,yml}")`
-lost `*.c`. Fixed 2026-11-15, as FLTKAda's `Add_Filter` does it:
-`AddFilter` now gives every line a name, the pattern itself when there
-is none, including the lines `SetFilter` gave before it. `SetFilter`
-alone still passes its text to FLTK as it is, so a caller who writes
-`"*.c\nHeaders\t*.h"` there gets FLTK's behaviour.
+lost `*.c`, and `SetFilter` passed its text to FLTK as it was, so
+`"*.c\nHeaders\t*.h"` lost `*.c` too. Fixed 2026-11-15, as FLTKAda's
+`Add_Filter` does it: every line is given a name, the pattern itself
+when there is none. `SetFilter` names its lines (`named_filter`), and
+`AddFilter` names its own.
 
 **Confirmed:** in FLTKAda, 2026-11-15: a scratch C++ program under Xvfb
 printed `filters()` as 1 for `"*.c\nHeaders\t*.h"` and 2 for
@@ -3606,4 +3606,5 @@ FLTKAda's `test_native_chooser_filter` failed with a count of 1 before
 its `Add_Filter` named the lines. In pofltk, 2026-11-15: two checks
 added to `TestDialogs` (an unnamed `AddFilter`, and an unnamed
 `SetFilter`, each followed by a named `AddFilter`) found 1 filter, not
-2, under Xvfb; with the fix, 2.
+2, under Xvfb; with the fix, 2. A third, `SetFilter("*.c\nHeaders\t*.h")`,
+found 1 until `SetFilter` named its lines, then 2.

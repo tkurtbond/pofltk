@@ -48,7 +48,7 @@ const char *keep_title(const char *s) {
 struct Chooser {
   Fl_Native_File_Chooser chooser;
   char *title;
-  std::string filter;  // what was given, for ofl_fnfc_add_filter
+  std::string filter;  // what was given, each line named, for ofl_fnfc_add_filter
   explicit Chooser(int kind) : chooser(kind), title(0) {}
   ~Chooser() { free(title); }
 };
@@ -383,8 +383,29 @@ intptr_t ofl_fnfc_new(int32_t kind) {
 
 void ofl_fnfc_close(intptr_t c) { delete chooser(c); }
 
-// what: 0 the title, 1 the filter, 2 the directory, 3 the preset file.
-// 0 if out of memory.
+// filter with every line given a name, the pattern itself if it has none,
+// since FLTK drops a line with no name before one with a name
+// (fltk-issues 178). Can throw std::bad_alloc.
+static std::string named_filter(const char *filter) {
+  std::string t;
+  for (const char *at = filter; *at;) {
+    const char *end = strchr(at, '\n');
+    if (!end) end = at + strlen(at);
+    std::string line(at, end);
+    if (!line.empty() && line.find('\t') == std::string::npos) {
+      t += line;
+      t += '\t';
+    }
+    t += line;
+    if (!*end) break;
+    t += '\n';
+    at = end + 1;
+  }
+  return t;
+}
+
+// what: 0 the title, 1 the filter, its lines named (named_filter), 2 the
+// directory, 3 the preset file. 0 if out of memory.
 int32_t ofl_fnfc_set_text(intptr_t c, int32_t what, const char *s) {
   Fl_Native_File_Chooser &f = chooser(c)->chooser;
   switch (what) {
@@ -398,11 +419,11 @@ int32_t ofl_fnfc_set_text(intptr_t c, int32_t what, const char *s) {
     }
     case 1:
       try {
-        chooser(c)->filter = s;
+        chooser(c)->filter = named_filter(s);
       } catch (...) {
         return 0;
       }
-      f.filter(s);
+      f.filter(chooser(c)->filter.c_str());
       break;
     case 2: f.directory(s); break;
     default: f.preset_file(s);
@@ -410,31 +431,16 @@ int32_t ofl_fnfc_set_text(intptr_t c, int32_t what, const char *s) {
   return 1;
 }
 
-// Adds a filter to what ofl_fnfc_set_text gave: name, a tab and pattern,
-// after a newline if there were filters. Every line is given a name, the
-// pattern itself if it has none, the new one and any from SetFilter,
-// since FLTK drops a line with no name before one with a name
-// (fltk-issues 178). The text is kept here, not read back, since a
+// Adds a filter to what ofl_fnfc_set_text gave, whose lines it named:
+// name, a tab and pattern, the pattern for the name if name is "" (so
+// that FLTK keeps an earlier one, fltk-issues 178), after a newline if
+// there were filters. The text is kept here, not read back, since a
 // driver's filter() isn't the text it was given (Kdialog's is what it
 // last parsed). 0 if out of memory.
 int32_t ofl_fnfc_add_filter(intptr_t c, const char *name, const char *pattern) {
   Chooser *ch = chooser(c);
   try {
-    std::string t;
-    const std::string &old = ch->filter;
-    std::string::size_type at = 0;
-    while (at < old.size()) {
-      std::string::size_type end = old.find('\n', at);
-      if (end == std::string::npos) end = old.size();
-      std::string line = old.substr(at, end - at);
-      if (!t.empty()) t += '\n';
-      if (!line.empty() && line.find('\t') == std::string::npos) {
-        t += line;
-        t += '\t';
-      }
-      t += line;
-      at = end + 1;
-    }
+    std::string t = ch->filter;
     if (!t.empty()) t += '\n';
     t += *name ? name : pattern;
     t += '\t';
