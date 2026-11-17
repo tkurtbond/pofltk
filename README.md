@@ -219,6 +219,15 @@ the system's colours; `Show` does neither.
   - `Demo`: FLTK's launcher, which starts the other ports from the
     menus of `examples/Demo.menu` (`Demo Demo.menu`, in `examples/`).
 
+For a complete program built on pofltk, see
+[ova_cg_po](https://github.com/tkurtbond/ova_cg_po), a character
+generator for the OVA role-playing game: a menu bar, tabs, grids,
+browsers, text editors, an image, file choosers, preferences and window
+tests with `FlTest`. Its
+[tour for pofltk readers](https://github.com/tkurtbond/ova_cg_po/blob/main/doc/pofltk-tour.md)
+says where in its code each is, and its README how to build it from
+scratch.
+
 ## Modules
 
 | Module | Contents |
@@ -491,6 +500,9 @@ Without a window manager, X11 shows a window when a widget in it takes
 the focus, as a clicked button does; a test that cares turns its
 `SetVisibleFocus` off. A test must delete its windows, or valgrind
 counts them as leaks. FlTest's module comment lists the pitfalls.
+ova_cg_po's window tests
+([the tour's "The tests"](https://github.com/tkurtbond/ova_cg_po/blob/main/doc/pofltk-tour.md#the-tests))
+test a whole program this way.
 
 ## FLTK's problems
 
