@@ -333,7 +333,10 @@ $(GLULIBDIR)/$(GLULIBRARY)-%.stamp: $(GLUSRC) $(LIBDIR)/$(LIBRARY)-%.stamp
 	touch $@
 
 # The -I and -D flags go on for the C++ parts of test and example modules.
-USELIB = -library-path $(LIBDIR) $(MORE) $(CFLAGS)
+# FLTK's come before MORE's: pkg-config's flags for cairo or GLEW can name
+# a directory that holds another FLTK's headers too (/usr/local/include on
+# an OpenBSD with the fltk package as well as FLTK_CONFIG's FLTK).
+USELIB = -library-path $(LIBDIR) $(CFLAGS) $(MORE)
 
 $(BUILD)/Test%: test/Test%.Mod test/Check.Mod $(LIBDIR)/$(LIBRARY)-OC.stamp $(TESTSRC) | $(BUILD)
 	$(POC) $(POCFLAGS) -import-path test -output-dir $(BUILD) $(USELIB) -o $@ $<
